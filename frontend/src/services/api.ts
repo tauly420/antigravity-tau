@@ -134,6 +134,17 @@ export const fitData = async (data: {
     return response.data;
 };
 
+export const parseFile = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/fitting/parse', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};
+
 // Assistant API
 export const chatWithAssistant = async (data: {
     message: string;
