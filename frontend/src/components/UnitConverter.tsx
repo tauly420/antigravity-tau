@@ -119,7 +119,7 @@ function UnitConverter() {
                 </div>
 
                 <div className="form-group">
-                    <label>To</label>
+                    <label>To {loading && <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: 'normal' }}>(Converting...)</span>}</label>
                     <div style={{
                         padding: '0.75rem',
                         background: '#f5f5f5',
