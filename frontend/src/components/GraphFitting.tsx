@@ -69,7 +69,7 @@ function GraphFitting() {
             setError(err.response?.data?.error || err.message || 'Failed to parse file');
         } finally {
             setLoading(false);
-            // Reset input
+            // Reset input by clearing the value
             e.target.value = '';
         }
     };
@@ -127,8 +127,9 @@ function GraphFitting() {
                     <label>Model</label>
                     <select value={model} onChange={(e) => setModel(e.target.value)}>
                         <option value="linear">Linear (y = mx + c)</option>
-                        <option value="polynomial">Polynomial (Degree 2)</option>
-                        <option value="power_law">Power Law (y = a*x^b)</option>
+                        <option value="quadratic">Quadratic (y = ax^2 + bx + c)</option>
+                        <option value="cubic">Cubic (y = ax^3 + ...)</option>
+                        <option value="power">Power Law (y = a*x^b)</option>
                         <option value="exponential">Exponential (y = a*e^(bx))</option>
                         <option value="custom">Custom Expression</option>
                     </select>
@@ -170,13 +171,16 @@ function GraphFitting() {
                     <div className="result-box success">
                         <h3>Fit Results</h3>
                         <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '1rem', marginTop: '1rem' }}>
-                            {Object.entries(result.params).map(([key, val]: [string, any]) => (
-                                <div key={key}>
-                                    <strong>{key}:</strong> {val.toFixed(4)} ± {result.errors[key]?.toFixed(4)}
+                            <div style={{ gridColumn: '1 / -1', marginBottom: '0.5rem' }}>
+                                <strong>Model:</strong> {result.model_name}
+                            </div>
+                            {result.parameter_names && result.parameters.map((val: number, idx: number) => (
+                                <div key={idx}>
+                                    <strong>{result.parameter_names[idx]}:</strong> {val.toFixed(4)} ± {result.uncertainties[idx]?.toFixed(4)}
                                 </div>
                             ))}
                             <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem', borderTop: '1px solid #ddd', paddingTop: '0.5rem' }}>
-                                <strong>Reduced Chi-Square:</strong> {result.reduced_chi_sq.toFixed(4)}
+                                <strong>Reduced Chi-Square:</strong> {result.chi_squared.toFixed(4)}
                             </div>
                             <div style={{ gridColumn: '1 / -1' }}>
                                 <strong>R-Squared:</strong> {result.r_squared.toFixed(4)}
@@ -188,11 +192,11 @@ function GraphFitting() {
                         <Plot
                             data={[
                                 {
-                                    x: result.data.x,
-                                    y: result.data.y,
+                                    x: result.data ? result.data.x : xData.split(/[,\s]+/).map(parseFloat),
+                                    y: result.data ? result.data.y : yData.split(/[,\s]+/).map(parseFloat),
                                     error_y: {
                                         type: 'data',
-                                        array: result.data.y_err,
+                                        array: result.data ? result.data.y_err : undefined,
                                         visible: true
                                     },
                                     mode: 'markers',
@@ -200,8 +204,8 @@ function GraphFitting() {
                                     name: 'Data'
                                 },
                                 {
-                                    x: result.fit.x,
-                                    y: result.fit.y,
+                                    x: result.x_fit,
+                                    y: result.y_fit,
                                     mode: 'lines',
                                     type: 'scatter',
                                     name: 'Best Fit',
@@ -213,7 +217,8 @@ function GraphFitting() {
                                 xaxis: { title: 'X Data' },
                                 yaxis: { title: 'Y Data' },
                                 autosize: true,
-                                margin: { l: 50, r: 20, t: 50, b: 50 }
+                                margin: { l: 50, r: 20, t: 50, b: 50 },
+                                legend: { x: 0, y: 1 }
                             }}
                             useResizeHandler={true}
                             style={{ width: '100%', height: '500px' }}
