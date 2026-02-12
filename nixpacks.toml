@@ -4,10 +4,13 @@ nixPkgs = ['python3', 'nodejs_23']
 [phases.install]
 cmds = [
     'python3 -m venv .venv',
-    '. .venv/bin/activate && pip install --upgrade pip',
-    '. .venv/bin/activate && pip install -r requirements.txt',
-    'cd frontend && npm install --legacy-peer-deps && npm run build'
+    '.venv/bin/pip install --upgrade pip',
+    '.venv/bin/pip install -r requirements.txt',
+    'cd frontend && npm install --legacy-peer-deps'
 ]
+
+[phases.build]
+cmds = ['cd frontend && npm run build']
 
 [start]
 cmd = '. .venv/bin/activate && cd backend && python app.py'
