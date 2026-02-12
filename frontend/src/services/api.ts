@@ -1,0 +1,149 @@
+import axios from 'axios';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+const api = axios.create({
+    baseURL: API_BASE_URL,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+// Formula API
+export const evaluateFormula = async (data: {
+    expression: string;
+    is_latex: boolean;
+    variables: Record<string, number>;
+    uncertainties: Record<string, number>;
+}) => {
+    const response = await api.post('/formula/evaluate', data);
+    return response.data;
+};
+
+// N-Sigma API
+export const calculateNSigma = async (data: {
+    value1: number;
+    uncertainty1: number;
+    value2: number;
+    uncertainty2: number;
+}) => {
+    const response = await api.post('/nsigma/calculate', data);
+    return response.data;
+};
+
+// Units API
+export const convertUnits = async (data: {
+    value: number;
+    from_unit: string;
+    to_unit: string;
+}) => {
+    const response = await api.post('/units/convert', data);
+    return response.data;
+};
+
+export const getUnitCategories = async () => {
+    const response = await api.get('/units/categories');
+    return response.data;
+};
+
+// Matrix API
+export const matrixOperations = async (data: {
+    operation: string;
+    matrix_a: number[][];
+    matrix_b?: number[][];
+}) => {
+    const response = await api.post('/matrix/operations', data);
+    return response.data;
+};
+
+export const solveSystem = async (data: {
+    matrix_a: number[][];
+    vector_b: number[];
+}) => {
+    const response = await api.post('/matrix/solve_system', data);
+    return response.data;
+};
+
+export const calculateDeterminant = async (data: { matrix: number[][] }) => {
+    const response = await api.post('/matrix/determinant', data);
+    return response.data;
+};
+
+export const luDecomposition = async (data: { matrix: number[][] }) => {
+    const response = await api.post('/matrix/lu_decomposition', data);
+    return response.data;
+};
+
+export const findEigenvalues = async (data: { matrix: number[][] }) => {
+    const response = await api.post('/matrix/eigenvalues', data);
+    return response.data;
+};
+
+// ODE API
+export const solveODE = async (data: {
+    function: string;
+    initial_conditions: number[];
+    t_span: [number, number];
+    num_points?: number;
+    method?: string;
+}) => {
+    const response = await api.post('/ode/solve', data);
+    return response.data;
+};
+
+export const getODEMethods = async () => {
+    const response = await api.get('/ode/methods');
+    return response.data;
+};
+
+// Integration API
+export const integrate1D = async (data: {
+    function: string;
+    bounds: [number, number];
+    method?: string;
+}) => {
+    const response = await api.post('/integrate/1d', data);
+    return response.data;
+};
+
+export const integrateMulti = async (data: {
+    function: string;
+    bounds: number[][];
+    condition?: string;
+    num_samples?: number;
+}) => {
+    const response = await api.post('/integrate/multi', data);
+    return response.data;
+};
+
+export const getIntegrationMethods = async () => {
+    const response = await api.get('/integrate/methods');
+    return response.data;
+};
+
+// Fitting API
+export const fitData = async (data: {
+    x_data: number[];
+    y_data: number[];
+    y_errors?: number[];
+    model: string;
+    custom_expr?: string;
+    initial_guess?: number[];
+}) => {
+    const response = await api.post('/fitting/fit', data);
+    return response.data;
+};
+
+// Assistant API
+export const chatWithAssistant = async (data: {
+    message: string;
+    context?: any;
+}) => {
+    const response = await api.post('/assistant/chat', data);
+    return response.data;
+};
+
+export const getAssistantStatus = async () => {
+    const response = await api.get('/assistant/status');
+    return response.data;
+};

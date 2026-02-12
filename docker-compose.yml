@@ -1,0 +1,29 @@
+# file: docker-compose.yml
+services:
+  webapp:
+    build: .
+    image: 'build .' # optional: use your registry image; otherwise 'build: .' is enough
+    ports:
+      - "7860:7860"
+    env_file:
+      - .env
+    environment:
+      - PORT=${PORT:-7860}
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    # Alternatively: n8nio/n8n:latest (Docker Hub)
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=Asia/Jerusalem
+      - TZ=Asia/Jerusalem
+      # If you’ll expose n8n publicly via a domain/reverse proxy, set these later:
+      # - N8N_HOST=automation.example.com
+      # - N8N_PROTOCOL=https
+      # - WEBHOOK_URL=https://automation.example.com
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:

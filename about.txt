@@ -1,0 +1,48 @@
+
+## 👋 Welcome to Tau-LY Lab Tools
+This platform is built to make your lab life easier—whether you’re analyzing raw data, fitting models, calculating uncertainties, or just converting tricky units.
+### 🧪 What You Can Do Here
+* **AI Assistant**   
+  Chat with a Tauly, a built-in assistant for help with physics, lab analysis, or general questions.  
+
+* **Formula Panel** 📝  
+  Enter math or physics formulas (supports LaTeX) and get results with uncertainties.  
+
+* **N-Sigma Panel** 📊  
+  Run statistical significance tests and error analysis.  
+
+* **Graph & Fitting** 📈  
+  Upload data, add error bars, and fit models (linear, polynomial, exponential, etc.).  
+
+* **Unit Conversion** 🔄  
+  Instantly convert between SI and non-SI units (time, length, energy, etc.).  
+
+* **Quick Data Stats** 📑  
+  Get descriptive statistics, uncertainty propagation, and auto-generated summaries.  
+
+* **Workflow** 🛠️  
+  Use the workflow page to utilize all of our features and save precious time!  
+
+### 🚀 How to Get Started
+1. Choose a tool from the **sidebar** or the **homepage buttons**.
+
+2. Upload your data (CSV/Excel) if needed, or enter values manually.
+
+3. Follow on-screen results, graphs, or suggestions.
+
+4. Use the **Home button** 🏠 anytime to return here.
+
+### 💡 Tips
+* Most panels accept **scientific notation** (e.g., `3.2e-5`).
+
+* Use **copyable LaTeX** output for quick report writing.
+
+* If you get stuck writing equations, use the SymPy syntax helper in the sidebar.
+### 🛠️ Behind the Scenes
+This project combines:
+* **Fast data analysis tools** (Python, NumPy, SciPy, pandas).
+* **Interactive graphs** (Matplotlib, error bars, curve fitting).
+* **Custom scientific helpers** (uncertainty handling, unit conversions).
+* **Friendly UI** with a mascot 🧴 (yes, the South-Park-style lab towel).
+
+👉 *Jump in, explore, and let the tools save you time so you can focus on the science.*
