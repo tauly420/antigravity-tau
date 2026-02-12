@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ['python3', 'nodejs']
+nixPkgs = ['python3', 'nodejs-22_x']
 
 [phases.install]
 cmds = [
