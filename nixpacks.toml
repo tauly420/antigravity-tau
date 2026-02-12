@@ -1,11 +1,12 @@
 [phases.setup]
-nixPkgs = ['python39', 'nodejs-18_x']
+nixPkgs = ['python310', 'nodejs-18_x']
 
 [phases.install]
 cmds = [
-    'pip install -r requirements.txt',
+    'python3 -m pip install --upgrade pip',
+    'python3 -m pip install -r requirements.txt',
     'cd frontend && npm install --legacy-peer-deps && npm run build && cd ..'
 ]
 
 [start]
-cmd = 'cd backend && python app.py'
+cmd = 'cd backend && python3 app.py'
