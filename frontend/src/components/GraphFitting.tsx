@@ -50,9 +50,46 @@ function GraphFitting() {
         }
     };
 
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setError('');
+        setLoading(true);
+        try {
+            const data = await api.parseFile(file);
+            setXData(data.x_data.join(', '));
+            setYData(data.y_data.join(', '));
+            if (data.y_errors) {
+                setYErrors(data.y_errors.join(', '));
+            } else {
+                setYErrors('');
+            }
+        } catch (err: any) {
+            setError(err.response?.data?.error || err.message || 'Failed to parse file');
+        } finally {
+            setLoading(false);
+            // Reset input
+            e.target.value = '';
+        }
+    };
+
     return (
         <div className="card">
             <h2>Graph & Curve Fitting</h2>
+
+            <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f5f5f5', borderRadius: '8px', border: '1px dashed #ccc' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Import Data from Excel/CSV</label>
+                <input
+                    type="file"
+                    accept=".xlsx, .xls, .csv"
+                    onChange={handleFileUpload}
+                    disabled={loading}
+                />
+                <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.5rem' }}>
+                    Format: 1st column = X, 2nd column = Y, 3rd column = Y Errors (optional)
+                </p>
+            </div>
 
             <div className="grid grid-2">
                 <div className="form-group">

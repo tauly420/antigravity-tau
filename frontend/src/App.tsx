@@ -25,14 +25,6 @@ function App() {
 
         <nav className="nav-bar">
           <Link to="/" className="nav-link">Home</Link>
-          <Link to="/formula" className="nav-link">Formula</Link>
-          <Link to="/matrix" className="nav-link">Matrix</Link>
-          <Link to="/ode" className="nav-link">ODE</Link>
-          <Link to="/integrator" className="nav-link">Integrator</Link>
-          <Link to="/fitting" className="nav-link">Graph & Fit</Link>
-          <Link to="/nsigma" className="nav-link">N-Sigma</Link>
-          <Link to="/units" className="nav-link">Units</Link>
-          <Link to="/assistant" className="nav-link">AI Assistant</Link>
         </nav>
 
         <main className="main-content">

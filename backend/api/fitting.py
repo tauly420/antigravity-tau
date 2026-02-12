@@ -10,6 +10,56 @@ from sympy import sympify, symbols, lambdify
 
 fitting_bp = Blueprint('fitting', __name__)
 
+@fitting_bp.route('/parse', methods=['POST'])
+def parse_file():
+    """
+    Parse uploaded Excel or CSV file and return data columns.
+    Expected: file in 'file' field.
+    """
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file part"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+            
+        import pandas as pd
+        
+        # Determine file type
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(file)
+        elif file.filename.endswith(('.xls', '.xlsx')):
+            df = pd.read_excel(file)
+        else:
+            return jsonify({"error": "Unsupported file type. Use .csv or .xlsx"}), 400
+            
+        # Basic validation: need at least 2 columns
+        if df.shape[1] < 2:
+            return jsonify({"error": "File must have at least 2 columns (x, y)"}), 400
+            
+        # Clean data: drop NaN
+        df = df.dropna()
+        
+        # Extract columns (assume first is X, second is Y, third is Error if exists)
+        # Convert to list ensuring native python types (float)
+        x_col = df.iloc[:, 0].astype(float).tolist()
+        y_col = df.iloc[:, 1].astype(float).tolist()
+        
+        response = {
+            "x_data": x_col,
+            "y_data": y_col
+        }
+        
+        if df.shape[1] >= 3:
+            y_err_col = df.iloc[:, 2].astype(float).tolist()
+            response["y_errors"] = y_err_col
+            
+        return jsonify(response)
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse file: {str(e)}"}), 500
+
 
 @fitting_bp.route('/fit', methods=['POST'])
 def fit():
