@@ -3,6 +3,13 @@ import { Link } from 'react-router-dom';
 function Home() {
     const tools = [
         {
+            title: 'Guided Workflow',
+            path: '/workflow',
+            icon: '🚀',
+            description: 'Step-by-step analysis: Upload -> Fit -> Formula -> N-Sigma',
+            color: '#2979ff'
+        },
+        {
             title: 'Formula Calculator',
             path: '/formula',
             icon: '🧮',

@@ -3,6 +3,7 @@ import './styles/global.css';
 
 // Feature Components
 import Home from './components/Home';
+import Workflow from './components/Workflow';
 import FormulaCalculator from './components/FormulaCalculator';
 import MatrixCalculator from './components/MatrixCalculator';
 import ODESolver from './components/ODESolver';
@@ -30,6 +31,7 @@ function App() {
         <main className="main-content">
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/workflow" element={<Workflow />} />
             <Route path="/formula" element={<FormulaCalculator />} />
             <Route path="/matrix" element={<MatrixCalculator />} />
             <Route path="/ode" element={<ODESolver />} />
