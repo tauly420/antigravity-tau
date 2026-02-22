@@ -7,6 +7,7 @@ const tools = [
         desc: 'Complete lab analysis pipeline: upload data, fit curves, propagate uncertainty, and compare results.',
         path: '/workflow',
         icon: '/Workflow.png',
+        emoji: '🔬',
         color: '#d32f2f',
     },
     {
@@ -14,6 +15,7 @@ const tools = [
         desc: 'Upload data and fit curves with various models. Visualize results with residual plots.',
         path: '/fitting',
         icon: '/graph.png',
+        emoji: '📈',
         color: '#1976d2',
     },
     {
@@ -21,6 +23,7 @@ const tools = [
         desc: 'Evaluate expressions with automatic variable detection and uncertainty propagation.',
         path: '/formula',
         icon: '/formula_panel.png',
+        emoji: '🧮',
         color: '#388e3c',
     },
     {
@@ -28,34 +31,39 @@ const tools = [
         desc: 'Compare two measurements and determine the N-sigma agreement level.',
         path: '/nsigma',
         icon: '/N-sigma.png',
+        emoji: '📊',
         color: '#f57c00',
     },
     {
         title: 'Matrix Calculator',
         desc: 'Perform matrix operations, solve systems, compute eigenvalues and determinants.',
         path: '/matrix',
-        icon: '/tau-ly-icon.png',
+        icon: '',
+        emoji: '🔢',
         color: '#7b1fa2',
     },
     {
         title: 'ODE Solver',
-        desc: 'Solve ordinary differential equations numerically and visualize solutions.',
+        desc: 'Solve ordinary differential equations numerically with phase portraits.',
         path: '/ode',
-        icon: '/tau-ly-icon.png',
+        icon: '',
+        emoji: '🌊',
         color: '#00796b',
     },
     {
         title: 'Numerical Integration',
-        desc: 'Compute definite integrals using numerical methods for 1D and multi-dimensional functions.',
+        desc: 'Compute definite integrals and visualize the area under the curve.',
         path: '/integrator',
-        icon: '/tau-ly-icon.png',
+        icon: '',
+        emoji: '∫',
         color: '#c62828',
     },
     {
         title: 'Unit Converter',
-        desc: 'Convert between measurement units across various categories.',
+        desc: 'Convert between SI, CGS, imperial, and more across 15+ categories.',
         path: '/units',
         icon: '/unit_conversion.png',
+        emoji: '⚖️',
         color: '#1565c0',
     },
 ];
@@ -89,19 +97,27 @@ function Home() {
                             height: '100%',
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                                <img
-                                    src={tool.icon}
-                                    alt={tool.title}
-                                    style={{
-                                        width: '40px',
-                                        height: '40px',
-                                        objectFit: 'contain',
-                                        borderRadius: '6px',
-                                    }}
-                                    onError={(e) => {
-                                        (e.target as HTMLImageElement).style.display = 'none';
-                                    }}
-                                />
+                                {tool.icon ? (
+                                    <img
+                                        src={tool.icon}
+                                        alt={tool.title}
+                                        style={{ width: '40px', height: '40px', objectFit: 'contain', borderRadius: '6px' }}
+                                        onError={(e) => {
+                                            (e.target as HTMLImageElement).style.display = 'none';
+                                            const next = (e.target as HTMLImageElement).nextElementSibling;
+                                            if (next) (next as HTMLElement).style.display = 'flex';
+                                        }}
+                                    />
+                                ) : null}
+                                <span className="tool-emoji" style={{
+                                    display: tool.icon ? 'none' : 'flex',
+                                    width: '40px', height: '40px',
+                                    alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '1.6rem',
+                                    background: `${tool.color}15`,
+                                    borderRadius: '8px',
+                                    flexShrink: 0,
+                                }}>{tool.emoji}</span>
                                 <h3 style={{ margin: 0, color: tool.color }}>{tool.title}</h3>
                             </div>
                             <p style={{ color: '#666', fontSize: '0.9rem', margin: 0, lineHeight: 1.5 }}>

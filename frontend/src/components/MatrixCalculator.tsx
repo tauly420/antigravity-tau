@@ -79,28 +79,7 @@ function MatrixCalculator() {
         setError('');
     };
 
-    const handlePaste = async (t: 'A' | 'B') => {
-        try {
-            const text = await navigator.clipboard.readText();
-            let data: number[][] = [];
-            try {
-                const parsed = JSON.parse(text);
-                if (Array.isArray(parsed) && Array.isArray(parsed[0])) data = parsed;
-            } catch { /* not JSON */ }
-            if (!data.length) {
-                data = text.trim().split('\n').map(line =>
-                    line.trim().split(/[\t,]+/).map(Number)
-                );
-            }
-            if (!data.length || !data[0].length || data.some(row => row.some(isNaN))) {
-                throw new Error('bad');
-            }
-            if (t === 'A') { setRowsA(data.length); setColsA(data[0].length); setMatrixA(data); }
-            else { setRowsB(data.length); setColsB(data[0].length); setMatrixB(data); }
-        } catch {
-            alert('Could not parse clipboard. Use JSON [[1,2],[3,4]] or tab-separated text.');
-        }
-    };
+
 
     // ── Calculate ───────────────────────────────────
     const handleCalculate = async () => {
@@ -170,7 +149,6 @@ function MatrixCalculator() {
                 <button className="small-btn" onClick={() => clearMatrix(which)}>Clear</button>
                 <button className="small-btn" onClick={() => randomizeMatrix(which)}>Random</button>
                 <button className="small-btn" onClick={() => setIdentity(which)}>Identity</button>
-                <button className="small-btn" onClick={() => handlePaste(which)} style={{ background: '#e3f2fd', borderColor: '#2196f3' }}>📋 Paste</button>
             </div>
 
             {/* Bracketed matrix grid */}

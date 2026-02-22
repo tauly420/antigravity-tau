@@ -571,25 +571,28 @@ button:disabled {
     position: fixed;
     bottom: 1.5rem;
     right: 1.5rem;
-    width: 52px;
-    height: 52px;
-    border-radius: 50% !important;
+    height: 48px;
+    min-width: 120px;
+    border-radius: 24px !important;
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%) !important;
     color: white !important;
-    font-size: 1.4rem;
+    font-size: 1rem;
+    font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 16px rgba(21, 101, 192, 0.35) !important;
+    gap: 0.4rem;
+    box-shadow: 0 4px 20px rgba(21, 101, 192, 0.4) !important;
     z-index: 1100;
-    padding: 0 !important;
+    padding: 0 1.25rem !important;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
+    letter-spacing: 0.01em;
 }
 
 .sidebar-toggle:hover {
-    transform: scale(1.08) !important;
-    box-shadow: 0 6px 20px rgba(21, 101, 192, 0.45) !important;
+    transform: scale(1.05) translateY(-2px) !important;
+    box-shadow: 0 6px 24px rgba(21, 101, 192, 0.5) !important;
 }
 
 .sidebar-panel {
