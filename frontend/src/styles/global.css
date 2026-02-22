@@ -1,0 +1,429 @@
+/* Global Styles — Tau-LY Lab Tools */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --background: #FFEBEE;
+    --secondary-background: #7A1C1C;
+    --text: #0B1F14;
+    --primary: #C62828;
+    --accent: #E53935;
+    --success: #2E7D32;
+    --warning: #B7791F;
+    --error: #B00020;
+    --on-primary: #FFFFFF;
+    --border: rgb(108, 117, 125);
+    --muted-text: rgb(108, 117, 125);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--background);
+    color: var(--text);
+    line-height: 1.6;
+}
+
+.app-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Header ────────────────────────────────────── */
+.header {
+    background: linear-gradient(135deg, #b71c1c 0%, #c62828 40%, #d32f2f 100%);
+    color: white;
+    padding: 1.2rem 2rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.2));
+}
+
+.header h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* ── Navigation ────────────────────────────────── */
+.nav-bar {
+    background: var(--secondary-background);
+    padding: 0.75rem 2rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.nav-link {
+    background: transparent;
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    padding: 0.45rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.nav-link.active {
+    background: white;
+    color: var(--secondary-background);
+    border-color: white;
+}
+
+/* ── Main Content ──────────────────────────────── */
+.main-content {
+    flex: 1;
+    padding: 2rem;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* ── Cards ─────────────────────────────────────── */
+.card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.card h2 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    color: var(--primary);
+}
+
+.card h3 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 1.5rem 0 1rem 0;
+    color: var(--text);
+}
+
+/* ── Forms ─────────────────────────────────────── */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+}
+
+.form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+/* ── Buttons ───────────────────────────────────── */
+button,
+.btn {
+    background: var(--primary);
+    color: var(--on-primary);
+    border: 1px solid var(--primary);
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+button:hover,
+.btn:hover {
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-secondary {
+    background: var(--secondary-background);
+    border-color: var(--secondary-background);
+}
+
+.primary-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.primary-btn:hover {
+    background: #b71c1c;
+}
+
+.small-btn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+    background: #f5f5f5;
+    color: #333;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.small-btn:hover {
+    background: #e0e0e0;
+    transform: none;
+    box-shadow: none;
+}
+
+/* ── Grid Layouts ──────────────────────────────── */
+.grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.grid-3 {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+/* ── Result Boxes ──────────────────────────────── */
+.result-box {
+    background: #f5f5f5;
+    border-left: 4px solid var(--primary);
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+.result-box.success {
+    border-left-color: var(--success);
+    background: #f1f8f4;
+}
+
+.result-box.error {
+    border-left-color: var(--error);
+    background: #ffebee;
+}
+
+.result-box.warning {
+    border-left-color: var(--warning);
+    background: #fffbf0;
+}
+
+/* ── Matrix Grid ───────────────────────────────── */
+.matrix-wrapper {
+    display: inline-flex;
+    align-items: stretch;
+    margin: 1rem 0;
+}
+
+.matrix-bracket {
+    width: 8px;
+    border: 3px solid #333;
+    flex-shrink: 0;
+}
+
+.matrix-bracket.left {
+    border-right: none;
+    border-radius: 6px 0 0 6px;
+}
+
+.matrix-bracket.right {
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+}
+
+.matrix-grid {
+    display: grid;
+    gap: 4px;
+    padding: 6px 8px;
+}
+
+.matrix-grid input {
+    width: 60px;
+    height: 36px;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-family: 'Inter', monospace;
+    transition: border-color 0.2s;
+}
+
+.matrix-grid input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(198, 40, 40, 0.15);
+}
+
+/* Legacy flat layout (for compatibility) */
+.matrix-input {
+    display: grid;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.matrix-row {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.matrix-cell {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    text-align: center;
+    font-size: 0.95rem;
+}
+
+/* Result matrix display */
+.result-matrix-cell {
+    width: 60px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e8f5e9;
+    border: 1px solid #c8e6c9;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    font-family: 'Inter', monospace;
+}
+
+/* ── Instructions ──────────────────────────────── */
+.instructions {
+    background: #e3f2fd;
+    border-left: 4px solid #1976d2;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+}
+
+.instructions p {
+    margin: 0.5rem 0;
+}
+
+.instructions code {
+    background: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+/* ── Misc ──────────────────────────────────────── */
+.loading {
+    display: inline-block;
+    text-align: center;
+    padding: 2rem;
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.error-message {
+    color: var(--error);
+    background: #ffebee;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    border-left: 4px solid var(--error);
+}
+
+/* ── Footer ────────────────────────────────────── */
+.footer {
+    text-align: center;
+    padding: 1.5rem 2rem;
+    color: #888;
+    border-top: 1px solid #e0e0e0;
+    margin-top: auto;
+    font-size: 0.9rem;
+}
+
+/* ── Responsive ────────────────────────────────── */
+@media (max-width: 768px) {
+    .header {
+        padding: 1rem;
+    }
+
+    .header h1 {
+        font-size: 1.3rem;
+    }
+
+    .header-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .nav-bar {
+        padding: 0.5rem 1rem;
+    }
+
+    .main-content {
+        padding: 1rem;
+    }
+
+    .card {
+        padding: 1.25rem;
+    }
+
+    .grid-2,
+    .grid-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .matrix-grid input {
+        width: 48px;
+        height: 30px;
+        font-size: 0.8rem;
+    }
+}
