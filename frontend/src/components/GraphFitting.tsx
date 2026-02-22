@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Plot from 'react-plotly.js';
+import Plot from './PlotWrapper';
 import * as api from '../services/api';
 import { useAnalysis } from '../context/AnalysisContext';
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Plot from 'react-plotly.js';
+import Plot from './PlotWrapper';
 import * as api from '../services/api';
 import FormulaCalculator from './FormulaCalculator';
 import NSigmaCalculator from './NSigmaCalculator';
@@ -31,13 +31,13 @@ const STEPS = ['Upload Data', 'Select Columns', 'Fit & Plot', 'Calculate', 'Comp
 type Step = 0 | 1 | 2 | 3 | 4;
 
 const MODELS = [
-    { value: 'linear',      label: 'Linear  (a·x + b)' },
-    { value: 'quadratic',   label: 'Quadratic  (a·x² + b·x + c)' },
-    { value: 'cubic',       label: 'Cubic  (a·x³ + …)' },
-    { value: 'power',       label: 'Power  (a·xᵇ)' },
+    { value: 'linear', label: 'Linear  (a·x + b)' },
+    { value: 'quadratic', label: 'Quadratic  (a·x² + b·x + c)' },
+    { value: 'cubic', label: 'Cubic  (a·x³ + …)' },
+    { value: 'power', label: 'Power  (a·xᵇ)' },
     { value: 'exponential', label: 'Exponential  (a·exp(b·x))' },
-    { value: 'sinusoidal',  label: 'Sinusoidal  (A·sin(ω·x + φ) + D)' },
-    { value: 'custom',      label: 'Custom expression' },
+    { value: 'sinusoidal', label: 'Sinusoidal  (A·sin(ω·x + φ) + D)' },
+    { value: 'custom', label: 'Custom expression' },
 ];
 
 /* ─── Example data: free-fall parabola ─── */
@@ -45,22 +45,22 @@ const EXAMPLE_DATA = {
     name: 'Free Fall (g ≈ 9.81 m/s²)',
     columns: ['Time (s)', 'Height (m)', 'Height Error (m)'],
     rows: [
-        { 'Time (s)': 0.0,  'Height (m)': 0.00, 'Height Error (m)': 0.02 },
-        { 'Time (s)': 0.1,  'Height (m)': 0.05, 'Height Error (m)': 0.02 },
-        { 'Time (s)': 0.2,  'Height (m)': 0.19, 'Height Error (m)': 0.03 },
-        { 'Time (s)': 0.3,  'Height (m)': 0.45, 'Height Error (m)': 0.03 },
-        { 'Time (s)': 0.4,  'Height (m)': 0.77, 'Height Error (m)': 0.04 },
-        { 'Time (s)': 0.5,  'Height (m)': 1.23, 'Height Error (m)': 0.04 },
-        { 'Time (s)': 0.6,  'Height (m)': 1.76, 'Height Error (m)': 0.05 },
-        { 'Time (s)': 0.7,  'Height (m)': 2.42, 'Height Error (m)': 0.05 },
-        { 'Time (s)': 0.8,  'Height (m)': 3.13, 'Height Error (m)': 0.06 },
-        { 'Time (s)': 0.9,  'Height (m)': 3.95, 'Height Error (m)': 0.06 },
-        { 'Time (s)': 1.0,  'Height (m)': 4.89, 'Height Error (m)': 0.07 },
-        { 'Time (s)': 1.1,  'Height (m)': 5.93, 'Height Error (m)': 0.07 },
-        { 'Time (s)': 1.2,  'Height (m)': 7.05, 'Height Error (m)': 0.08 },
-        { 'Time (s)': 1.3,  'Height (m)': 8.28, 'Height Error (m)': 0.08 },
-        { 'Time (s)': 1.4,  'Height (m)': 9.61, 'Height Error (m)': 0.09 },
-        { 'Time (s)': 1.5,  'Height (m)': 11.03, 'Height Error (m)': 0.09 },
+        { 'Time (s)': 0.0, 'Height (m)': 0.00, 'Height Error (m)': 0.02 },
+        { 'Time (s)': 0.1, 'Height (m)': 0.05, 'Height Error (m)': 0.02 },
+        { 'Time (s)': 0.2, 'Height (m)': 0.19, 'Height Error (m)': 0.03 },
+        { 'Time (s)': 0.3, 'Height (m)': 0.45, 'Height Error (m)': 0.03 },
+        { 'Time (s)': 0.4, 'Height (m)': 0.77, 'Height Error (m)': 0.04 },
+        { 'Time (s)': 0.5, 'Height (m)': 1.23, 'Height Error (m)': 0.04 },
+        { 'Time (s)': 0.6, 'Height (m)': 1.76, 'Height Error (m)': 0.05 },
+        { 'Time (s)': 0.7, 'Height (m)': 2.42, 'Height Error (m)': 0.05 },
+        { 'Time (s)': 0.8, 'Height (m)': 3.13, 'Height Error (m)': 0.06 },
+        { 'Time (s)': 0.9, 'Height (m)': 3.95, 'Height Error (m)': 0.06 },
+        { 'Time (s)': 1.0, 'Height (m)': 4.89, 'Height Error (m)': 0.07 },
+        { 'Time (s)': 1.1, 'Height (m)': 5.93, 'Height Error (m)': 0.07 },
+        { 'Time (s)': 1.2, 'Height (m)': 7.05, 'Height Error (m)': 0.08 },
+        { 'Time (s)': 1.3, 'Height (m)': 8.28, 'Height Error (m)': 0.08 },
+        { 'Time (s)': 1.4, 'Height (m)': 9.61, 'Height Error (m)': 0.09 },
+        { 'Time (s)': 1.5, 'Height (m)': 11.03, 'Height Error (m)': 0.09 },
     ],
 };
 

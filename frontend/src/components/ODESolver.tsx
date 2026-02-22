@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Plot from 'react-plotly.js';
+import Plot from './PlotWrapper';
 import * as api from '../services/api';
 
 function ODESolver() {
