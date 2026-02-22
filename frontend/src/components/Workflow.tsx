@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Plot from './PlotWrapper';
 import * as api from '../services/api';
 import FormulaCalculator from './FormulaCalculator';
@@ -25,10 +25,6 @@ interface FitResult {
     residuals: number[];
 }
 interface FormulaResult { value: number; uncertainty: number }
-
-/* stepper labels */
-const STEPS = ['Upload Data', 'Select Columns', 'Fit & Plot', 'Calculate', 'Compare N-σ'] as const;
-type Step = 0 | 1 | 2 | 3 | 4;
 
 const MODELS = [
     { value: 'linear', label: 'Linear  (a·x + b)' },
@@ -65,8 +61,18 @@ const EXAMPLE_DATA = {
 };
 
 function Workflow() {
-    /* ── step state ── */
-    const [step, setStep] = useState<Step>(0);
+    /* which sections are unlocked (cumulative) */
+    const [unlocked, setUnlocked] = useState(1); // starts with section 1 open
+
+    /* refs for auto-scroll */
+    const sec2Ref = useRef<HTMLDivElement>(null);
+    const sec3Ref = useRef<HTMLDivElement>(null);
+    const sec4Ref = useRef<HTMLDivElement>(null);
+    const sec5Ref = useRef<HTMLDivElement>(null);
+
+    const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) => {
+        setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    };
 
     /* step 1 – upload */
     const [file, setFile] = useState<File | null>(null);
@@ -92,15 +98,12 @@ function Workflow() {
     const [fitError, setFitError] = useState('');
     const [fitting, setFitting] = useState(false);
 
-    /* step 4 – formula linked result */
+    /* step 4 – formula */
     const [formulaResult, setFormulaResult] = useState<FormulaResult | null>(null);
 
     /* ──────── LOAD EXAMPLE DATA ──────── */
     const loadExampleData = () => {
-        setParsedData({
-            columns: EXAMPLE_DATA.columns,
-            rows: EXAMPLE_DATA.rows,
-        });
+        setParsedData({ columns: EXAMPLE_DATA.columns, rows: EXAMPLE_DATA.rows });
         setXCol(EXAMPLE_DATA.columns[0]);
         setYCol(EXAMPLE_DATA.columns[1]);
         setYErrCol(EXAMPLE_DATA.columns[2]);
@@ -109,7 +112,8 @@ function Workflow() {
         setYLabel('Height [m]');
         setPlotTitle('Free Fall — Height vs Time');
         setModel('quadratic');
-        setStep(1);
+        setUnlocked(2);
+        scrollTo(sec2Ref);
     };
 
     /* ──────── STEP 1: Upload ──────── */
@@ -120,10 +124,7 @@ function Workflow() {
         try {
             if (f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) {
                 const info = await api.parseFileInfo(f);
-                setFileInfo({
-                    sheetNames: info.sheet_names,
-                    sheetsInfo: info.sheets_info,
-                });
+                setFileInfo({ sheetNames: info.sheet_names, sheetsInfo: info.sheets_info });
                 if (info.sheet_names.length > 0) setSelectedSheet(info.sheet_names[0]);
             } else {
                 const data = await api.parseFileData(f);
@@ -151,12 +152,19 @@ function Workflow() {
                 setXLabel(data.columns[0]);
                 setYLabel(data.columns[1]);
             }
-            setStep(1);
+            setUnlocked(2);
+            scrollTo(sec2Ref);
         } catch (err: any) {
             setUploadError(err.response?.data?.error || err.message || 'Failed to load sheet');
         } finally {
             setUploading(false);
         }
+    };
+
+    /* ──────── STEP 2: Confirm columns ──────── */
+    const confirmColumns = () => {
+        setUnlocked(3);
+        scrollTo(sec3Ref);
     };
 
     /* ──────── STEP 3: Fit ──────── */
@@ -165,7 +173,6 @@ function Workflow() {
         setFitting(true);
         setFitError('');
         setFitResult(null);
-
         try {
             const xData = parsedData.rows.map(r => Number(r[xCol])).filter(v => !isNaN(v));
             const yData = parsedData.rows.map(r => Number(r[yCol])).filter(v => !isNaN(v));
@@ -173,17 +180,15 @@ function Workflow() {
                 ? parsedData.rows.map(r => Number(r[yErrCol])).filter(v => !isNaN(v))
                 : undefined;
 
-            const payload: any = {
-                x_data: xData,
-                y_data: yData,
-                model,
-            };
+            const payload: any = { x_data: xData, y_data: yData, model };
             if (yErrors && yErrors.length === yData.length) payload.y_errors = yErrors;
             if (model === 'custom') payload.custom_expr = customExpr;
 
             const result = await api.fitData(payload);
             if (result.error) throw new Error(result.error);
             setFitResult(result);
+            setUnlocked(4);
+            setTimeout(() => sec4Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
         } catch (err: any) {
             setFitError(err.response?.data?.error || err.message || 'Fitting failed');
         } finally {
@@ -191,50 +196,32 @@ function Workflow() {
         }
     };
 
-    /* ──────── build prefilled map for formula ──────── */
+    /* ──────── prefilled map for formula ──────── */
     const fitPrefilled = (): Record<string, { value: number; uncertainty: number }> => {
         if (!fitResult) return {};
         const map: Record<string, { value: number; uncertainty: number }> = {};
         fitResult.parameter_names.forEach((name, i) => {
-            map[name] = {
-                value: fitResult.parameters[i],
-                uncertainty: fitResult.uncertainties[i],
-            };
+            map[name] = { value: fitResult.parameters[i], uncertainty: fitResult.uncertainties[i] };
         });
         return map;
     };
 
-    /* ──────── helpers for plot data ──────── */
+    /* ──────── plot data helpers ──────── */
     const getPlotData = (): any[] => {
         if (!parsedData || !fitResult) return [];
         const xData = parsedData.rows.map(r => Number(r[xCol]));
         const yData = parsedData.rows.map(r => Number(r[yCol]));
         return [
             {
-                x: xData,
-                y: yData,
-                mode: 'markers' as const,
-                type: 'scatter' as const,
-                name: 'Data',
+                x: xData, y: yData,
+                mode: 'markers' as const, type: 'scatter' as const, name: 'Data',
                 marker: { color: '#1976d2', size: 8, line: { width: 1, color: '#0d47a1' } },
-                error_y: yErrCol !== 'None' ? {
-                    type: 'data' as const,
-                    array: parsedData.rows.map(r => Number(r[yErrCol])),
-                    visible: true,
-                    color: '#1976d2',
-                } : undefined,
-                error_x: xErrCol !== 'None' ? {
-                    type: 'data' as const,
-                    array: parsedData.rows.map(r => Number(r[xErrCol])),
-                    visible: true,
-                    color: '#1976d2',
-                } : undefined,
+                error_y: yErrCol !== 'None' ? { type: 'data' as const, array: parsedData.rows.map(r => Number(r[yErrCol])), visible: true, color: '#1976d2' } : undefined,
+                error_x: xErrCol !== 'None' ? { type: 'data' as const, array: parsedData.rows.map(r => Number(r[xErrCol])), visible: true, color: '#1976d2' } : undefined,
             },
             {
-                x: fitResult.x_fit,
-                y: fitResult.y_fit,
-                mode: 'lines' as const,
-                name: fitResult.model_name,
+                x: fitResult.x_fit, y: fitResult.y_fit,
+                mode: 'lines' as const, name: fitResult.model_name,
                 line: { color: '#d32f2f', width: 2.5 },
             },
         ];
@@ -242,59 +229,42 @@ function Workflow() {
 
     const getResidualData = (): any[] => {
         if (!parsedData || !fitResult) return [];
-        const xData = parsedData.rows.map(r => Number(r[xCol]));
-        return [{
-            x: xData,
-            y: fitResult.residuals,
-            mode: 'markers' as const,
-            type: 'scatter' as const,
-            name: 'Residuals',
-            marker: { color: '#ff7043', size: 7 },
-        }];
+        return [{ x: parsedData.rows.map(r => Number(r[xCol])), y: fitResult.residuals, mode: 'markers' as const, type: 'scatter' as const, name: 'Residuals', marker: { color: '#ff7043', size: 7 } }];
     };
+
+    /* section header helper */
+    const SectionHeader = ({ num, title, isUnlocked }: { num: number; title: string; isUnlocked: boolean }) => (
+        <div className="wf-section-header" style={{ opacity: isUnlocked ? 1 : 0.4 }}>
+            <span className={`wf-num ${isUnlocked ? 'active' : ''}`}>{num}</span>
+            <h3 style={{ margin: 0 }}>{title}</h3>
+            {!isUnlocked && <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#999' }}>🔒 Complete step {num - 1} first</span>}
+        </div>
+    );
 
     /* ──────── RENDER ──────── */
     return (
-        <div className="card workflow-card">
-            <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <img src="/Workflow.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
-                Lab Workflow
-            </h2>
-
-            {/* stepper bar */}
-            <div className="stepper">
-                {STEPS.map((label, i) => (
-                    <button
-                        key={i}
-                        onClick={() => { if (i <= step || i === step + 1) setStep(i as Step); }}
-                        className={`stepper-btn ${i === step ? 'active' : i < step ? 'done' : ''}`}
-                    >
-                        <span className="stepper-num">{i + 1}</span>
-                        <span className="stepper-label">{label}</span>
-                    </button>
-                ))}
+        <div className="workflow-page">
+            <div className="card" style={{ marginBottom: '0' }}>
+                <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                    <img src="/Workflow.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} onError={e => (e.target as HTMLImageElement).style.display = 'none'} />
+                    Lab Workflow
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+                    Complete guided pipeline: upload data → select columns → fit → calculate → compare.
+                </p>
             </div>
 
-            {/* ─── Step 0: Upload ─── */}
-            {step === 0 && (
-                <div className="step-content">
-                    <h3>📂 Upload Your Data</h3>
-                    <p className="step-desc">Upload an Excel (.xlsx) or CSV file, or try our example dataset.</p>
-
-                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-                        <button className="btn-accent" onClick={loadExampleData}>
-                            🧪 Load Example: Free Fall Data
-                        </button>
+            {/* ════ Section 1: Upload ════ */}
+            <div className="wf-section">
+                <SectionHeader num={1} title="Upload Data" isUnlocked={true} />
+                <div className="wf-body">
+                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                        <button className="btn-accent" onClick={loadExampleData}>🧪 Load Example: Free Fall Data</button>
                     </div>
 
                     <div className="form-group">
-                        <label>Choose file</label>
-                        <input
-                            type="file"
-                            accept=".xlsx,.xls,.csv"
-                            onChange={e => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
-                            className="file-input"
-                        />
+                        <label>Or upload an Excel / CSV file</label>
+                        <input type="file" accept=".xlsx,.xls,.csv" onChange={e => e.target.files?.[0] && handleFileSelect(e.target.files[0])} />
                     </div>
 
                     {uploading && <div className="loading-spinner">Loading file…</div>}
@@ -308,260 +278,170 @@ function Workflow() {
                             </select>
                         </div>
                     )}
-
                     {fileInfo && (
                         <div className="sheet-info">
-                            <p>
-                                <strong>Sheets:</strong> {fileInfo.sheetNames.join(', ')}
+                            <p><strong>Sheets:</strong> {fileInfo.sheetNames.join(', ')}
                                 {selectedSheet && fileInfo.sheetsInfo[selectedSheet] && (
                                     <> — <strong>Columns:</strong> {fileInfo.sheetsInfo[selectedSheet].join(', ')}</>
                                 )}
                             </p>
-                            <button onClick={loadSheet} disabled={uploading} className="btn-primary">
-                                Load Data & Continue →
-                            </button>
+                            <button onClick={loadSheet} disabled={uploading} className="btn-primary">Load Data & Continue ↓</button>
                         </div>
                     )}
                 </div>
-            )}
+            </div>
 
-            {/* ─── Step 1: Column selection ─── */}
-            {step === 1 && parsedData && (
-                <div className="step-content">
-                    <h3>📊 Choose Columns & Name Axes</h3>
-                    <p className="step-desc">{parsedData.rows.length} rows loaded. Select which columns to use.</p>
-
-                    <div className="grid grid-2">
-                        <div className="form-group">
-                            <label>X column</label>
-                            <select value={xCol} onChange={e => { setXCol(e.target.value); if (!xLabel) setXLabel(e.target.value); }}>
-                                <option value="">— select —</option>
-                                {parsedData.columns.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
-                        <div className="form-group">
-                            <label>Y column</label>
-                            <select value={yCol} onChange={e => { setYCol(e.target.value); if (!yLabel) setYLabel(e.target.value); }}>
-                                <option value="">— select —</option>
-                                {parsedData.columns.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
-                        <div className="form-group">
-                            <label>X error column <span style={{ opacity: 0.5 }}>(optional)</span></label>
-                            <select value={xErrCol} onChange={e => setXErrCol(e.target.value)}>
-                                <option value="None">None</option>
-                                {parsedData.columns.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
-                        <div className="form-group">
-                            <label>Y error column <span style={{ opacity: 0.5 }}>(optional)</span></label>
-                            <select value={yErrCol} onChange={e => setYErrCol(e.target.value)}>
-                                <option value="None">None</option>
-                                {parsedData.columns.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-3" style={{ marginTop: '1rem' }}>
-                        <div className="form-group">
-                            <label>X axis label</label>
-                            <input value={xLabel} onChange={e => setXLabel(e.target.value)} placeholder="e.g. Time [s]" />
-                        </div>
-                        <div className="form-group">
-                            <label>Y axis label</label>
-                            <input value={yLabel} onChange={e => setYLabel(e.target.value)} placeholder="e.g. Distance [m]" />
-                        </div>
-                        <div className="form-group">
-                            <label>Plot title</label>
-                            <input value={plotTitle} onChange={e => setPlotTitle(e.target.value)} placeholder="e.g. Position vs Time" />
-                        </div>
-                    </div>
-
-                    <div className="step-actions">
-                        <button onClick={() => setStep(0)} className="btn-secondary">← Back</button>
-                        <button onClick={() => setStep(2)} disabled={!xCol || !yCol} className="btn-primary">Continue to Fit →</button>
-                    </div>
-                </div>
-            )}
-
-            {/* ─── Step 2: Fit ─── */}
-            {step === 2 && (
-                <div className="step-content">
-                    <h3>📈 Curve Fitting</h3>
-
-                    <div className="grid grid-2">
-                        <div className="form-group">
-                            <label>Fit model</label>
-                            <select value={model} onChange={e => setModel(e.target.value)}>
-                                {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                            </select>
-                        </div>
-                        {model === 'custom' && (
+            {/* ════ Section 2: Columns ════ */}
+            <div className="wf-section" ref={sec2Ref} style={{ opacity: unlocked >= 2 ? 1 : 0.4, pointerEvents: unlocked >= 2 ? 'auto' : 'none' }}>
+                <SectionHeader num={2} title="Select Columns & Name Axes" isUnlocked={unlocked >= 2} />
+                {unlocked >= 2 && parsedData && (
+                    <div className="wf-body">
+                        <p className="step-desc">{parsedData.rows.length} rows loaded.</p>
+                        <div className="grid grid-2">
                             <div className="form-group">
-                                <label>Custom expression (use <code>x</code> as variable)</label>
-                                <input
-                                    value={customExpr}
-                                    onChange={e => setCustomExpr(e.target.value)}
-                                    placeholder="e.g. a*sin(b*x) + c*x**2"
-                                    style={{ fontFamily: 'monospace' }}
-                                />
+                                <label>X column</label>
+                                <select value={xCol} onChange={e => { setXCol(e.target.value); if (!xLabel || xLabel === xCol) setXLabel(e.target.value); }}>
+                                    <option value="">— select —</option>
+                                    {parsedData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
                             </div>
-                        )}
+                            <div className="form-group">
+                                <label>Y column</label>
+                                <select value={yCol} onChange={e => { setYCol(e.target.value); if (!yLabel || yLabel === yCol) setYLabel(e.target.value); }}>
+                                    <option value="">— select —</option>
+                                    {parsedData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>X error <span style={{ opacity: 0.5 }}>(opt.)</span></label>
+                                <select value={xErrCol} onChange={e => setXErrCol(e.target.value)}>
+                                    <option value="None">None</option>
+                                    {parsedData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Y error <span style={{ opacity: 0.5 }}>(opt.)</span></label>
+                                <select value={yErrCol} onChange={e => setYErrCol(e.target.value)}>
+                                    <option value="None">None</option>
+                                    {parsedData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="grid grid-3" style={{ marginTop: '0.75rem' }}>
+                            <div className="form-group"><label>X axis</label><input value={xLabel} onChange={e => setXLabel(e.target.value)} placeholder="e.g. Time [s]" /></div>
+                            <div className="form-group"><label>Y axis</label><input value={yLabel} onChange={e => setYLabel(e.target.value)} placeholder="e.g. Distance [m]" /></div>
+                            <div className="form-group"><label>Plot title</label><input value={plotTitle} onChange={e => setPlotTitle(e.target.value)} placeholder="e.g. Position vs Time" /></div>
+                        </div>
+                        <button onClick={confirmColumns} disabled={!xCol || !yCol} className="btn-primary" style={{ marginTop: '1rem' }}>
+                            Confirm Columns ↓
+                        </button>
                     </div>
+                )}
+            </div>
 
-                    <div className="step-actions" style={{ marginTop: '1rem' }}>
-                        <button onClick={() => setStep(1)} className="btn-secondary">← Back</button>
-                        <button onClick={handleFit} disabled={fitting} className="btn-primary">
+            {/* ════ Section 3: Fit ════ */}
+            <div className="wf-section" ref={sec3Ref} style={{ opacity: unlocked >= 3 ? 1 : 0.4, pointerEvents: unlocked >= 3 ? 'auto' : 'none' }}>
+                <SectionHeader num={3} title="Curve Fitting" isUnlocked={unlocked >= 3} />
+                {unlocked >= 3 && (
+                    <div className="wf-body">
+                        <div className="grid grid-2">
+                            <div className="form-group">
+                                <label>Fit model</label>
+                                <select value={model} onChange={e => setModel(e.target.value)}>
+                                    {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                                </select>
+                            </div>
+                            {model === 'custom' && (
+                                <div className="form-group">
+                                    <label>Custom expression (use <code>x</code>)</label>
+                                    <input value={customExpr} onChange={e => setCustomExpr(e.target.value)} placeholder="e.g. a*sin(b*x)+c" style={{ fontFamily: 'monospace' }} />
+                                </div>
+                            )}
+                        </div>
+                        <button onClick={handleFit} disabled={fitting} className="btn-primary" style={{ marginTop: '0.75rem' }}>
                             {fitting ? '⏳ Fitting…' : '▶ Run Fit'}
                         </button>
+                        {fitError && <div className="error-message" style={{ marginTop: '1rem' }}>{fitError}</div>}
+
+                        {fitResult && (
+                            <>
+                                <div className="params-table-wrap">
+                                    <h4>Fit Parameters — {fitResult.model_name}</h4>
+                                    <table className="params-table">
+                                        <thead><tr><th>Param</th><th>Value</th><th>± Uncertainty</th></tr></thead>
+                                        <tbody>
+                                            {fitResult.parameter_names.map((name, i) => (
+                                                <tr key={name}>
+                                                    <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{name}</td>
+                                                    <td style={{ fontFamily: 'monospace' }}>{fitResult.parameters[i].toExponential(4)}</td>
+                                                    <td style={{ fontFamily: 'monospace' }}>{fitResult.uncertainties[i].toExponential(4)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    <p className="fit-stats">R² = {fitResult.r_squared.toFixed(6)} &nbsp;|&nbsp; χ²/dof = {fitResult.chi_squared.toFixed(4)}</p>
+                                </div>
+
+                                <Plot data={getPlotData()} layout={{
+                                    title: { text: plotTitle || 'Data + Fit' },
+                                    xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#e0e0e0' },
+                                    yaxis: { title: { text: yLabel || 'Y' }, gridcolor: '#e0e0e0' },
+                                    height: 450, legend: { x: 0, y: 1.15, orientation: 'h' as const },
+                                    margin: { l: 65, r: 30, t: 55, b: 60 }, plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
+                                }} useResizeHandler style={{ width: '100%' }} config={{ responsive: true, displaylogo: false, toImageButtonOptions: { format: 'png' as any, filename: plotTitle || 'fit_plot', height: 800, width: 1200, scale: 2 } }} />
+
+                                <Plot data={getResidualData()} layout={{
+                                    title: { text: 'Residuals' },
+                                    xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#e0e0e0' },
+                                    yaxis: { title: { text: 'Residual' }, gridcolor: '#e0e0e0' },
+                                    height: 280, margin: { l: 65, r: 30, t: 40, b: 55 }, plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
+                                    shapes: [{ type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 0, y1: 0, line: { color: '#888', width: 1, dash: 'dash' } }],
+                                }} useResizeHandler style={{ width: '100%' }} config={{ responsive: true, displaylogo: false }} />
+
+                                <p style={{ color: '#888', fontSize: '0.85rem' }}>📷 Use the camera icon on each plot to download as PNG.</p>
+                            </>
+                        )}
                     </div>
+                )}
+            </div>
 
-                    {fitError && <div className="error-message" style={{ marginTop: '1rem' }}>{fitError}</div>}
-
-                    {fitResult && (
-                        <>
-                            {/* Parameters table */}
-                            <div className="params-table-wrap">
-                                <h4>Fit Parameters — {fitResult.model_name}</h4>
-                                <table className="params-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Parameter</th>
-                                            <th>Value</th>
-                                            <th>± Uncertainty</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {fitResult.parameter_names.map((name, i) => (
-                                            <tr key={name}>
-                                                <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{name}</td>
-                                                <td style={{ fontFamily: 'monospace' }}>{fitResult.parameters[i].toExponential(4)}</td>
-                                                <td style={{ fontFamily: 'monospace' }}>{fitResult.uncertainties[i].toExponential(4)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                <p className="fit-stats">
-                                    R² = {fitResult.r_squared.toFixed(6)} &nbsp;|&nbsp; χ²/dof = {fitResult.chi_squared.toFixed(4)}
-                                </p>
-                            </div>
-
-                            {/* Main plot — with download button via Plotly config */}
-                            <div style={{ marginTop: '1.5rem' }}>
-                                <Plot
-                                    data={getPlotData()}
-                                    layout={{
-                                        title: { text: plotTitle || 'Data + Fit' },
-                                        xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#e0e0e0' },
-                                        yaxis: { title: { text: yLabel || 'Y' }, gridcolor: '#e0e0e0' },
-                                        height: 450,
-                                        legend: { x: 0, y: 1.15, orientation: 'h' as const },
-                                        margin: { l: 65, r: 30, t: 55, b: 60 },
-                                        plot_bgcolor: '#fafafa',
-                                        paper_bgcolor: '#fff',
-                                    }}
-                                    useResizeHandler
-                                    style={{ width: '100%' }}
-                                    config={{
-                                        responsive: true,
-                                        toImageButtonOptions: {
-                                            format: 'png',
-                                            filename: plotTitle || 'fit_plot',
-                                            height: 800,
-                                            width: 1200,
-                                            scale: 2,
-                                        },
-                                        displaylogo: false,
-                                        modeBarButtonsToAdd: ['toImage' as any],
-                                    }}
-                                />
-                            </div>
-
-                            {/* Residuals plot */}
-                            <div style={{ marginTop: '1rem' }}>
-                                <Plot
-                                    data={getResidualData()}
-                                    layout={{
-                                        title: { text: 'Residuals' },
-                                        xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#e0e0e0' },
-                                        yaxis: { title: { text: 'Residual (data − fit)' }, gridcolor: '#e0e0e0' },
-                                        height: 300,
-                                        margin: { l: 65, r: 30, t: 40, b: 55 },
-                                        plot_bgcolor: '#fafafa',
-                                        paper_bgcolor: '#fff',
-                                        shapes: [{
-                                            type: 'line',
-                                            x0: 0, x1: 1, xref: 'paper',
-                                            y0: 0, y1: 0,
-                                            line: { color: '#888', width: 1, dash: 'dash' }
-                                        }],
-                                    }}
-                                    useResizeHandler
-                                    style={{ width: '100%' }}
-                                    config={{ responsive: true, displaylogo: false }}
-                                />
-                            </div>
-
-                            <p style={{ color: '#888', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-                                💡 Use the 📷 camera icon on the top-right of each plot to download as PNG.
-                            </p>
-
-                            <div className="step-actions" style={{ marginTop: '1rem' }}>
-                                <button onClick={() => setStep(3)} className="btn-primary">
-                                    Continue to Formula →
-                                </button>
-                            </div>
-                        </>
-                    )}
-                </div>
-            )}
-
-            {/* ─── Step 3: Formula calculator (embedded) ─── */}
-            {step === 3 && (
-                <div className="step-content">
-                    <h3>🧮 Formula Calculator</h3>
-                    <p className="step-desc">
-                        Fit parameters are auto-loaded. Write any expression combining them.
-                    </p>
-
-                    <FormulaCalculator
-                        embedded
-                        prefilled={fitPrefilled()}
-                        onResult={(val, unc) => setFormulaResult({ value: val, uncertainty: unc })}
-                    />
-
-                    <div className="step-actions">
-                        <button onClick={() => setStep(2)} className="btn-secondary">← Back to Fit</button>
-                        <button onClick={() => setStep(4)} disabled={!formulaResult} className="btn-primary">
-                            Continue to N-σ →
-                        </button>
+            {/* ════ Section 4: Formula ════ */}
+            <div className="wf-section" ref={sec4Ref} style={{ opacity: unlocked >= 4 ? 1 : 0.4, pointerEvents: unlocked >= 4 ? 'auto' : 'none' }}>
+                <SectionHeader num={4} title="Formula Calculator" isUnlocked={unlocked >= 4} />
+                {unlocked >= 4 && (
+                    <div className="wf-body">
+                        <p className="step-desc">Fit parameters are available — type them in your expression and they'll auto-fill.</p>
+                        <FormulaCalculator
+                            embedded
+                            prefilled={fitPrefilled()}
+                            onResult={(val, unc) => {
+                                setFormulaResult({ value: val, uncertainty: unc });
+                                setUnlocked(u => Math.max(u, 5));
+                                setTimeout(() => sec5Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+                            }}
+                        />
                     </div>
-                </div>
-            )}
+                )}
+            </div>
 
-            {/* ─── Step 4: N-Sigma (embedded) ─── */}
-            {step === 4 && (
-                <div className="step-content">
-                    <h3>⚖️ N-σ Comparison</h3>
-                    {formulaResult && (
-                        <div className="prefilled-banner">
-                            <strong>From formula:</strong>{' '}
-                            {formulaResult.value.toExponential(4)} ± {formulaResult.uncertainty.toExponential(4)}
-                        </div>
-                    )}
-
-                    <NSigmaCalculator
-                        prefilled1={formulaResult ? { value: formulaResult.value, uncertainty: formulaResult.uncertainty } : undefined}
-                    />
-
-                    <div className="step-actions">
-                        <button onClick={() => setStep(3)} className="btn-secondary">← Back</button>
-                        <button onClick={() => { setStep(0); setFitResult(null); setFormulaResult(null); setParsedData(null); setFile(null); setFileInfo(null); }} className="btn-accent">
+            {/* ════ Section 5: N-Sigma ════ */}
+            <div className="wf-section" ref={sec5Ref} style={{ opacity: unlocked >= 5 ? 1 : 0.4, pointerEvents: unlocked >= 5 ? 'auto' : 'none' }}>
+                <SectionHeader num={5} title="N-σ Comparison" isUnlocked={unlocked >= 5} />
+                {unlocked >= 5 && (
+                    <div className="wf-body">
+                        {formulaResult && (
+                            <div className="prefilled-banner">
+                                <strong>From formula:</strong> {formulaResult.value.toExponential(4)} ± {formulaResult.uncertainty.toExponential(4)}
+                            </div>
+                        )}
+                        <NSigmaCalculator prefilled1={formulaResult ? { value: formulaResult.value, uncertainty: formulaResult.uncertainty } : undefined} />
+                        <button onClick={() => { setUnlocked(1); setFitResult(null); setFormulaResult(null); setParsedData(null); setFile(null); setFileInfo(null); }}
+                            className="btn-accent" style={{ marginTop: '1.5rem' }}>
                             🔄 Start New Workflow
                         </button>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 }

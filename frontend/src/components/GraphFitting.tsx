@@ -3,65 +3,176 @@ import Plot from './PlotWrapper';
 import * as api from '../services/api';
 import { useAnalysis } from '../context/AnalysisContext';
 
-function GraphFitting() {
-    const [xData, setXData] = useState<string>('1, 2, 3, 4, 5');
-    const [yData, setYData] = useState<string>('2.1, 3.9, 6.2, 7.8, 10.1');
-    const [yErrors, setYErrors] = useState<string>('');
-    const [xErrors, setXErrors] = useState<string>(''); // New X-Error state
-    const [model, setModel] = useState<string>('linear');
-    const [customExpr, setCustomExpr] = useState<string>('a*x + b');
-    const [initialGuess, setInitialGuess] = useState<string>('');
-    const [result, setResult] = useState<any>(null);
-    const [error, setError] = useState<string>('');
-    const [loading, setLoading] = useState<boolean>(false);
+/* ─── types ─── */
+interface ParsedData {
+    columns: string[];
+    rows: Record<string, any>[];
+    sheetNames: string[];
+}
 
-    // AI Context
+interface FitResult {
+    parameters: number[];
+    uncertainties: number[];
+    parameter_names: string[];
+    r_squared: number;
+    chi_squared: number;
+    model_name: string;
+    x_fit: number[];
+    y_fit: number[];
+    residuals: number[];
+}
+
+const MODELS = [
+    { value: 'linear', label: 'Linear  (a·x + b)' },
+    { value: 'quadratic', label: 'Quadratic  (a·x² + b·x + c)' },
+    { value: 'cubic', label: 'Cubic  (a·x³ + …)' },
+    { value: 'power', label: 'Power  (a·xᵇ)' },
+    { value: 'exponential', label: 'Exponential  (a·exp(b·x))' },
+    { value: 'sinusoidal', label: 'Sinusoidal  (A·sin(ω·x + φ) + D)' },
+    { value: 'custom', label: 'Custom expression' },
+];
+
+/* Example data: Hooke's Law */
+const EXAMPLE_DATA = {
+    name: "Hooke's Law (F = k·x)",
+    columns: ['Extension (m)', 'Force (N)', 'Force Error (N)'],
+    rows: [
+        { 'Extension (m)': 0.01, 'Force (N)': 0.51, 'Force Error (N)': 0.05 },
+        { 'Extension (m)': 0.02, 'Force (N)': 0.98, 'Force Error (N)': 0.05 },
+        { 'Extension (m)': 0.03, 'Force (N)': 1.52, 'Force Error (N)': 0.06 },
+        { 'Extension (m)': 0.04, 'Force (N)': 2.05, 'Force Error (N)': 0.06 },
+        { 'Extension (m)': 0.05, 'Force (N)': 2.48, 'Force Error (N)': 0.07 },
+        { 'Extension (m)': 0.06, 'Force (N)': 3.02, 'Force Error (N)': 0.07 },
+        { 'Extension (m)': 0.07, 'Force (N)': 3.55, 'Force Error (N)': 0.08 },
+        { 'Extension (m)': 0.08, 'Force (N)': 4.01, 'Force Error (N)': 0.08 },
+        { 'Extension (m)': 0.09, 'Force (N)': 4.53, 'Force Error (N)': 0.09 },
+        { 'Extension (m)': 0.10, 'Force (N)': 5.05, 'Force Error (N)': 0.09 },
+    ],
+};
+
+function GraphFitting() {
+    const [parsedData, setParsedData] = useState<ParsedData | null>(null);
+    const [fileInfo, setFileInfo] = useState<{ sheetNames: string[]; sheetsInfo: Record<string, string[]> } | null>(null);
+    const [selectedSheet, setSelectedSheet] = useState('');
+    const [file, setFile] = useState<File | null>(null);
+
+    const [xCol, setXCol] = useState('');
+    const [yCol, setYCol] = useState('');
+    const [xErrCol, setXErrCol] = useState('None');
+    const [yErrCol, setYErrCol] = useState('None');
+    const [xLabel, setXLabel] = useState('');
+    const [yLabel, setYLabel] = useState('');
+    const [plotTitle, setPlotTitle] = useState('');
+
+    const [model, setModel] = useState('linear');
+    const [customExpr, setCustomExpr] = useState('');
+    const [initialGuess, setInitialGuess] = useState('');
+    const [result, setResult] = useState<FitResult | null>(null);
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
+
     const { setLastResult, setCurrentTool, setCurrentData, addToHistory } = useAnalysis();
 
-    useEffect(() => {
-        setCurrentTool('Curve Fitting');
-    }, []);
+    useEffect(() => { setCurrentTool('Curve Fitting'); }, []);
 
+    /* Example data loader */
+    const loadExample = () => {
+        setParsedData({ columns: EXAMPLE_DATA.columns, rows: EXAMPLE_DATA.rows, sheetNames: ['Example'] });
+        setXCol(EXAMPLE_DATA.columns[0]);
+        setYCol(EXAMPLE_DATA.columns[1]);
+        setYErrCol(EXAMPLE_DATA.columns[2]);
+        setXErrCol('None');
+        setXLabel('Extension [m]');
+        setYLabel('Force [N]');
+        setPlotTitle("Hooke's Law — Force vs Extension");
+        setModel('linear');
+    };
+
+    /* File upload */
+    const handleFileSelect = async (f: File) => {
+        setFile(f);
+        setError('');
+        setUploading(true);
+        try {
+            if (f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) {
+                const info = await api.parseFileInfo(f);
+                setFileInfo({ sheetNames: info.sheet_names, sheetsInfo: info.sheets_info });
+                if (info.sheet_names.length > 0) setSelectedSheet(info.sheet_names[0]);
+                // If only one sheet, auto-load
+                if (info.sheet_names.length === 1) {
+                    const data = await api.parseFileData(f, info.sheet_names[0]);
+                    setParsedData({ columns: data.columns, rows: data.rows, sheetNames: info.sheet_names });
+                    autoSelectCols(data.columns);
+                }
+            } else {
+                const data = await api.parseFileData(f);
+                setParsedData({ columns: data.columns, rows: data.rows, sheetNames: ['Sheet1'] });
+                autoSelectCols(data.columns);
+            }
+        } catch (err: any) {
+            setError(err.response?.data?.error || err.message || 'Upload failed');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const loadSheet = async () => {
+        if (!file || !selectedSheet) return;
+        setUploading(true);
+        try {
+            const data = await api.parseFileData(file, selectedSheet);
+            setParsedData({ columns: data.columns, rows: data.rows, sheetNames: fileInfo?.sheetNames || [] });
+            autoSelectCols(data.columns);
+        } catch (err: any) {
+            setError(err.response?.data?.error || err.message || 'Failed to load sheet');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const autoSelectCols = (cols: string[]) => {
+        if (cols.length >= 2) {
+            setXCol(cols[0]);
+            setYCol(cols[1]);
+            setXLabel(cols[0]);
+            setYLabel(cols[1]);
+        }
+    };
+
+    /* Fit */
     const handleFit = async () => {
+        if (!parsedData || !xCol || !yCol) return;
         setError('');
         setResult(null);
         setLoading(true);
 
         try {
-            // Parse data
-            const x = xData.split(/[,\s]+/).map(parseFloat).filter(n => !isNaN(n));
-            const y = yData.split(/[,\s]+/).map(parseFloat).filter(n => !isNaN(n));
-            const yErr = yErrors ? yErrors.split(/[,\s]+/).map(parseFloat).filter(n => !isNaN(n)) : undefined;
-            const xErr = xErrors ? xErrors.split(/[,\s]+/).map(parseFloat).filter(n => !isNaN(n)) : undefined;
-            const guess = initialGuess ? initialGuess.split(/[,\s]+/).map(parseFloat).filter(n => !isNaN(n)) : undefined;
+            const xData = parsedData.rows.map(r => Number(r[xCol])).filter(v => !isNaN(v));
+            const yData = parsedData.rows.map(r => Number(r[yCol])).filter(v => !isNaN(v));
+            const yErrors = yErrCol !== 'None' ? parsedData.rows.map(r => Number(r[yErrCol])).filter(v => !isNaN(v)) : undefined;
 
-            if (x.length !== y.length) {
-                throw new Error(`Data mismatch: X has ${x.length} points, Y has ${y.length} points.`);
-            }
+            if (xData.length !== yData.length) throw new Error(`X has ${xData.length} pts, Y has ${yData.length}`);
+            if (xData.length < 2) throw new Error('Need at least 2 data points');
 
-            if (x.length < 2) {
-                throw new Error('Need at least 2 data points');
-            }
+            setCurrentData({ xData, yData, yErrors });
 
-            if (xErr && xErr.length !== x.length) {
-                throw new Error(`X-Errors length (${xErr.length}) must match data length (${x.length})`);
-            }
-
-            setCurrentData({ x, y, yErr, xErr });
-
-            const response = await api.fitData({
-                x_data: x,
-                y_data: y,
-                y_errors: yErr && yErr.length === y.length ? yErr : undefined,
+            const payload: any = {
+                x_data: xData,
+                y_data: yData,
                 model,
-                custom_expr: model === 'custom' ? customExpr : undefined,
-                initial_guess: guess
-            });
+            };
+            if (yErrors && yErrors.length === yData.length) payload.y_errors = yErrors;
+            if (model === 'custom') {
+                payload.custom_expr = customExpr;
+                const guess = initialGuess ? initialGuess.split(/[,\s]+/).map(parseFloat).filter(n => !isNaN(n)) : undefined;
+                if (guess) payload.initial_guess = guess;
+            }
 
-            // Augment response
-            const resultWithXErr = { ...response, x_errors: xErr };
-            setResult(resultWithXErr);
-            setLastResult(resultWithXErr);
+            const response = await api.fitData(payload);
+            if (response.error) throw new Error(response.error);
+            setResult(response);
+            setLastResult(response);
             addToHistory(`Fitted ${model} model`);
         } catch (err: any) {
             setError(err.response?.data?.error || err.message || 'Fitting failed');
@@ -70,197 +181,194 @@ function GraphFitting() {
         }
     };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        setError('');
-        setLoading(true);
-        try {
-            const data = await api.parseFile(file);
-            setXData(data.x_data.join(', '));
-            setYData(data.y_data.join(', '));
-            if (data.y_errors) {
-                setYErrors(data.y_errors.join(', '));
-            } else {
-                setYErrors('');
-            }
-            // Reset X Errors on new load
-            setXErrors('');
-        } catch (err: any) {
-            setError(err.response?.data?.error || err.message || 'Failed to parse file');
-        } finally {
-            setLoading(false);
-            e.target.value = '';
-        }
-    };
-
     return (
         <div className="card">
-            <h2>Graph & Curve Fitting</h2>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <img src="/graph.png" alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} onError={e => (e.target as HTMLImageElement).style.display = 'none'} />
+                Graph & Curve Fitting
+            </h2>
 
-            <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f5f5f5', borderRadius: '8px', border: '1px dashed #ccc' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Import Data from Excel/CSV</label>
-                <input
-                    type="file"
-                    accept=".xlsx, .xls, .csv"
-                    onChange={handleFileUpload}
-                    disabled={loading}
-                />
-                <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.5rem' }}>
-                    Format: 1st column = X, 2nd column = Y, 3rd column = Y Errors (optional)
-                </p>
-            </div>
-
-            <div className="grid grid-2">
-                <div className="form-group">
-                    <label>X Data (comma separated)</label>
-                    <textarea
-                        value={xData}
-                        onChange={(e) => setXData(e.target.value)}
-                        rows={3}
-                        placeholder="1, 2, 3, 4, 5"
-                    />
-                </div>
-                <div className="form-group">
-                    <label>Y Data (comma separated)</label>
-                    <textarea
-                        value={yData}
-                        onChange={(e) => setYData(e.target.value)}
-                        rows={3}
-                        placeholder="2.1, 4.0, 6.2, 8.1, 10.1"
-                    />
-                </div>
-            </div>
-
-            <div className="grid grid-2">
-                <div className="form-group">
-                    <label>X Errors (optional)</label>
-                    <textarea
-                        value={xErrors}
-                        onChange={(e) => setXErrors(e.target.value)}
-                        rows={2}
-                        placeholder="e.g. 0.1, 0.1, 0.2..."
-                    />
-                </div>
-                <div className="form-group">
-                    <label>Y Errors (optional)</label>
-                    <textarea
-                        value={yErrors}
-                        onChange={(e) => setYErrors(e.target.value)}
-                        rows={2}
-                        placeholder="e.g. 0.1, 0.2, 0.1..."
-                    />
-                </div>
-            </div>
-
-            <div className="grid grid-2">
-                <div className="form-group">
-                    <label>Model</label>
-                    <select value={model} onChange={(e) => setModel(e.target.value)}>
-                        <option value="linear">Linear (y = mx + c)</option>
-                        <option value="quadratic">Quadratic (y = ax^2 + bx + c)</option>
-                        <option value="cubic">Cubic (y = ax^3 + ...)</option>
-                        <option value="power">Power Law (y = a*x^b)</option>
-                        <option value="exponential">Exponential (y = a*e^(bx))</option>
-                        <option value="custom">Custom Expression</option>
-                    </select>
+            {/* ─── Data Source ─── */}
+            <div style={{ marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                    <button className="btn-accent" onClick={loadExample}>🧪 Load Example: Hooke's Law</button>
                 </div>
 
-                {model === 'custom' && (
+                <div className="form-group">
+                    <label>Upload Excel / CSV</label>
+                    <input type="file" accept=".xlsx,.xls,.csv" onChange={e => e.target.files?.[0] && handleFileSelect(e.target.files[0])} />
+                </div>
+
+                {uploading && <div className="loading-spinner">Loading…</div>}
+
+                {fileInfo && fileInfo.sheetNames.length > 1 && (
                     <div className="form-group">
-                        <label>Custom Expression (use 'x' as variable)</label>
-                        <input
-                            type="text"
-                            value={customExpr}
-                            onChange={(e) => setCustomExpr(e.target.value)}
-                            placeholder="a * sin(b * x) + c"
-                        />
+                        <label>Select sheet</label>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <select value={selectedSheet} onChange={e => setSelectedSheet(e.target.value)} style={{ flex: 1 }}>
+                                {fileInfo.sheetNames.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            <button onClick={loadSheet} className="btn-primary">Load</button>
+                        </div>
                     </div>
                 )}
             </div>
 
-            {model === 'custom' && (
-                <div className="form-group">
-                    <label>Initial Guess (comma separated params)</label>
-                    <input
-                        type="text"
-                        value={initialGuess}
-                        onChange={(e) => setInitialGuess(e.target.value)}
-                        placeholder="1.0, 1.0, 0.0"
-                    />
-                </div>
-            )}
-
-            <button onClick={handleFit} disabled={loading}>
-                {loading ? 'Fitting...' : 'Fit Data'}
-            </button>
-
-            {error && <div className="error-message">{error}</div>}
-
-            {result && (
-                <div className="result-section" style={{ marginTop: '2rem' }}>
-                    <div className="result-box success">
-                        <h3>Fit Results</h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '1rem', marginTop: '1rem' }}>
-                            <div style={{ gridColumn: '1 / -1', marginBottom: '0.5rem' }}>
-                                <strong>Model:</strong> {result.model_name}
-                            </div>
-                            {result.parameter_names && result.parameters.map((val: number, idx: number) => (
-                                <div key={idx}>
-                                    <strong>{result.parameter_names[idx]}:</strong> {val.toFixed(4)} ± {result.uncertainties[idx]?.toFixed(4)}
-                                </div>
-                            ))}
-                            <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem', borderTop: '1px solid #ddd', paddingTop: '0.5rem' }}>
-                                <strong>Reduced Chi-Square:</strong> {result.chi_squared.toFixed(4)}
-                            </div>
-                            <div style={{ gridColumn: '1 / -1' }}>
-                                <strong>R-Squared:</strong> {result.r_squared.toFixed(4)}
-                            </div>
+            {/* ─── Column Selection ─── */}
+            {parsedData && (
+                <>
+                    <h3>Column Selection ({parsedData.rows.length} rows)</h3>
+                    <div className="grid grid-2">
+                        <div className="form-group">
+                            <label>X column</label>
+                            <select value={xCol} onChange={e => { setXCol(e.target.value); setXLabel(e.target.value); }}>
+                                <option value="">— select —</option>
+                                {parsedData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Y column</label>
+                            <select value={yCol} onChange={e => { setYCol(e.target.value); setYLabel(e.target.value); }}>
+                                <option value="">— select —</option>
+                                {parsedData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>X error <span style={{ opacity: 0.5 }}>(opt.)</span></label>
+                            <select value={xErrCol} onChange={e => setXErrCol(e.target.value)}>
+                                <option value="None">None</option>
+                                {parsedData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Y error <span style={{ opacity: 0.5 }}>(opt.)</span></label>
+                            <select value={yErrCol} onChange={e => setYErrCol(e.target.value)}>
+                                <option value="None">None</option>
+                                {parsedData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
                         </div>
                     </div>
 
-                    <div style={{ marginTop: '1.5rem', border: '1px solid #eee', padding: '1rem', borderRadius: '8px' }}>
-                        <Plot
-                            data={[
-                                {
-                                    x: result.data ? result.data.x : xData.split(/[,\s]+/).map(parseFloat),
-                                    y: result.data ? result.data.y : yData.split(/[,\s]+/).map(parseFloat),
-                                    error_y: {
-                                        type: 'data',
-                                        array: result.data ? result.data.y_err : undefined,
-                                        visible: true
-                                    },
-                                    error_x: {
-                                        type: 'data',
-                                        array: result.x_errors,
-                                        visible: true
-                                    },
-                                    mode: 'markers',
-                                    type: 'scatter',
-                                    name: 'Data'
-                                },
-                                {
-                                    x: result.x_fit,
-                                    y: result.y_fit,
-                                    mode: 'lines',
-                                    type: 'scatter',
-                                    name: 'Best Fit',
-                                    line: { color: 'red' }
-                                }
-                            ]}
-                            layout={{
-                                title: { text: 'Curve Fitting Result' },
-                                xaxis: { title: { text: 'X Data' } },
-                                yaxis: { title: { text: 'Y Data' } },
-                                autosize: true,
-                                margin: { l: 50, r: 20, t: 50, b: 50 },
-                                legend: { x: 0, y: 1 }
-                            }}
-                            useResizeHandler={true}
-                            style={{ width: '100%', height: '500px' }}
-                        />
+                    <div className="grid grid-3" style={{ marginTop: '0.75rem' }}>
+                        <div className="form-group"><label>X axis label</label><input value={xLabel} onChange={e => setXLabel(e.target.value)} placeholder="e.g. Time [s]" /></div>
+                        <div className="form-group"><label>Y axis label</label><input value={yLabel} onChange={e => setYLabel(e.target.value)} placeholder="e.g. Distance [m]" /></div>
+                        <div className="form-group"><label>Plot title</label><input value={plotTitle} onChange={e => setPlotTitle(e.target.value)} placeholder="e.g. Force vs Extension" /></div>
                     </div>
+                </>
+            )}
+
+            {/* ─── Fit Controls ─── */}
+            {parsedData && (
+                <>
+                    <h3 style={{ marginTop: '1.5rem' }}>Fit Model</h3>
+                    <div className="grid grid-2">
+                        <div className="form-group">
+                            <label>Model</label>
+                            <select value={model} onChange={e => setModel(e.target.value)}>
+                                {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                            </select>
+                        </div>
+                        {model === 'custom' && (
+                            <div className="form-group">
+                                <label>Custom expression (use <code>x</code>)</label>
+                                <input type="text" value={customExpr} onChange={e => setCustomExpr(e.target.value)} placeholder="a*sin(b*x) + c" style={{ fontFamily: 'monospace' }} />
+                            </div>
+                        )}
+                    </div>
+                    {model === 'custom' && (
+                        <div className="form-group">
+                            <label>Initial guess (comma-separated)</label>
+                            <input type="text" value={initialGuess} onChange={e => setInitialGuess(e.target.value)} placeholder="1.0, 1.0, 0.0" />
+                        </div>
+                    )}
+
+                    <button onClick={handleFit} disabled={loading || !xCol || !yCol} style={{ marginTop: '1rem' }}>
+                        {loading ? '⏳ Fitting…' : '▶ Fit Data'}
+                    </button>
+                </>
+            )}
+
+            {error && <div className="error-message">{error}</div>}
+
+            {/* ─── Results ─── */}
+            {result && parsedData && (
+                <div style={{ marginTop: '1.5rem' }}>
+                    <div className="params-table-wrap">
+                        <h4>Fit Parameters — {result.model_name}</h4>
+                        <table className="params-table">
+                            <thead><tr><th>Param</th><th>Value</th><th>± Uncertainty</th></tr></thead>
+                            <tbody>
+                                {result.parameter_names.map((name: string, i: number) => (
+                                    <tr key={name}>
+                                        <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{name}</td>
+                                        <td style={{ fontFamily: 'monospace' }}>{result.parameters[i].toExponential(4)}</td>
+                                        <td style={{ fontFamily: 'monospace' }}>{result.uncertainties[i].toExponential(4)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <p className="fit-stats">R² = {result.r_squared.toFixed(6)} &nbsp;|&nbsp; χ²/dof = {result.chi_squared.toFixed(4)}</p>
+                    </div>
+
+                    <Plot
+                        data={[
+                            {
+                                x: parsedData.rows.map(r => Number(r[xCol])),
+                                y: parsedData.rows.map(r => Number(r[yCol])),
+                                mode: 'markers' as const,
+                                type: 'scatter' as const,
+                                name: 'Data',
+                                marker: { color: '#1976d2', size: 8 },
+                                error_y: yErrCol !== 'None' ? { type: 'data' as const, array: parsedData.rows.map(r => Number(r[yErrCol])), visible: true } : undefined,
+                                error_x: xErrCol !== 'None' ? { type: 'data' as const, array: parsedData.rows.map(r => Number(r[xErrCol])), visible: true } : undefined,
+                            },
+                            {
+                                x: result.x_fit,
+                                y: result.y_fit,
+                                mode: 'lines' as const,
+                                name: result.model_name,
+                                line: { color: '#d32f2f', width: 2.5 },
+                            },
+                        ]}
+                        layout={{
+                            title: { text: plotTitle || 'Curve Fit' },
+                            xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#e0e0e0' },
+                            yaxis: { title: { text: yLabel || 'Y' }, gridcolor: '#e0e0e0' },
+                            height: 500,
+                            margin: { l: 65, r: 30, t: 55, b: 60 },
+                            legend: { x: 0, y: 1.12, orientation: 'h' as const },
+                            plot_bgcolor: '#fafafa',
+                            paper_bgcolor: '#fff',
+                        }}
+                        useResizeHandler
+                        style={{ width: '100%' }}
+                        config={{ responsive: true, displaylogo: false, toImageButtonOptions: { format: 'png' as any, filename: plotTitle || 'fit', height: 800, width: 1200, scale: 2 } }}
+                    />
+
+                    {/* Residuals */}
+                    <Plot
+                        data={[{
+                            x: parsedData.rows.map(r => Number(r[xCol])),
+                            y: result.residuals,
+                            mode: 'markers' as const,
+                            type: 'scatter' as const,
+                            name: 'Residuals',
+                            marker: { color: '#ff7043', size: 7 },
+                        }]}
+                        layout={{
+                            title: { text: 'Residuals' },
+                            xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#e0e0e0' },
+                            yaxis: { title: { text: 'Residual' }, gridcolor: '#e0e0e0' },
+                            height: 280,
+                            margin: { l: 65, r: 30, t: 40, b: 55 },
+                            plot_bgcolor: '#fafafa',
+                            paper_bgcolor: '#fff',
+                            shapes: [{ type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 0, y1: 0, line: { color: '#888', width: 1, dash: 'dash' } }],
+                        }}
+                        useResizeHandler
+                        style={{ width: '100%' }}
+                        config={{ responsive: true, displaylogo: false }}
+                    />
                 </div>
             )}
         </div>

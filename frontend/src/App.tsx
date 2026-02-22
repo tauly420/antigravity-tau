@@ -18,7 +18,7 @@ function App() {
     return (
         <AnalysisProvider>
             <Router>
-                <div className="app-container" style={{ display: 'flex', paddingRight: '350px' }}>
+                <div className="app-container" style={{ display: 'flex' }}>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                         <header className="header">
                             <Link to="/" style={{ textDecoration: 'none', color: 'white', display: 'flex', alignItems: 'center', gap: '1rem' }}>

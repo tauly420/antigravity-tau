@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import * as api from '../services/api';
 import { useAnalysis } from '../context/AnalysisContext';
 
@@ -11,13 +11,8 @@ const RESERVED = new Set([
     'max', 'min', 'pow',
 ]);
 
-/**
- * Extract variable names from a math expression.
- * Matches word tokens that aren't reserved functions/constants or pure numbers.
- */
 function extractVariables(expr: string): string[] {
     if (!expr.trim()) return [];
-    // Match word characters (identifiers like a, x, myVar, etc.)
     const tokens = expr.match(/[A-Za-z_]\w*/g) || [];
     const vars = new Set<string>();
     for (const t of tokens) {
@@ -29,11 +24,8 @@ function extractVariables(expr: string): string[] {
 }
 
 interface FormulaCalculatorProps {
-    /** Pre-filled variables from workflow (e.g., fit parameters) */
     prefilled?: Record<string, { value: number; uncertainty: number }>;
-    /** Callback when result is computed (for workflow linking) */
     onResult?: (value: number, uncertainty: number) => void;
-    /** If true, render in compact mode for embedding in workflow */
     embedded?: boolean;
 }
 
@@ -45,48 +37,71 @@ function FormulaCalculator({ prefilled, onResult, embedded }: FormulaCalculatorP
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // Keep a ref to prefilled so the callback can always see it
+    const prefilledRef = useRef(prefilled);
+    prefilledRef.current = prefilled;
+
     const { setLastResult, setCurrentTool, addToHistory } = useAnalysis();
 
     useEffect(() => {
         if (!embedded) setCurrentTool('Formula Calculator');
     }, []);
 
-    // Pre-fill from workflow context
-    useEffect(() => {
-        if (prefilled) {
-            const newVars: Record<string, string> = {};
-            const newUnc: Record<string, string> = {};
-            for (const [name, data] of Object.entries(prefilled)) {
-                newVars[name] = String(data.value);
-                newUnc[name] = String(data.uncertainty);
-            }
-            setVariables(prev => ({ ...prev, ...newVars }));
-            setUncertainties(prev => ({ ...prev, ...newUnc }));
-        }
-    }, [prefilled]);
-
-    // Auto-detect variables when expression changes
-    const updateVariablesFromExpression = useCallback((expr: string) => {
+    // When expression changes, detect variables but KEEP prefilled values
+    const onExpressionChange = useCallback((expr: string) => {
+        setExpression(expr);
         const detected = extractVariables(expr);
+        const pf = prefilledRef.current || {};
+
         setVariables(prev => {
             const next: Record<string, string> = {};
             for (const v of detected) {
-                next[v] = prev[v] ?? '';
+                // Priority: existing user input > prefilled > empty
+                if (prev[v] !== undefined && prev[v] !== '') {
+                    next[v] = prev[v];
+                } else if (pf[v]) {
+                    next[v] = String(pf[v].value);
+                } else {
+                    next[v] = '';
+                }
             }
             return next;
         });
+
         setUncertainties(prev => {
             const next: Record<string, string> = {};
             for (const v of detected) {
-                next[v] = prev[v] ?? '';
+                if (prev[v] !== undefined && prev[v] !== '') {
+                    next[v] = prev[v];
+                } else if (pf[v]) {
+                    next[v] = String(pf[v].uncertainty);
+                } else {
+                    next[v] = '';
+                }
             }
             return next;
         });
     }, []);
 
+    // Initialize prefilled values on mount/update
     useEffect(() => {
-        updateVariablesFromExpression(expression);
-    }, [expression, updateVariablesFromExpression]);
+        if (prefilled) {
+            setVariables(prev => {
+                const next = { ...prev };
+                for (const [name, data] of Object.entries(prefilled)) {
+                    next[name] = String(data.value);
+                }
+                return next;
+            });
+            setUncertainties(prev => {
+                const next = { ...prev };
+                for (const [name, data] of Object.entries(prefilled)) {
+                    next[name] = String(data.uncertainty);
+                }
+                return next;
+            });
+        }
+    }, [prefilled]);
 
     const handleEvaluate = async () => {
         setError('');
@@ -126,6 +141,7 @@ function FormulaCalculator({ prefilled, onResult, embedded }: FormulaCalculatorP
     };
 
     const varNames = Object.keys(variables);
+    const prefilledNames = prefilled ? Object.keys(prefilled) : [];
 
     return (
         <div className={embedded ? '' : 'card'}>
@@ -135,8 +151,10 @@ function FormulaCalculator({ prefilled, onResult, embedded }: FormulaCalculatorP
                 <p><strong>Enter any expression</strong> — variables are detected automatically.</p>
                 <p>• Operators: <code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>**</code> (power)</p>
                 <p>• Functions: <code>sin(x)</code> <code>cos(x)</code> <code>exp(x)</code> <code>sqrt(x)</code> <code>log(x)</code></p>
-                <p>• Constants: <code>pi</code>, <code>e</code> — these are NOT treated as variables</p>
-                <p>• Uncertainty propagation via partial derivatives is automatic.</p>
+                <p>• Uncertainty propagation: s_f = √( Σ (∂f/∂xᵢ)² · σᵢ² )</p>
+                {prefilledNames.length > 0 && (
+                    <p>• <strong style={{ color: 'var(--success)' }}>Available from fit:</strong> {prefilledNames.map(n => <code key={n}>{n}</code>).reduce((a: any, b: any) => [a, ', ', b] as any)}</p>
+                )}
             </div>
 
             <div className="form-group">
@@ -144,8 +162,10 @@ function FormulaCalculator({ prefilled, onResult, embedded }: FormulaCalculatorP
                 <input
                     type="text"
                     value={expression}
-                    onChange={(e) => setExpression(e.target.value)}
-                    placeholder="e.g.  a*x**2 + b   or   sqrt(X**2 + Y**2)"
+                    onChange={(e) => onExpressionChange(e.target.value)}
+                    placeholder={prefilledNames.length > 0
+                        ? `e.g. ${prefilledNames.join('*')} or ${prefilledNames[0]}**2`
+                        : 'e.g.  a*x**2 + b   or   sqrt(X**2 + Y**2)'}
                     style={{ fontFamily: 'monospace', fontSize: '1.05rem' }}
                 />
             </div>
@@ -154,29 +174,39 @@ function FormulaCalculator({ prefilled, onResult, embedded }: FormulaCalculatorP
                 <>
                     <h3>Variables ({varNames.length} detected)</h3>
                     <div className="grid grid-3">
-                        {varNames.map(name => (
-                            <div key={name} className="form-group" style={{ background: '#fafafa', padding: '0.75rem', borderRadius: '8px', border: '1px solid #eee' }}>
-                                <label style={{ fontFamily: 'monospace', fontSize: '1.1rem', color: 'var(--primary)' }}>{name}</label>
-                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        value={variables[name] || ''}
-                                        onChange={(e) => setVariables(v => ({ ...v, [name]: e.target.value }))}
-                                        placeholder="Value"
-                                        style={{ flex: 1 }}
-                                    />
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        value={uncertainties[name] || ''}
-                                        onChange={(e) => setUncertainties(u => ({ ...u, [name]: e.target.value }))}
-                                        placeholder="± Unc."
-                                        style={{ flex: 1 }}
-                                    />
+                        {varNames.map(name => {
+                            const isPrefilled = prefilledNames.includes(name);
+                            return (
+                                <div key={name} className="form-group" style={{
+                                    background: isPrefilled ? '#e8f5e9' : '#fafafa',
+                                    padding: '0.75rem',
+                                    borderRadius: '8px',
+                                    border: isPrefilled ? '1.5px solid #a5d6a7' : '1px solid #eee',
+                                }}>
+                                    <label style={{ fontFamily: 'monospace', fontSize: '1.1rem', color: isPrefilled ? 'var(--success)' : 'var(--primary)' }}>
+                                        {name} {isPrefilled && <span style={{ fontSize: '0.75rem', fontWeight: 400 }}>(from fit)</span>}
+                                    </label>
+                                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            value={variables[name] || ''}
+                                            onChange={(e) => setVariables(v => ({ ...v, [name]: e.target.value }))}
+                                            placeholder="Value"
+                                            style={{ flex: 1 }}
+                                        />
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            value={uncertainties[name] || ''}
+                                            onChange={(e) => setUncertainties(u => ({ ...u, [name]: e.target.value }))}
+                                            placeholder="± Unc."
+                                            style={{ flex: 1 }}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </>
             )}
