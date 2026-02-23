@@ -53,11 +53,14 @@ function Sidebar() {
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState<'unknown' | 'ok' | 'no-key' | 'error'>('unknown');
 
-    // Page-aware popup
     const [showPopup, setShowPopup] = useState(false);
     const [popupMsg, setPopupMsg] = useState('');
     const [lastPage, setLastPage] = useState('');
     const popupTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Resizable sidebar
+    const [sidebarWidth, setSidebarWidth] = useState(380);
+    const isResizing = useRef(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const location = useLocation();
@@ -107,6 +110,31 @@ function Sidebar() {
     const openFromPopup = () => {
         dismissPopup();
         setOpen(true);
+    };
+
+    // Resize handlers
+    const handleResizeStart = (e: React.MouseEvent) => {
+        e.preventDefault();
+        isResizing.current = true;
+        const startX = e.clientX;
+        const startW = sidebarWidth;
+        const onMove = (ev: MouseEvent) => {
+            if (!isResizing.current) return;
+            const delta = startX - ev.clientX;
+            const newW = Math.min(700, Math.max(280, startW + delta));
+            setSidebarWidth(newW);
+        };
+        const onUp = () => {
+            isResizing.current = false;
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
     };
 
     // Build context for the AI
@@ -181,7 +209,13 @@ function Sidebar() {
             </button>
 
             {/* Sidebar panel */}
-            <div className={`sidebar-panel ${open ? 'open' : ''}`}>
+            <div className={`sidebar-panel ${open ? 'open' : ''}`} style={open ? { right: 0, width: sidebarWidth } : undefined}>
+                {/* Resize handle — left edge */}
+                <div
+                    className="sidebar-resize-handle"
+                    onMouseDown={handleResizeStart}
+                    title="Drag to resize"
+                />
                 <div className="sidebar-header">
                     <img src="/chatbot.png" alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} onError={e => (e.target as HTMLImageElement).style.display = 'none'} />
                     <h3>AI Lab Assistant</h3>

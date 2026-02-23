@@ -658,6 +658,24 @@ button:disabled {
     transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Resize drag handle — left edge */
+.sidebar-resize-handle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 5px;
+    height: 100%;
+    cursor: ew-resize;
+    z-index: 1060;
+    background: transparent;
+    transition: background 0.2s;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:active {
+    background: rgba(21, 101, 192, 0.25);
+}
+
 .sidebar-panel.open {
     right: 0;
 }
