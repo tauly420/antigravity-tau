@@ -57,7 +57,7 @@ function App() {
                         </main>
 
                         <footer className="footer">
-                            <p>© 2026 Tau-LY Lab Tools • All rights reserved to Uri Shulman</p>
+                            <p>© 2026 Tau-LY Lab Tools • All rights reserved to <a href="https://www.linkedin.com/in/uri-shulman-5690b2337" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Uri Shulman</a></p>
                         </footer>
                     </div>
                     <Sidebar />

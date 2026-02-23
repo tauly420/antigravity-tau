@@ -53,6 +53,10 @@ function Sidebar() {
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState<'unknown' | 'ok' | 'no-key' | 'error'>('unknown');
 
+    // File upload
+    const [attachedFile, setAttachedFile] = useState<{ name: string; content: string; size: number } | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const [showPopup, setShowPopup] = useState(false);
     const [popupMsg, setPopupMsg] = useState('');
     const [lastPage, setLastPage] = useState('');
@@ -160,16 +164,22 @@ function Sidebar() {
     };
 
     const handleSend = async () => {
-        if (!input.trim()) return;
+        if (!input.trim() && !attachedFile) return;
         const userMsg = input;
+        const file = attachedFile;
         setInput('');
-        setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+        setAttachedFile(null);
+
+        const displayMsg = file ? `${userMsg}\n📎 ${file.name}` : userMsg;
+        setMessages(prev => [...prev, { role: 'user', content: displayMsg }]);
         setLoading(true);
 
         try {
+            const ctx = buildContext();
+            if (file) ctx.attached_file = { name: file.name, size: file.size, content: file.content };
             const data = await api.chatWithAssistant({
-                message: userMsg,
-                context: buildContext(),
+                message: userMsg || `I've attached a file: ${file!.name}. Please analyze it.`,
+                context: ctx,
             });
             const reply = data.response || data.message || 'No response received.';
             setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
@@ -180,6 +190,28 @@ function Sidebar() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        const isText = /\.(csv|tsv|txt|dat|json|md|py|tex|log)$/i.test(file.name);
+
+        if (isText || file.type.startsWith('text/')) {
+            reader.onload = () => {
+                const text = reader.result as string;
+                // Limit to first 8000 chars to avoid huge payloads
+                const content = text.length > 8000 ? text.slice(0, 8000) + '\n... [truncated]' : text;
+                setAttachedFile({ name: file.name, content, size: file.size });
+            };
+            reader.readAsText(file);
+        } else {
+            // For binary files, just send metadata
+            setAttachedFile({ name: file.name, content: `[Binary file: ${file.name}, ${(file.size / 1024).toFixed(1)} KB]`, size: file.size });
+        }
+        // Reset input so same file can be re-selected
+        e.target.value = '';
     };
 
     return (
@@ -248,16 +280,35 @@ function Sidebar() {
 
                 <div className="sidebar-input">
                     <input
-                        type="text"
-                        value={input}
-                        onChange={e => setInput(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleSend()}
-                        placeholder="Ask anything…"
-                        disabled={loading}
+                        ref={fileInputRef}
+                        type="file"
+                        style={{ display: 'none' }}
+                        onChange={handleFileAttach}
+                        accept=".csv,.tsv,.txt,.dat,.json,.md,.py,.tex,.log,.xlsx,.xls,.ods"
                     />
-                    <button onClick={handleSend} disabled={loading || !input.trim()}>
-                        Send
-                    </button>
+                    {attachedFile && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.6rem', background: '#e3f2fd', borderRadius: '6px', fontSize: '0.8rem', marginBottom: '0.4rem' }}>
+                            <span>📎 {attachedFile.name}</span>
+                            <button onClick={() => setAttachedFile(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem', padding: 0, lineHeight: 1, color: '#999' }}>✕</button>
+                        </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '0.4rem', width: '100%' }}>
+                        <button onClick={() => fileInputRef.current?.click()} disabled={loading} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', fontSize: '1.1rem', padding: '0.4rem 0.5rem', lineHeight: 1, flexShrink: 0 }} title="Attach file">
+                            📎
+                        </button>
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={e => setInput(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleSend()}
+                            placeholder="Ask anything…"
+                            disabled={loading}
+                            style={{ flex: 1 }}
+                        />
+                        <button onClick={handleSend} disabled={loading || (!input.trim() && !attachedFile)}>
+                            Send
+                        </button>
+                    </div>
                 </div>
             </div>
         </>

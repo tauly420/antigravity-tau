@@ -336,9 +336,9 @@ function GraphFitting() {
                                 mode: 'markers' as const,
                                 type: 'scatter' as const,
                                 name: 'Data',
-                                marker: { color: '#1976d2', size: 8 },
-                                error_y: yErrCol !== 'None' ? { type: 'data' as const, array: parsedData.rows.map(r => Number(r[yErrCol])), visible: true } : undefined,
-                                error_x: xErrCol !== 'None' ? { type: 'data' as const, array: parsedData.rows.map(r => Number(r[xErrCol])), visible: true } : undefined,
+                                marker: { color: '#1976d2', size: 8, line: { width: 1, color: '#0d47a1' } },
+                                error_y: yErrCol !== 'None' ? { type: 'data' as const, array: parsedData.rows.map(r => Number(r[yErrCol])), visible: true, color: '#1976d2', thickness: 1.5 } : undefined,
+                                error_x: xErrCol !== 'None' ? { type: 'data' as const, array: parsedData.rows.map(r => Number(r[xErrCol])), visible: true, color: '#1976d2', thickness: 1.5 } : undefined,
                             },
                             {
                                 x: result.x_fit,
