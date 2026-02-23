@@ -372,6 +372,8 @@ function GraphFitting() {
                             type: 'scatter' as const,
                             name: 'Residuals',
                             marker: { color: '#ff7043', size: 7 },
+                            error_y: yErrCol !== 'None' ? { type: 'data' as const, array: parsedData.rows.map(r => Number(r[yErrCol])), visible: true, color: '#ff7043' } : undefined,
+                            error_x: xErrCol !== 'None' ? { type: 'data' as const, array: parsedData.rows.map(r => Number(r[xErrCol])), visible: true, color: '#ff7043' } : undefined,
                         }]}
                         layout={{
                             title: { text: 'Residuals' },
