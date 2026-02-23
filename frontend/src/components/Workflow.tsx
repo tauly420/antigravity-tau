@@ -47,22 +47,22 @@ const EXAMPLE_DATA = {
     name: 'Free Fall (g ≈ 9.81 m/s²)',
     columns: ['Time (s)', 'Height (m)', 'Height Error (m)', 'Time Error (s)'],
     rows: [
-        { 'Time (s)': 0.0, 'Height (m)': 0.00, 'Height Error (m)': 0.02, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 0.1, 'Height (m)': 0.05, 'Height Error (m)': 0.02, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 0.2, 'Height (m)': 0.19, 'Height Error (m)': 0.03, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 0.3, 'Height (m)': 0.45, 'Height Error (m)': 0.03, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 0.4, 'Height (m)': 0.77, 'Height Error (m)': 0.04, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 0.5, 'Height (m)': 1.23, 'Height Error (m)': 0.04, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 0.6, 'Height (m)': 1.76, 'Height Error (m)': 0.05, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 0.7, 'Height (m)': 2.42, 'Height Error (m)': 0.05, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 0.8, 'Height (m)': 3.13, 'Height Error (m)': 0.06, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 0.9, 'Height (m)': 3.95, 'Height Error (m)': 0.06, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 1.0, 'Height (m)': 4.89, 'Height Error (m)': 0.07, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 1.1, 'Height (m)': 5.93, 'Height Error (m)': 0.07, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 1.2, 'Height (m)': 7.05, 'Height Error (m)': 0.08, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 1.3, 'Height (m)': 8.28, 'Height Error (m)': 0.08, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 1.4, 'Height (m)': 9.61, 'Height Error (m)': 0.09, 'Time Error (s)': 0.005 },
-        { 'Time (s)': 1.5, 'Height (m)': 11.03, 'Height Error (m)': 0.09, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 0.0, 'Height (m)': 0.00, 'Height Error (m)': 0.10, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 0.1, 'Height (m)': 0.05, 'Height Error (m)': 0.10, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 0.2, 'Height (m)': 0.19, 'Height Error (m)': 0.12, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 0.3, 'Height (m)': 0.45, 'Height Error (m)': 0.15, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 0.4, 'Height (m)': 0.77, 'Height Error (m)': 0.18, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 0.5, 'Height (m)': 1.23, 'Height Error (m)': 0.20, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 0.6, 'Height (m)': 1.76, 'Height Error (m)': 0.22, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 0.7, 'Height (m)': 2.42, 'Height Error (m)': 0.25, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 0.8, 'Height (m)': 3.13, 'Height Error (m)': 0.28, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 0.9, 'Height (m)': 3.95, 'Height Error (m)': 0.30, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 1.0, 'Height (m)': 4.89, 'Height Error (m)': 0.35, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 1.1, 'Height (m)': 5.93, 'Height Error (m)': 0.38, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 1.2, 'Height (m)': 7.05, 'Height Error (m)': 0.40, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 1.3, 'Height (m)': 8.28, 'Height Error (m)': 0.42, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 1.4, 'Height (m)': 9.61, 'Height Error (m)': 0.45, 'Time Error (s)': 0.02 },
+        { 'Time (s)': 1.5, 'Height (m)': 11.03, 'Height Error (m)': 0.50, 'Time Error (s)': 0.02 },
     ],
 };
 
@@ -286,9 +286,8 @@ function Workflow() {
                 fitResult.parameter_names.forEach((name: string, i: number) => {
                     prompt += `  ${name} = ${fitResult.parameters[i]} ± ${fitResult.uncertainties[i]}\n`;
                 });
-                prompt += `R² = ${fitResult.r_squared}\n`;
-                prompt += `χ² = ${fitResult.chi_squared}\n`;
-                prompt += `χ²/dof (reduced) = ${fitResult.reduced_chi_squared}\n`;
+                prompt += `χ² (total) = ${fitResult.chi_squared}\n`;
+                prompt += `χ² reduced (χ²/dof) = ${fitResult.reduced_chi_squared}\n`;
                 prompt += `P-value = ${fitResult.p_value}\n`;
                 prompt += `Degrees of freedom = ${fitResult.dof}\n`;
                 prompt += `Data points = ${fitResult.n_data}, Parameters = ${fitResult.n_params}\n\n`;
@@ -301,17 +300,22 @@ function Workflow() {
             }
 
             prompt += `INSTRUCTIONS FOR THE REPORT:\n`;
-            prompt += `- Interpret the reduced chi-squared (χ²/dof):\n`;
-            prompt += `  * If χ²/dof ≈ 1: good fit, errors well estimated\n`;
-            prompt += `  * If χ²/dof >> 1: poor fit or UNDERESTIMATED errors\n`;
-            prompt += `  * If χ²/dof << 1: OVERESTIMATED errors (uncertainties too large)\n`;
-            prompt += `- Interpret the P-value (probability the data is consistent with model)\n`;
-            prompt += `- If N-sigma result is available, discuss whether the values agree\n`;
-            prompt += `- Write as a coherent paragraph suitable for a lab report, NOT bullet points\n`;
-            prompt += `- Be quantitative (cite the actual numbers)\n`;
+            prompt += `- Refer to χ²/dof as "chi-squared reduced" (χ²_reduced). Do NOT mention or use R².\n`;
+            prompt += `- Interpret chi-squared reduced:\n`;
+            prompt += `  * If χ²_reduced ≈ 1: good fit, errors well estimated\n`;
+            prompt += `  * If χ²_reduced >> 1: poor fit or measurement errors were UNDERESTIMATED\n`;
+            prompt += `  * If χ²_reduced << 1: measurement errors were OVERESTIMATED (uncertainties too large)\n`;
+            prompt += `- Interpret the P-value (probability of getting this chi-squared or worse if model is correct)\n`;
+            prompt += `- If N-sigma result is available, discuss whether the measured and expected values agree\n`;
+            prompt += `- Write as a coherent paragraph suitable for a physics lab report, NOT bullet points\n`;
+            prompt += `- Use proper Unicode math symbols that can be copy-pasted into Word/Google Docs:\n`;
+            prompt += `  Use: χ² (not chi^2), ± (not +/-), σ (not sigma), π (not pi), √ (not sqrt)\n`;
+            prompt += `  Write parameter values like: a = 4.91 ± 0.03\n`;
+            prompt += `- Be quantitative — cite the actual numbers from the results\n`;
             if (reportLang === 'he') {
-                prompt += `- Write entirely in Hebrew. Use proper Hebrew scientific terminology.\n`;
+                prompt += `- Write entirely in Hebrew. Use proper Hebrew physics terminology.\n`;
                 prompt += `- Format numbers left-to-right even within Hebrew text.\n`;
+                prompt += `- Use Hebrew terms: התאמה (fit), שגיאות (errors), מדידה (measurement), ניסוי (experiment)\n`;
             }
 
             const data = await api.chatWithAssistant({
@@ -551,18 +555,28 @@ function Workflow() {
                         <p className="step-desc">Generate an AI-written paragraph summarizing your results — fit quality, χ²/dof interpretation, P-value, and N-σ comparison.</p>
 
                         {/* Language toggle */}
-                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', gap: '0', marginBottom: '1rem' }}>
                             <button
-                                className={reportLang === 'en' ? 'btn-primary' : 'btn-accent'}
                                 onClick={() => setReportLang('en')}
-                                style={{ fontSize: '0.9rem', padding: '0.4rem 1.2rem' }}
+                                style={{
+                                    fontSize: '0.9rem', padding: '0.5rem 1.3rem', cursor: 'pointer',
+                                    border: '2px solid #1565c0', borderRadius: '8px 0 0 8px',
+                                    background: reportLang === 'en' ? '#1565c0' : 'white',
+                                    color: reportLang === 'en' ? 'white' : '#1565c0',
+                                    fontWeight: reportLang === 'en' ? 700 : 400,
+                                }}
                             >
                                 🇬🇧 English
                             </button>
                             <button
-                                className={reportLang === 'he' ? 'btn-primary' : 'btn-accent'}
                                 onClick={() => setReportLang('he')}
-                                style={{ fontSize: '0.9rem', padding: '0.4rem 1.2rem' }}
+                                style={{
+                                    fontSize: '0.9rem', padding: '0.5rem 1.3rem', cursor: 'pointer',
+                                    border: '2px solid #1565c0', borderLeft: 'none', borderRadius: '0 8px 8px 0',
+                                    background: reportLang === 'he' ? '#1565c0' : 'white',
+                                    color: reportLang === 'he' ? 'white' : '#1565c0',
+                                    fontWeight: reportLang === 'he' ? 700 : 400,
+                                }}
                             >
                                 🇮🇱 עברית
                             </button>

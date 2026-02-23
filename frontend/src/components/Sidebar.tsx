@@ -236,6 +236,13 @@ function Sidebar() {
                 onClick={() => { setOpen(o => !o); dismissPopup(); }}
                 className="sidebar-toggle"
                 aria-label="Toggle AI Assistant"
+                style={open ? {
+                    position: 'fixed', top: '1rem', right: '1rem', bottom: 'auto',
+                    minWidth: 'auto', width: '44px', height: '44px', padding: '0',
+                    borderRadius: '50%', fontSize: '1.4rem',
+                    background: '#d32f2f', boxShadow: '0 3px 12px rgba(211,47,47,0.4)',
+                    zIndex: 1200,
+                } : undefined}
             >
                 {open ? '✕' : '🤖 Ask AI'}
             </button>
@@ -254,7 +261,6 @@ function Sidebar() {
                     <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#999', paddingRight: '0.5rem' }}>
                         📍 {PAGE_TIPS[location.pathname]?.title || 'Unknown'}
                     </span>
-                    <button onClick={() => setOpen(false)} style={{ background: 'transparent', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.25rem' }}>✕</button>
                 </div>
 
                 {status === 'no-key' && (
