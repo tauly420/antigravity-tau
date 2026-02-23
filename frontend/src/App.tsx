@@ -11,6 +11,7 @@ import NumericalIntegrator from './components/NumericalIntegrator';
 import GraphFitting from './components/GraphFitting';
 import NSigmaCalculator from './components/NSigmaCalculator';
 import UnitConverter from './components/UnitConverter';
+import FourierAnalysis from './components/FourierAnalysis';
 import { AnalysisProvider } from './context/AnalysisContext';
 import Sidebar from './components/Sidebar';
 
@@ -37,6 +38,7 @@ function App() {
                             <Link to="/integrator" className="nav-link">Integrator</Link>
                             <Link to="/nsigma" className="nav-link">N-Sigma</Link>
                             <Link to="/units" className="nav-link">Units</Link>
+                            <Link to="/fourier" className="nav-link">Fourier</Link>
                         </nav>
 
                         <main className="main-content">
@@ -50,6 +52,7 @@ function App() {
                                 <Route path="/fitting" element={<GraphFitting />} />
                                 <Route path="/nsigma" element={<NSigmaCalculator />} />
                                 <Route path="/units" element={<UnitConverter />} />
+                                <Route path="/fourier" element={<FourierAnalysis />} />
                             </Routes>
                         </main>
 

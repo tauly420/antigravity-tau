@@ -45,24 +45,24 @@ const MODELS = [
 /* ─── Example data: free-fall parabola ─── */
 const EXAMPLE_DATA = {
     name: 'Free Fall (g ≈ 9.81 m/s²)',
-    columns: ['Time (s)', 'Height (m)', 'Height Error (m)'],
+    columns: ['Time (s)', 'Height (m)', 'Height Error (m)', 'Time Error (s)'],
     rows: [
-        { 'Time (s)': 0.0, 'Height (m)': 0.00, 'Height Error (m)': 0.02 },
-        { 'Time (s)': 0.1, 'Height (m)': 0.05, 'Height Error (m)': 0.02 },
-        { 'Time (s)': 0.2, 'Height (m)': 0.19, 'Height Error (m)': 0.03 },
-        { 'Time (s)': 0.3, 'Height (m)': 0.45, 'Height Error (m)': 0.03 },
-        { 'Time (s)': 0.4, 'Height (m)': 0.77, 'Height Error (m)': 0.04 },
-        { 'Time (s)': 0.5, 'Height (m)': 1.23, 'Height Error (m)': 0.04 },
-        { 'Time (s)': 0.6, 'Height (m)': 1.76, 'Height Error (m)': 0.05 },
-        { 'Time (s)': 0.7, 'Height (m)': 2.42, 'Height Error (m)': 0.05 },
-        { 'Time (s)': 0.8, 'Height (m)': 3.13, 'Height Error (m)': 0.06 },
-        { 'Time (s)': 0.9, 'Height (m)': 3.95, 'Height Error (m)': 0.06 },
-        { 'Time (s)': 1.0, 'Height (m)': 4.89, 'Height Error (m)': 0.07 },
-        { 'Time (s)': 1.1, 'Height (m)': 5.93, 'Height Error (m)': 0.07 },
-        { 'Time (s)': 1.2, 'Height (m)': 7.05, 'Height Error (m)': 0.08 },
-        { 'Time (s)': 1.3, 'Height (m)': 8.28, 'Height Error (m)': 0.08 },
-        { 'Time (s)': 1.4, 'Height (m)': 9.61, 'Height Error (m)': 0.09 },
-        { 'Time (s)': 1.5, 'Height (m)': 11.03, 'Height Error (m)': 0.09 },
+        { 'Time (s)': 0.0, 'Height (m)': 0.00, 'Height Error (m)': 0.02, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 0.1, 'Height (m)': 0.05, 'Height Error (m)': 0.02, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 0.2, 'Height (m)': 0.19, 'Height Error (m)': 0.03, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 0.3, 'Height (m)': 0.45, 'Height Error (m)': 0.03, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 0.4, 'Height (m)': 0.77, 'Height Error (m)': 0.04, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 0.5, 'Height (m)': 1.23, 'Height Error (m)': 0.04, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 0.6, 'Height (m)': 1.76, 'Height Error (m)': 0.05, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 0.7, 'Height (m)': 2.42, 'Height Error (m)': 0.05, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 0.8, 'Height (m)': 3.13, 'Height Error (m)': 0.06, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 0.9, 'Height (m)': 3.95, 'Height Error (m)': 0.06, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 1.0, 'Height (m)': 4.89, 'Height Error (m)': 0.07, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 1.1, 'Height (m)': 5.93, 'Height Error (m)': 0.07, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 1.2, 'Height (m)': 7.05, 'Height Error (m)': 0.08, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 1.3, 'Height (m)': 8.28, 'Height Error (m)': 0.08, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 1.4, 'Height (m)': 9.61, 'Height Error (m)': 0.09, 'Time Error (s)': 0.005 },
+        { 'Time (s)': 1.5, 'Height (m)': 11.03, 'Height Error (m)': 0.09, 'Time Error (s)': 0.005 },
     ],
 };
 
@@ -113,7 +113,7 @@ function Workflow() {
         setXCol(EXAMPLE_DATA.columns[0]);
         setYCol(EXAMPLE_DATA.columns[1]);
         setYErrCol(EXAMPLE_DATA.columns[2]);
-        setXErrCol('None');
+        setXErrCol(EXAMPLE_DATA.columns[3]);
         setXLabel('Time [s]');
         setYLabel('Height [m]');
         setPlotTitle('Free Fall — Height vs Time');

@@ -185,3 +185,28 @@ export const getAssistantStatus = async () => {
     const response = await api.get('/assistant/status');
     return response.data;
 };
+
+// Fourier API
+export const analyzeFourier = async (data: {
+    y_data: number[];
+    dt?: number;
+    compute_dft?: boolean;
+    compute_psd?: boolean;
+    n_dominant?: number;
+}) => {
+    const response = await api.post('/fourier/analyze', data);
+    return response.data;
+};
+
+export const inverseFourier = async (data: {
+    dft_real: number[];
+    dft_imag: number[];
+    n_points: number;
+    filter_type?: string;
+    cutoff_low?: number;
+    cutoff_high?: number;
+    frequencies?: number[];
+}) => {
+    const response = await api.post('/fourier/inverse', data);
+    return response.data;
+};

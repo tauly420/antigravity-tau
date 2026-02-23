@@ -66,6 +66,14 @@ const tools = [
         emoji: '⚖️',
         color: '#1565c0',
     },
+    {
+        title: 'Fourier Analysis',
+        desc: 'DFT amplitude spectrum, PSD, dominant frequency detection, and inverse DFT with filtering.',
+        path: '/fourier',
+        icon: '',
+        emoji: '〰️',
+        color: '#e65100',
+    },
 ];
 
 function Home() {

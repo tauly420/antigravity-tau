@@ -41,18 +41,18 @@ const MODELS = [
 /* Example data: Hooke's Law */
 const EXAMPLE_DATA = {
     name: "Hooke's Law (F = k·x)",
-    columns: ['Extension (m)', 'Force (N)', 'Force Error (N)'],
+    columns: ['Extension (m)', 'Force (N)', 'Force Error (N)', 'Extension Error (m)'],
     rows: [
-        { 'Extension (m)': 0.01, 'Force (N)': 0.51, 'Force Error (N)': 0.05 },
-        { 'Extension (m)': 0.02, 'Force (N)': 0.98, 'Force Error (N)': 0.05 },
-        { 'Extension (m)': 0.03, 'Force (N)': 1.52, 'Force Error (N)': 0.06 },
-        { 'Extension (m)': 0.04, 'Force (N)': 2.05, 'Force Error (N)': 0.06 },
-        { 'Extension (m)': 0.05, 'Force (N)': 2.48, 'Force Error (N)': 0.07 },
-        { 'Extension (m)': 0.06, 'Force (N)': 3.02, 'Force Error (N)': 0.07 },
-        { 'Extension (m)': 0.07, 'Force (N)': 3.55, 'Force Error (N)': 0.08 },
-        { 'Extension (m)': 0.08, 'Force (N)': 4.01, 'Force Error (N)': 0.08 },
-        { 'Extension (m)': 0.09, 'Force (N)': 4.53, 'Force Error (N)': 0.09 },
-        { 'Extension (m)': 0.10, 'Force (N)': 5.05, 'Force Error (N)': 0.09 },
+        { 'Extension (m)': 0.01, 'Force (N)': 0.51, 'Force Error (N)': 0.05, 'Extension Error (m)': 0.001 },
+        { 'Extension (m)': 0.02, 'Force (N)': 0.98, 'Force Error (N)': 0.05, 'Extension Error (m)': 0.001 },
+        { 'Extension (m)': 0.03, 'Force (N)': 1.52, 'Force Error (N)': 0.06, 'Extension Error (m)': 0.001 },
+        { 'Extension (m)': 0.04, 'Force (N)': 2.05, 'Force Error (N)': 0.06, 'Extension Error (m)': 0.001 },
+        { 'Extension (m)': 0.05, 'Force (N)': 2.48, 'Force Error (N)': 0.07, 'Extension Error (m)': 0.001 },
+        { 'Extension (m)': 0.06, 'Force (N)': 3.02, 'Force Error (N)': 0.07, 'Extension Error (m)': 0.001 },
+        { 'Extension (m)': 0.07, 'Force (N)': 3.55, 'Force Error (N)': 0.08, 'Extension Error (m)': 0.001 },
+        { 'Extension (m)': 0.08, 'Force (N)': 4.01, 'Force Error (N)': 0.08, 'Extension Error (m)': 0.001 },
+        { 'Extension (m)': 0.09, 'Force (N)': 4.53, 'Force Error (N)': 0.09, 'Extension Error (m)': 0.001 },
+        { 'Extension (m)': 0.10, 'Force (N)': 5.05, 'Force Error (N)': 0.09, 'Extension Error (m)': 0.001 },
     ],
 };
 
@@ -88,7 +88,7 @@ function GraphFitting() {
         setXCol(EXAMPLE_DATA.columns[0]);
         setYCol(EXAMPLE_DATA.columns[1]);
         setYErrCol(EXAMPLE_DATA.columns[2]);
-        setXErrCol('None');
+        setXErrCol(EXAMPLE_DATA.columns[3]);
         setXLabel('Extension [m]');
         setYLabel('Force [N]');
         setPlotTitle("Hooke's Law — Force vs Extension");

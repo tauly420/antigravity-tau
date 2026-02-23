@@ -29,6 +29,7 @@ def create_app():
     from api.ode import ode_bp
     from api.integrate import integrate_bp
     from api.assistant import assistant_bp
+    from api.fourier import fourier_bp
     
     app.register_blueprint(formula_bp, url_prefix='/api/formula')
     app.register_blueprint(nsigma_bp, url_prefix='/api/nsigma')
@@ -38,6 +39,7 @@ def create_app():
     app.register_blueprint(ode_bp, url_prefix='/api/ode')
     app.register_blueprint(integrate_bp, url_prefix='/api/integrate')
     app.register_blueprint(assistant_bp, url_prefix='/api/assistant')
+    app.register_blueprint(fourier_bp, url_prefix='/api/fourier')
     
     # Health check endpoint
     @app.route('/api/health')

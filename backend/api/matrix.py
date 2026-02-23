@@ -229,17 +229,33 @@ def eigenvalues():
         # Calculate eigenvalues and eigenvectors
         eigenvals, eigenvecs = linalg.eig(A)
         
-        # Convert complex numbers to real if imaginary parts are negligible
-        eigenvals_list = []
-        for val in eigenvals:
-            if np.abs(val.imag) < 1e-10:
-                eigenvals_list.append(float(val.real))
+        # Helper to make a value JSON-safe
+        def safe_scalar(v):
+            if np.abs(v.imag) < 1e-10:
+                return float(v.real)
             else:
-                eigenvals_list.append(complex(val))
+                # Return as string "a + bi" for display
+                sign = '+' if v.imag >= 0 else '-'
+                return f"{v.real:.6g} {sign} {abs(v.imag):.6g}i"
+        
+        eigenvals_list = [safe_scalar(v) for v in eigenvals]
+        
+        # Eigenvectors: each column is an eigenvector
+        has_complex = np.any(np.abs(eigenvecs.imag) > 1e-10)
+        if has_complex:
+            # Return as list of lists of strings
+            evecs = []
+            for col in range(eigenvecs.shape[1]):
+                vec = []
+                for row in range(eigenvecs.shape[0]):
+                    vec.append(safe_scalar(eigenvecs[row, col]))
+                evecs.append(vec)
+        else:
+            evecs = eigenvecs.real.tolist()
         
         return jsonify({
             "eigenvalues": eigenvals_list,
-            "eigenvectors": eigenvecs.real.tolist(),  # Return real parts
+            "eigenvectors": evecs,
             "error": None
         })
     
