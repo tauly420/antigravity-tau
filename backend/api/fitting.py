@@ -15,7 +15,8 @@ fitting_bp = Blueprint('fitting', __name__)
 @fitting_bp.route('/parse', methods=['POST'])
 def parse_file():
     """
-    Parse uploaded Excel or CSV file.
+    Parse uploaded data file.
+    Supports: .csv, .tsv, .xlsx, .xls, .ods, .dat
     If 'info_only' query param is set, return sheet names and column names.
     Otherwise, return data from the specified sheet and columns.
     """
@@ -29,26 +30,28 @@ def parse_file():
 
         import pandas as pd
 
-        is_csv = file.filename.endswith('.csv')
-        is_excel = file.filename.endswith(('.xls', '.xlsx'))
+        fname = file.filename.lower()
+        is_csv = fname.endswith('.csv')
+        is_tsv = fname.endswith('.tsv') or fname.endswith('.dat') or fname.endswith('.txt')
+        is_excel = fname.endswith(('.xls', '.xlsx', '.xlsm', '.xlsb'))
+        is_ods = fname.endswith('.ods')
 
-        if not is_csv and not is_excel:
-            return jsonify({"error": "Unsupported file type. Use .csv or .xlsx"}), 400
+        if not (is_csv or is_tsv or is_excel or is_ods):
+            return jsonify({"error": "Unsupported file type. Use .csv, .tsv, .xlsx, .xls, .xlsm, .xlsb, .ods, .dat, or .txt"}), 400
 
-        # Read sheet_name from form data
         sheet_name = request.form.get('sheet_name', None)
         info_only = request.form.get('info_only', 'false').lower() == 'true'
 
         if is_csv:
             df = pd.read_csv(file)
             sheet_names = ['Sheet1']
-        else:
-            # If info_only, return all sheet names and columns of first sheet
-            xl = pd.ExcelFile(file)
+        elif is_tsv:
+            df = pd.read_csv(file, sep=r'\s+|,|\t', engine='python')
+            sheet_names = ['Sheet1']
+        elif is_ods:
+            xl = pd.ExcelFile(file, engine='odf')
             sheet_names = xl.sheet_names
-
             if info_only:
-                # Return metadata: sheet names + columns per sheet
                 sheets_info = {}
                 for sn in sheet_names:
                     try:
@@ -56,13 +59,22 @@ def parse_file():
                         sheets_info[sn] = list(df_temp.columns)
                     except Exception:
                         sheets_info[sn] = []
-
-                return jsonify({
-                    "sheet_names": sheet_names,
-                    "sheets_info": sheets_info
-                })
-
-            # Parse specific sheet
+                return jsonify({"sheet_names": sheet_names, "sheets_info": sheets_info})
+            target_sheet = sheet_name if sheet_name else sheet_names[0]
+            df = xl.parse(target_sheet)
+        else:
+            # Excel formats
+            xl = pd.ExcelFile(file)
+            sheet_names = xl.sheet_names
+            if info_only:
+                sheets_info = {}
+                for sn in sheet_names:
+                    try:
+                        df_temp = xl.parse(sn, nrows=0)
+                        sheets_info[sn] = list(df_temp.columns)
+                    except Exception:
+                        sheets_info[sn] = []
+                return jsonify({"sheet_names": sheet_names, "sheets_info": sheets_info})
             target_sheet = sheet_name if sheet_name else sheet_names[0]
             df = xl.parse(target_sheet)
 
@@ -70,7 +82,6 @@ def parse_file():
         df = df.dropna(how='all')
         columns = list(df.columns)
         
-        # Convert to rows (list of dicts)
         rows = []
         for _, row in df.iterrows():
             row_dict = {}
@@ -98,6 +109,8 @@ def fit():
     """
     Perform curve fitting on data.
     Supports: linear, quadratic, cubic, power, exponential, sinusoidal, custom
+
+    Returns chi_squared, reduced_chi_squared, p_value, dof alongside parameters.
     """
     try:
         data = request.get_json()
@@ -159,7 +172,6 @@ def fit():
                 return a * np.sin(b * x + c) + d
             param_names = ['A', 'ω', 'φ', 'D']
             model_name = "y = A·sin(ω·x + φ) + D"
-            # Rough guess: amplitude ~ range/2, freq ~ 2π/range
             amp_guess = (np.max(y_data) - np.min(y_data)) / 2
             freq_guess = 2 * np.pi / (np.max(x_data) - np.min(x_data)) if np.max(x_data) != np.min(x_data) else 1
             p0 = [amp_guess, freq_guess, 0, np.mean(y_data)]
@@ -205,13 +217,25 @@ def fit():
         ss_tot = np.sum((y_data - np.mean(y_data))**2)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
 
-        # Calculate reduced chi-squared
-        dof = len(x_data) - len(popt)
+        # Degrees of freedom
+        n_params = len(popt)
+        n_data = len(x_data)
+        dof = n_data - n_params
+
+        # Chi-squared and P-value
         if y_errors is not None:
-            chi_squared = np.sum(((y_data - y_pred) / y_errors)**2)
+            chi2_total = float(np.sum(((y_data - y_pred) / y_errors)**2))
         else:
-            chi_squared = ss_res
-        reduced_chi2 = chi_squared / dof if dof > 0 else chi_squared
+            # Without y_errors, estimate sigma from residuals
+            chi2_total = float(ss_res)
+
+        reduced_chi2 = chi2_total / dof if dof > 0 else float('inf')
+
+        # P-value: probability of getting chi² >= observed, given dof
+        if dof > 0 and y_errors is not None:
+            p_value = float(stats.chi2.sf(chi2_total, dof))
+        else:
+            p_value = None  # Undefined without proper errors or dof
 
         # Generate fitted curve
         x_fit = np.linspace(x_data.min(), x_data.max(), 200)
@@ -225,7 +249,12 @@ def fit():
             "uncertainties": perr.tolist(),
             "parameter_names": param_names,
             "r_squared": float(r_squared),
-            "chi_squared": float(reduced_chi2),
+            "chi_squared": chi2_total,
+            "reduced_chi_squared": float(reduced_chi2),
+            "p_value": p_value,
+            "dof": dof,
+            "n_data": n_data,
+            "n_params": n_params,
             "model_name": model_name,
             "x_fit": x_fit.tolist(),
             "y_fit": y_fit.tolist(),

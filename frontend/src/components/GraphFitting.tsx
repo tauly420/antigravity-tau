@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Plot from './PlotWrapper';
 import * as api from '../services/api';
 import { useAnalysis } from '../context/AnalysisContext';
+import { smartFormat, formatPValue } from '../utils/format';
 
 /* ─── types ─── */
 interface ParsedData {
@@ -16,6 +17,11 @@ interface FitResult {
     parameter_names: string[];
     r_squared: number;
     chi_squared: number;
+    reduced_chi_squared: number;
+    p_value: number | null;
+    dof: number;
+    n_data: number;
+    n_params: number;
     model_name: string;
     x_fit: number[];
     y_fit: number[];
@@ -196,7 +202,7 @@ function GraphFitting() {
 
                 <div className="form-group">
                     <label>Upload Excel / CSV</label>
-                    <input type="file" accept=".xlsx,.xls,.csv" onChange={e => e.target.files?.[0] && handleFileSelect(e.target.files[0])} />
+                    <input type="file" accept=".xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.dat,.txt" onChange={e => e.target.files?.[0] && handleFileSelect(e.target.files[0])} />
                 </div>
 
                 {uploading && <div className="loading-spinner">Loading…</div>}
@@ -301,13 +307,25 @@ function GraphFitting() {
                                 {result.parameter_names.map((name: string, i: number) => (
                                     <tr key={name}>
                                         <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{name}</td>
-                                        <td style={{ fontFamily: 'monospace' }}>{result.parameters[i].toExponential(4)}</td>
-                                        <td style={{ fontFamily: 'monospace' }}>{result.uncertainties[i].toExponential(4)}</td>
+                                        <td style={{ fontFamily: 'monospace' }}>{smartFormat(result.parameters[i])}</td>
+                                        <td style={{ fontFamily: 'monospace' }}>{smartFormat(result.uncertainties[i])}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
-                        <p className="fit-stats">R² = {result.r_squared.toFixed(6)} &nbsp;|&nbsp; χ²/dof = {result.chi_squared.toFixed(4)}</p>
+                    </div>
+                    <div className="params-table-wrap" style={{ marginTop: '1rem' }}>
+                        <h4>Goodness of Fit</h4>
+                        <table className="params-table">
+                            <tbody>
+                                <tr><td>R²</td><td style={{ fontFamily: 'monospace', textAlign: 'right' }}>{result.r_squared.toFixed(6)}</td></tr>
+                                <tr><td>χ²</td><td style={{ fontFamily: 'monospace', textAlign: 'right' }}>{smartFormat(result.chi_squared)}</td></tr>
+                                <tr><td>χ²/dof (reduced)</td><td style={{ fontFamily: 'monospace', textAlign: 'right' }}>{smartFormat(result.reduced_chi_squared)}</td></tr>
+                                <tr><td>P-value</td><td style={{ fontFamily: 'monospace', textAlign: 'right' }}>{formatPValue(result.p_value)}</td></tr>
+                                <tr><td>Degrees of freedom</td><td style={{ fontFamily: 'monospace', textAlign: 'right' }}>{result.dof}</td></tr>
+                                <tr><td>Data points / Parameters</td><td style={{ fontFamily: 'monospace', textAlign: 'right' }}>{result.n_data} / {result.n_params}</td></tr>
+                            </tbody>
+                        </table>
                     </div>
 
                     <Plot
