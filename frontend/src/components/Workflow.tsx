@@ -75,6 +75,7 @@ function Workflow() {
     const sec3Ref = useRef<HTMLDivElement>(null);
     const sec4Ref = useRef<HTMLDivElement>(null);
     const sec5Ref = useRef<HTMLDivElement>(null);
+    const sec6Ref = useRef<HTMLDivElement>(null);
 
     const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) => {
         setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
@@ -106,6 +107,16 @@ function Workflow() {
 
     /* step 4 – formula */
     const [formulaResult, setFormulaResult] = useState<FormulaResult | null>(null);
+
+    /* step 5 – N-sigma */
+    const [nSigmaResult, setNSigmaResult] = useState<{ n_sigma: number; verdict: string; message: string } | null>(null);
+
+    /* step 6 – report */
+    const [reportLang, setReportLang] = useState<'en' | 'he'>('en');
+    const [experimentContext, setExperimentContext] = useState('');
+    const [generatedReport, setGeneratedReport] = useState('');
+    const [reportLoading, setReportLoading] = useState(false);
+    const [showReportDialog, setShowReportDialog] = useState(false);
 
     /* ──────── LOAD EXAMPLE DATA ──────── */
     const loadExampleData = () => {
@@ -255,6 +266,69 @@ function Workflow() {
             {!isUnlocked && <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#999' }}>🔒 Complete step {num - 1} first</span>}
         </div>
     );
+
+    /* ──────── GENERATE REPORT ──────── */
+    const handleGenerateReport = async () => {
+        setReportLoading(true);
+        setGeneratedReport('');
+        try {
+            // Build a detailed prompt
+            const lang = reportLang === 'he' ? 'Hebrew' : 'English';
+            let prompt = `Write a concise lab report paragraph in ${lang} summarizing the following experimental results.\n\n`;
+
+            if (experimentContext.trim()) {
+                prompt += `EXPERIMENT DESCRIPTION: ${experimentContext.trim()}\n\n`;
+            }
+
+            if (fitResult) {
+                prompt += `FIT MODEL: ${fitResult.model_name}\n`;
+                prompt += `PARAMETERS:\n`;
+                fitResult.parameter_names.forEach((name: string, i: number) => {
+                    prompt += `  ${name} = ${fitResult.parameters[i]} ± ${fitResult.uncertainties[i]}\n`;
+                });
+                prompt += `R² = ${fitResult.r_squared}\n`;
+                prompt += `χ² = ${fitResult.chi_squared}\n`;
+                prompt += `χ²/dof (reduced) = ${fitResult.reduced_chi_squared}\n`;
+                prompt += `P-value = ${fitResult.p_value}\n`;
+                prompt += `Degrees of freedom = ${fitResult.dof}\n`;
+                prompt += `Data points = ${fitResult.n_data}, Parameters = ${fitResult.n_params}\n\n`;
+            }
+
+            if (nSigmaResult) {
+                prompt += `N-SIGMA COMPARISON:\n`;
+                prompt += `  N-sigma = ${nSigmaResult.n_sigma.toFixed(3)}\n`;
+                prompt += `  Verdict = ${nSigmaResult.verdict}\n\n`;
+            }
+
+            prompt += `INSTRUCTIONS FOR THE REPORT:\n`;
+            prompt += `- Interpret the reduced chi-squared (χ²/dof):\n`;
+            prompt += `  * If χ²/dof ≈ 1: good fit, errors well estimated\n`;
+            prompt += `  * If χ²/dof >> 1: poor fit or UNDERESTIMATED errors\n`;
+            prompt += `  * If χ²/dof << 1: OVERESTIMATED errors (uncertainties too large)\n`;
+            prompt += `- Interpret the P-value (probability the data is consistent with model)\n`;
+            prompt += `- If N-sigma result is available, discuss whether the values agree\n`;
+            prompt += `- Write as a coherent paragraph suitable for a lab report, NOT bullet points\n`;
+            prompt += `- Be quantitative (cite the actual numbers)\n`;
+            if (reportLang === 'he') {
+                prompt += `- Write entirely in Hebrew. Use proper Hebrew scientific terminology.\n`;
+                prompt += `- Format numbers left-to-right even within Hebrew text.\n`;
+            }
+
+            const data = await api.chatWithAssistant({
+                message: prompt,
+                context: {
+                    current_page: '/workflow',
+                    current_tool: 'Lab Workflow - Report Generator',
+                    generating_report: true,
+                },
+            });
+            setGeneratedReport(data.response || data.message || 'No report generated.');
+        } catch (err: any) {
+            setGeneratedReport(`⚠️ Error generating report: ${err.response?.data?.error || err.message}`);
+        } finally {
+            setReportLoading(false);
+        }
+    };
 
     /* ──────── RENDER ──────── */
     return (
@@ -461,8 +535,94 @@ function Workflow() {
                                 <strong>From formula:</strong> {formulaResult.value.toExponential(4)} ± {formulaResult.uncertainty.toExponential(4)}
                             </div>
                         )}
-                        <NSigmaCalculator prefilled1={formulaResult ? { value: formulaResult.value, uncertainty: formulaResult.uncertainty } : undefined} />
-                        <button onClick={() => { setUnlocked(1); setFitResult(null); setFormulaResult(null); setParsedData(null); setFile(null); setFileInfo(null); }}
+                        <NSigmaCalculator
+                            prefilled1={formulaResult ? { value: formulaResult.value, uncertainty: formulaResult.uncertainty } : undefined}
+                            onResult={(r) => { setNSigmaResult(r); setUnlocked(u => Math.max(u, 6)); setTimeout(() => sec6Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200); }}
+                        />
+                    </div>
+                )}
+            </div>
+
+            {/* ════ Section 6: Generate Report ════ */}
+            <div className="wf-section" ref={sec6Ref} style={{ opacity: unlocked >= 3 ? 1 : 0.4, pointerEvents: unlocked >= 3 ? 'auto' : 'none' }}>
+                <SectionHeader num={6} title="📝 Generate Report" isUnlocked={unlocked >= 3} />
+                {unlocked >= 3 && (
+                    <div className="wf-body">
+                        <p className="step-desc">Generate an AI-written paragraph summarizing your results — fit quality, χ²/dof interpretation, P-value, and N-σ comparison.</p>
+
+                        {/* Language toggle */}
+                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                            <button
+                                className={reportLang === 'en' ? 'btn-primary' : 'btn-accent'}
+                                onClick={() => setReportLang('en')}
+                                style={{ fontSize: '0.9rem', padding: '0.4rem 1.2rem' }}
+                            >
+                                🇬🇧 English
+                            </button>
+                            <button
+                                className={reportLang === 'he' ? 'btn-primary' : 'btn-accent'}
+                                onClick={() => setReportLang('he')}
+                                style={{ fontSize: '0.9rem', padding: '0.4rem 1.2rem' }}
+                            >
+                                🇮🇱 עברית
+                            </button>
+                        </div>
+
+                        {/* Experiment context */}
+                        {!showReportDialog ? (
+                            <button className="btn-primary" onClick={() => setShowReportDialog(true)} style={{ fontSize: '0.95rem' }}>
+                                📝 Generate Report
+                            </button>
+                        ) : (
+                            <div style={{ background: '#f5f5f5', borderRadius: '10px', padding: '1rem', border: '1px solid #e0e0e0' }}>
+                                <h4 style={{ margin: '0 0 0.75rem 0' }}>Tell the AI about your experiment</h4>
+                                <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.75rem' }}>
+                                    {reportLang === 'he'
+                                        ? 'תאר את הניסוי: מה מדדת, מה ההשוואה ב-N-σ, ופרטים נוספים שיעזרו ליצור דו"ח טוב.'
+                                        : 'Describe your experiment: what did you measure, what are you comparing in the N-σ test, and any other relevant details.'}
+                                </p>
+                                <textarea
+                                    value={experimentContext}
+                                    onChange={e => setExperimentContext(e.target.value)}
+                                    placeholder={reportLang === 'he'
+                                        ? 'לדוגמה: מדדנו את תקופת המטוטלת T כפונקציה של L, והשוונו את ערך g שקיבלנו לערך התיאורטי...'
+                                        : 'e.g. We measured pendulum period T vs length L, fitted to T = 2π√(L/g), and compared the extracted g to the theoretical value...'}
+                                    rows={3}
+                                    style={{ width: '100%', fontSize: '0.9rem', marginBottom: '0.75rem' }}
+                                />
+                                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                    <button className="btn-primary" onClick={handleGenerateReport} disabled={reportLoading}>
+                                        {reportLoading ? '⏳ Generating…' : '✨ Generate'}
+                                    </button>
+                                    <button className="btn-accent" onClick={() => setShowReportDialog(false)}>Cancel</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Generated report display */}
+                        {generatedReport && (
+                            <div style={{
+                                marginTop: '1.5rem', padding: '1.25rem', background: '#fafafa',
+                                borderRadius: '10px', border: '1px solid #e0e0e0',
+                                direction: reportLang === 'he' ? 'rtl' : 'ltr',
+                                textAlign: reportLang === 'he' ? 'right' : 'left',
+                                lineHeight: 1.7, fontSize: '0.95rem',
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', direction: 'ltr' }}>
+                                    <h4 style={{ margin: 0 }}>📄 Generated Report</h4>
+                                    <button
+                                        onClick={() => { navigator.clipboard.writeText(generatedReport); }}
+                                        style={{ fontSize: '0.8rem', padding: '0.3rem 0.8rem', cursor: 'pointer' }}
+                                        className="btn-accent"
+                                    >
+                                        📋 Copy
+                                    </button>
+                                </div>
+                                <div style={{ whiteSpace: 'pre-wrap' }}>{generatedReport}</div>
+                            </div>
+                        )}
+
+                        <button onClick={() => { setUnlocked(1); setFitResult(null); setFormulaResult(null); setNSigmaResult(null); setParsedData(null); setFile(null); setFileInfo(null); setGeneratedReport(''); setShowReportDialog(false); }}
                             className="btn-accent" style={{ marginTop: '1.5rem' }}>
                             🔄 Start New Workflow
                         </button>

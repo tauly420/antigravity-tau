@@ -4,9 +4,11 @@ import * as api from '../services/api';
 interface NSigmaCalculatorProps {
     /** Pre-filled measurement 1 from workflow */
     prefilled1?: { value: number; uncertainty: number };
+    /** Callback when N-sigma is calculated */
+    onResult?: (result: { n_sigma: number; verdict: string; message: string }) => void;
 }
 
-function NSigmaCalculator({ prefilled1 }: NSigmaCalculatorProps) {
+function NSigmaCalculator({ prefilled1, onResult }: NSigmaCalculatorProps) {
     const [val1, setVal1] = useState<string>('');
     const [unc1, setUnc1] = useState<string>('');
     const [val2, setVal2] = useState<string>('');
@@ -49,6 +51,7 @@ function NSigmaCalculator({ prefilled1 }: NSigmaCalculatorProps) {
             });
 
             setResult(response);
+            onResult?.(response);
         } catch (err: any) {
             setError(err.response?.data?.error || err.message || 'Calculation failed');
         } finally {
