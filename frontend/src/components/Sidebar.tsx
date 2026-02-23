@@ -2,6 +2,30 @@ import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as api from '../services/api';
 import { useAnalysis } from '../context/AnalysisContext';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
+
+/* ─── LaTeX rendering helper ─── */
+const escapeHtml = (text: string) =>
+    text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+const renderLatex = (text: string): string => {
+    // First handle display math: $$...$$
+    let result = text.replace(/\$\$([\s\S]*?)\$\$/g, (_match, latex) => {
+        try {
+            return katex.renderToString(latex.trim(), { displayMode: true, throwOnError: false });
+        } catch { return escapeHtml(_match); }
+    });
+    // Then handle inline math: $...$  (but not $$)
+    result = result.replace(/(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/g, (_match, latex) => {
+        try {
+            return katex.renderToString(latex.trim(), { displayMode: false, throwOnError: false });
+        } catch { return escapeHtml(_match); }
+    });
+    // Escape remaining HTML but preserve rendered KaTeX spans
+    // KaTeX output already has HTML, so we only escape non-KaTeX parts
+    return result;
+};
 
 /* ─── Page-specific welcome messages ─── */
 const PAGE_TIPS: Record<string, { title: string; tip: string }> = {
@@ -258,9 +282,6 @@ function Sidebar() {
                 <div className="sidebar-header">
                     <img src="/chatbot.png" alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} onError={e => (e.target as HTMLImageElement).style.display = 'none'} />
                     <h3>AI Lab Assistant</h3>
-                    <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#999', paddingRight: '0.5rem' }}>
-                        📍 {PAGE_TIPS[location.pathname]?.title || 'Unknown'}
-                    </span>
                 </div>
 
                 {status === 'no-key' && (
@@ -277,7 +298,7 @@ function Sidebar() {
                 <div className="sidebar-messages">
                     {messages.map((msg, idx) => (
                         <div key={idx} className={`chat-bubble ${msg.role}`}>
-                            <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+                            <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: renderLatex(msg.content) }} />
                         </div>
                     ))}
                     {loading && <div className="chat-bubble assistant" style={{ opacity: 0.6 }}>Thinking…</div>}
