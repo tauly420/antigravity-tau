@@ -77,6 +77,7 @@ function FourierAnalysis() {
     const [cutoffLow, setCutoffLow] = useState(0);
     const [cutoffHigh, setCutoffHigh] = useState(100);
     const [filterLoading, setFilterLoading] = useState(false);
+    const [overlayOnOriginal, setOverlayOnOriginal] = useState(false);
 
     const loadExample = (ex: typeof EXAMPLES[0]) => {
         const { t, y, dt: sdt, desc } = ex.generate();
@@ -255,7 +256,7 @@ function FourierAnalysis() {
                             name: 'Signal',
                             line: { color: '#1976d2', width: 1.5 },
                         },
-                        ...(reconstructed ? [{
+                        ...((reconstructed && overlayOnOriginal) ? [{
                             x: tData.length ? tData : yData.map((_, i) => i * dt),
                             y: reconstructed,
                             type: 'scatter' as const,
@@ -407,16 +408,55 @@ function FourierAnalysis() {
                         )}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                         <button onClick={filterType === 'none' ? handleReconstructFull : handleFilter} disabled={filterLoading} className="btn-primary">
                             {filterLoading ? '⏳ Computing…' : filterType === 'none' ? '🔄 Reconstruct Signal' : `🔧 Apply ${filterType} Filter`}
                         </button>
+                        {reconstructed && (
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', cursor: 'pointer' }}>
+                                <input type="checkbox" checked={overlayOnOriginal} onChange={e => setOverlayOnOriginal(e.target.checked)} />
+                                Overlay on original signal
+                            </label>
+                        )}
                     </div>
 
+                    {/* ─── Separate iDFT Reconstruction Plot ─── */}
                     {reconstructed && (
-                        <p style={{ marginTop: '0.75rem', color: '#388e3c', fontWeight: 600 }}>
-                            ✅ Reconstructed! See the red dashed curve overlaid on the signal plot above.
-                        </p>
+                        <div style={{ marginTop: '1rem' }}>
+                            <Plot
+                                data={[
+                                    {
+                                        x: tData.length ? tData : yData.map((_, i) => i * dt),
+                                        y: reconstructed,
+                                        type: 'scatter' as const,
+                                        mode: 'lines' as const,
+                                        name: `Reconstructed (${filterType === 'none' ? 'full' : filterType})`,
+                                        line: { color: '#d32f2f', width: 2 },
+                                    },
+                                    {
+                                        x: tData.length ? tData : yData.map((_, i) => i * dt),
+                                        y: yData,
+                                        type: 'scatter' as const,
+                                        mode: 'lines' as const,
+                                        name: 'Original',
+                                        line: { color: '#1976d2', width: 1, dash: 'dash' as const },
+                                        opacity: 0.45,
+                                    },
+                                ]}
+                                layout={{
+                                    title: { text: `Inverse DFT — ${filterType === 'none' ? 'Full Reconstruction' : filterType.charAt(0).toUpperCase() + filterType.slice(1) + ' Filtered'}` },
+                                    xaxis: { title: { text: 'Time (s)' }, gridcolor: '#e0e0e0' },
+                                    yaxis: { title: { text: 'Amplitude' }, gridcolor: '#e0e0e0' },
+                                    height: 350,
+                                    margin: { l: 60, r: 30, t: 45, b: 50 },
+                                    legend: { x: 0, y: 1.12, orientation: 'h' as const },
+                                    plot_bgcolor: '#fafafa',
+                                    paper_bgcolor: '#fff',
+                                }}
+                                useResizeHandler style={{ width: '100%' }}
+                                config={{ responsive: true, displaylogo: false }}
+                            />
+                        </div>
                     )}
                 </div>
             )}

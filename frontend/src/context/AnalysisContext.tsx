@@ -9,6 +9,8 @@ interface AnalysisContextType {
     setLastResult: (result: any) => void;
     analysisHistory: string[];
     addToHistory: (entry: string) => void;
+    uploadedFileInfo: string;
+    setUploadedFileInfo: (info: string) => void;
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
@@ -18,6 +20,7 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
     const [currentData, setCurrentData] = useState<any>(null);
     const [lastResult, setLastResult] = useState<any>(null);
     const [analysisHistory, setAnalysisHistory] = useState<string[]>([]);
+    const [uploadedFileInfo, setUploadedFileInfo] = useState<string>('');
 
     const addToHistory = (entry: string) => {
         setAnalysisHistory(prev => [...prev.slice(-19), entry]);
@@ -28,7 +31,8 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
             currentTool, setCurrentTool,
             currentData, setCurrentData,
             lastResult, setLastResult,
-            analysisHistory, addToHistory
+            analysisHistory, addToHistory,
+            uploadedFileInfo, setUploadedFileInfo,
         }}>
             {children}
         </AnalysisContext.Provider>
