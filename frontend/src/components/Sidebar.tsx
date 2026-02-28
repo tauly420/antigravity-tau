@@ -286,7 +286,7 @@ function Sidebar() {
 
                 {status === 'no-key' && (
                     <div style={{ padding: '0.75rem 1rem', background: '#fff3e0', borderBottom: '1px solid #ffe0b2', fontSize: '0.85rem', color: '#e65100' }}>
-                        ⚠️ <strong>OPENAI_API_KEY</strong> not set. Chat won't work until configured.
+                        ⚠️ <strong>AI API key</strong> not set. Chat won't work until configured.
                     </div>
                 )}
                 {status === 'error' && (

@@ -6,8 +6,22 @@ import time
 import json
 from typing import List, Dict, Optional, Any
 
-import openai
-from openai import OpenAI
+# ============================================================
+# PROVIDER SELECTION
+# ============================================================
+# Set CHAT_PROVIDER env var to "openai" or "gemini" (default: gemini)
+# Gemini: set GEMINI_API_KEY
+# OpenAI: set OPENAI_API_KEY
+_PROVIDER = os.getenv("CHAT_PROVIDER", "gemini").lower()
+
+# --- Gemini SDK ---
+if _PROVIDER == "gemini":
+    from google import genai
+
+# --- OpenAI SDK (kept for easy switching) ---
+# if _PROVIDER == "openai":
+#     import openai
+#     from openai import OpenAI
 
 
 _DEFAULT_PROMPT = """\
@@ -98,15 +112,9 @@ When context includes last_result, reference those specific values in your expla
 
 class ChatAgent:
     """
-    OpenAI chat wrapper with built-in 'system prompt' engineering.
+    AI chat wrapper supporting Gemini (default) and OpenAI.
 
-    Features
-    --------
-    - Reads OPENAI_API_KEY from env (never hardcoded).
-    - Accepts a list of {"role","content"} messages.
-    - Automatically prepends a system message (from arg/env/file/default).
-    - Optional 'extra_context' per call (merged as an additional system message).
-    - Retries on transient failures with exponential backoff.
+    Set CHAT_PROVIDER=gemini or CHAT_PROVIDER=openai to switch.
     """
 
     def __init__(
@@ -117,9 +125,23 @@ class ChatAgent:
         system_prompt: Optional[str] = None,
         system_prompt_path: Optional[str] = None,
     ):
-        self.client = OpenAI(timeout=timeout, max_retries=max_retries)
-        self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        self.max_retries = max_retries
         self.system_prompt = self._resolve_system_prompt(system_prompt, system_prompt_path)
+        self.provider = _PROVIDER
+
+        if self.provider == "gemini":
+            api_key = os.getenv("GEMINI_API_KEY", "")
+            if not api_key:
+                raise RuntimeError("GEMINI_API_KEY not set")
+            self.client = genai.Client(api_key=api_key)
+            self.model = model or os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        else:
+            # OpenAI fallback
+            import openai as _openai
+            from openai import OpenAI as _OpenAI
+            self._openai_module = _openai
+            self.client = _OpenAI(timeout=timeout, max_retries=max_retries)
+            self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     # -------- public API --------
 
@@ -129,37 +151,90 @@ class ChatAgent:
         *,
         extra_context: Optional[Dict[str, Any]] = None,
     ) -> str:
-        """
-        Send a chat completion request.
+        if self.provider == "gemini":
+            return self._ask_gemini(messages, extra_context)
+        else:
+            return self._ask_openai(messages, extra_context)
 
-        Parameters
-        ----------
-        messages : List[Dict[str,str]]
-            Usual OpenAI chat 'messages' (roles: 'user'/'assistant'/('system' allowed)).
-        extra_context : dict, optional
-            Additional per-call context (e.g., current view, selections).
-            Added as an additional 'system' message right after the base system prompt.
+    def set_system_prompt(self, text: str) -> None:
+        """Dynamically replace the system prompt."""
+        self.system_prompt = (text or "").strip() or _DEFAULT_PROMPT
 
-        Returns
-        -------
-        str : assistant text reply (empty string if none)
-        """
+    # -------- Gemini implementation --------
+
+    def _ask_gemini(
+        self,
+        messages: List[Dict[str, str]],
+        extra_context: Optional[Dict[str, Any]],
+    ) -> str:
+        # Build the system instruction with optional context
+        system_instruction = self.system_prompt
+        if extra_context:
+            try:
+                ctx = json.dumps(extra_context, ensure_ascii=False, indent=2)
+            except Exception:
+                ctx = str(extra_context)
+            system_instruction += f"\n\nContext for this request:\n{ctx}"
+
+        # Convert OpenAI-style messages to Gemini format
+        contents = []
+        for m in messages or []:
+            role = (m.get("role") or "").strip()
+            content = (m.get("content") or "").strip()
+            if not content:
+                continue
+            # Gemini uses "user" and "model" (not "assistant")
+            if role == "assistant":
+                role = "model"
+            elif role == "system":
+                # Fold system messages into the system instruction
+                system_instruction += f"\n\n{content}"
+                continue
+            elif role != "user":
+                continue
+            contents.append({"role": role, "parts": [{"text": content}]})
+
         last_exc: Exception | None = None
+        for attempt in range(max(1, self.max_retries + 1)):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=contents,
+                    config={"system_instruction": system_instruction},
+                )
+                return (response.text or "").strip()
+            except Exception as e:
+                last_exc = e
+                err_str = str(e).lower()
+                # Retry on rate limits and server errors
+                if "rate" in err_str or "429" in err_str or "500" in err_str or "503" in err_str:
+                    time.sleep(1 * (2 ** attempt))
+                else:
+                    raise
+        raise RuntimeError("The AI is busy or temporarily unavailable. Please try again.") from last_exc
 
-        payload = self._with_system_prompt(messages, extra_context)
+    # -------- OpenAI implementation (kept for easy switching) --------
 
-        for attempt in range(max(1, self.client.max_retries + 1)):
+    def _ask_openai(
+        self,
+        messages: List[Dict[str, str]],
+        extra_context: Optional[Dict[str, Any]],
+    ) -> str:
+        payload = self._with_system_prompt_openai(messages, extra_context)
+        last_exc: Exception | None = None
+        _openai = self._openai_module
+
+        for attempt in range(max(1, self.max_retries + 1)):
             try:
                 completion = self.client.chat.completions.create(
                     model=self.model,
                     messages=payload,
                 )
                 return (completion.choices[0].message.content or "").strip()
-            except (openai.RateLimitError, openai.APIConnectionError, openai.APITimeoutError) as e:
+            except (_openai.RateLimitError, _openai.APIConnectionError, _openai.APITimeoutError) as e:
                 last_exc = e
-                time.sleep(1 * (2 ** attempt))  # 1s, 2s, 4s, ...
-            except openai.APIStatusError as e:
-                # Retry 5xx; surface 4xx immediately
+                time.sleep(1 * (2 ** attempt))
+            except _openai.APIStatusError as e:
                 if 500 <= getattr(e, "status_code", 0) < 600:
                     last_exc = e
                     time.sleep(1 * (2 ** attempt))
@@ -167,35 +242,49 @@ class ChatAgent:
                     raise
         raise RuntimeError("The AI is busy or temporarily unavailable. Please try again.") from last_exc
 
-    def set_system_prompt(self, text: str) -> None:
-        """Dynamically replace the system prompt."""
-        self.system_prompt = (text or "").strip() or _DEFAULT_PROMPT
+    def _with_system_prompt_openai(
+        self,
+        user_messages: List[Dict[str, str]],
+        extra_context: Optional[Dict[str, Any]],
+    ) -> List[Dict[str, str]]:
+        msgs: List[Dict[str, str]] = []
+        for m in user_messages or []:
+            role = (m.get("role") or "").strip()
+            content = (m.get("content") or "").strip()
+            if role in {"system", "user", "assistant"} and content:
+                msgs.append({"role": role, "content": content})
 
-    # -------- internals --------
+        payload: List[Dict[str, str]] = [{"role": "system", "content": self.system_prompt}]
+        if extra_context:
+            try:
+                ctx = json.dumps(extra_context, ensure_ascii=False, indent=2)
+            except Exception:
+                ctx = str(extra_context)
+            payload.append({"role": "system", "content": f"Context for this request:\n{ctx}"})
+
+        payload.extend(msgs)
+        return payload
+
+    # -------- shared internals --------
 
     def _resolve_system_prompt(
         self,
         system_prompt: Optional[str],
         system_prompt_path: Optional[str],
     ) -> str:
-        # 1) explicit arg
         if system_prompt and system_prompt.strip():
             return system_prompt.strip()
-        # 2) env var (useful for quick experiments)
-        env_prompt = os.getenv("OPENAI_SYSTEM_PROMPT", "").strip()
+        env_prompt = os.getenv("SYSTEM_PROMPT", "").strip()
         if env_prompt:
             return env_prompt
-        # 3) file path (arg) -> load
         if system_prompt_path:
             text = self._load_file_safely(system_prompt_path)
             if text:
                 return text
-        # 4) default file candidates
         for candidate in ("system_prompt.md", "app/system_prompt.md"):
             text = self._load_file_safely(candidate)
             if text:
                 return text
-        # 5) baked-in default
         return _DEFAULT_PROMPT
 
     @staticmethod
@@ -205,32 +294,3 @@ class ChatAgent:
                 return f.read().strip()
         except Exception:
             return ""
-
-    def _with_system_prompt(
-        self,
-        user_messages: List[Dict[str, str]],
-        extra_context: Optional[Dict[str, Any]],
-    ) -> List[Dict[str, str]]:
-        # Normalize roles/shape but keep existing content order
-        msgs: List[Dict[str, str]] = []
-        for m in user_messages or []:
-            role = (m.get("role") or "").strip()
-            content = (m.get("content") or "").strip()
-            if role in {"system", "user", "assistant"} and content:
-                msgs.append({"role": role, "content": content})
-
-        # If user already provided a system message, we still *prepend* ours for consistency.
-        payload: List[Dict[str, str]] = [{"role": "system", "content": self.system_prompt}]
-
-        if extra_context:
-            try:
-                ctx = json.dumps(extra_context, ensure_ascii=False, indent=2)
-            except Exception:
-                ctx = str(extra_context)
-            payload.append({
-                "role": "system",
-                "content": f"Context for this request:\n{ctx}"
-            })
-
-        payload.extend(msgs)
-        return payload
