@@ -3,22 +3,29 @@ import * as api from '../services/api';
 import { useAnalysis } from '../context/AnalysisContext';
 
 // Known math functions/constants that should NOT be treated as variables
+// Case-sensitive! E = Euler's number, but e = regular variable
 const RESERVED = new Set([
     'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
-    'exp', 'log', 'ln', 'sqrt', 'abs', 'ceil', 'floor',
-    'pi', 'e', 'inf',
+    'Sin', 'Cos', 'Tan',
+    'exp', 'log', 'ln', 'sqrt', 'abs', 'Abs', 'ceil', 'floor',
+    'pi', 'E', 'inf', 'Inf',
     'sinh', 'cosh', 'tanh',
     'max', 'min', 'pow',
 ]);
+
+// Also reserve lowercase versions of functions (case-insensitive function matching)
+const RESERVED_LOWER = new Set(Array.from(RESERVED).map(s => s.toLowerCase()));
 
 function extractVariables(expr: string): string[] {
     if (!expr.trim()) return [];
     const tokens = expr.match(/[A-Za-z_]\w*/g) || [];
     const vars = new Set<string>();
     for (const t of tokens) {
-        if (!RESERVED.has(t.toLowerCase())) {
-            vars.add(t);
-        }
+        // Case-sensitive check for E (Euler's number) — 'e' is allowed as variable
+        if (t === 'E') continue;
+        // Case-insensitive check for functions like sin, cos, exp, etc.
+        if (RESERVED_LOWER.has(t.toLowerCase())) continue;
+        vars.add(t);
     }
     return Array.from(vars).sort();
 }
@@ -151,6 +158,8 @@ function FormulaCalculator({ prefilled, onResult, embedded }: FormulaCalculatorP
                 <p><strong>Enter any expression</strong> — variables are detected automatically.</p>
                 <p>• Operators: <code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>**</code> (power)</p>
                 <p>• Functions: <code>sin(x)</code> <code>cos(x)</code> <code>exp(x)</code> <code>sqrt(x)</code> <code>log(x)</code></p>
+                <p>• Constants: <code>pi</code> = π ≈ 3.14159,  <code>E</code> = e ≈ 2.71828 (Euler's number, <strong>capital E</strong>)</p>
+                <p>• Note: lowercase <code>e</code> is treated as a <strong>regular variable</strong>, not Euler's number</p>
                 <p>• Uncertainty propagation: s_f = √( Σ (∂f/∂xᵢ)² · σᵢ² )</p>
                 {prefilledNames.length > 0 && (
                     <p>• <strong style={{ color: 'var(--success)' }}>Available from fit:</strong> {prefilledNames.map(n => <code key={n}>{n}</code>).reduce((a: any, b: any) => [a, ', ', b] as any)}</p>

@@ -66,10 +66,12 @@ When providing calculator-ready expressions:
   - Multiplication: use *       (NOT implied)
   - Exponents/powers: use **   (NOT ^)
   - Square root: sqrt(x) or x**(1/2)
-  - Pi: pi
-  - Euler's number: E
+  - Constants:
+      pi   = π ≈ 3.14159  (lowercase)
+      E    = Euler's number e ≈ 2.71828  (UPPERCASE E only!)
+      NOTE: lowercase 'e' is treated as a regular variable, NOT Euler's number
   - Trig: sin(x), cos(x), tan(x), asin(x), acos(x), atan(x)
-  - Exponential: exp(x)
+  - Exponential: exp(x)   (this uses Euler's number automatically)
   - Logarithms: log(x) = natural log, log(x, 10) = base-10
   - Absolute value: Abs(x)
   - Parentheses: always explicit
