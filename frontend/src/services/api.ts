@@ -86,6 +86,12 @@ export const solveODE = async (data: {
     t_span: [number, number];
     num_points?: number;
     method?: string;
+    coordinate_system?: string;
+    compute_energy?: boolean;
+    energy_expr?: string;
+    rtol?: number;
+    atol?: number;
+    max_step?: number;
 }) => {
     const response = await api.post('/ode/solve', data);
     return response.data;
