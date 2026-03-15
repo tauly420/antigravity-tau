@@ -295,9 +295,12 @@ def _run_orchestrator(file_bytes, filename, instructions, theoretical_value=None
     """Run the Gemini function-calling orchestrator."""
     from google import genai
 
-    api_key = os.getenv("GEMINI_API_KEY", "")
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
-        return {"error": "GEMINI_API_KEY not set", "steps": []}
+        # Debug: print all env var names to help diagnose
+        env_keys = [k for k in os.environ.keys() if 'KEY' in k.upper() or 'GEMINI' in k.upper() or 'API' in k.upper()]
+        print(f"[AutoLab] GEMINI_API_KEY not found! Related env vars: {env_keys}")
+        return {"error": "GEMINI_API_KEY not set. Please add it in Railway Variables.", "steps": []}
 
     client = genai.Client(api_key=api_key)
     model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")

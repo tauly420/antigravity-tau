@@ -12,7 +12,7 @@ from typing import List, Dict, Optional, Any
 # Set CHAT_PROVIDER env var to "openai" or "gemini" (default: gemini)
 # Gemini: set GEMINI_API_KEY
 # OpenAI: set OPENAI_API_KEY
-_PROVIDER = os.getenv("CHAT_PROVIDER", "gemini").lower()
+_PROVIDER = os.getenv("CHAT_PROVIDER", "").strip().lower() or "gemini"
 
 # --- Gemini SDK ---
 if _PROVIDER == "gemini":

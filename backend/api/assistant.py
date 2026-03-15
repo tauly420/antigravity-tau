@@ -23,7 +23,7 @@ assistant_bp = Blueprint('assistant', __name__)
 
 # Initialize chat agent if available
 chat_agent = None
-_provider = os.getenv("CHAT_PROVIDER", "gemini").lower()
+_provider = os.getenv("CHAT_PROVIDER", "").strip().lower() or "gemini"
 if CHAT_AVAILABLE:
     try:
         if _provider == "gemini":
@@ -37,6 +37,7 @@ if CHAT_AVAILABLE:
 
         chat_agent = ChatAgent()
         print(f"[Assistant] ChatAgent initialized successfully (provider: {_provider})")
+        print(f"[Assistant] GEMINI_API_KEY present: {bool(os.environ.get('GEMINI_API_KEY', ''))}")
     except Exception as e:
         print(f"[Assistant] ChatAgent init failed: {e}")
         traceback.print_exc()
