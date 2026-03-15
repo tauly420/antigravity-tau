@@ -99,11 +99,20 @@ TOOL-SPECIFIC KNOWLEDGE
    - Custom fit: use x as variable, parameters auto-detected (e.g. a*sin(b*x+c)+d)
 3. Formula Calculator: Enter Python/SymPy expression, auto-detects variables, propagates error
 4. Matrix Calculator: Eigenvalues, eigenvectors, determinant, inverse, LU, solve Ax=b
-5. ODE Solver: Systems of first-order ODEs
+5. ODE Solver: Systems of first-order ODEs with real-time simulation, polar coordinates, 3D phase space, energy plots
 6. Numerical Integrator: 1D-6D definite integrals
 7. N-Sigma Calculator: Compare two measurements - result <= 3 sigma means agreement
 8. Unit Converter: 15+ categories including CGS units
 9. Fourier Analysis: DFT, PSD, dominant frequencies, inverse DFT with filtering
+10. AutoLab (🤖): AI-powered automated analysis. User uploads data + gives natural language instructions,
+    and the AI orchestrates the FULL workflow automatically:
+    - Parses the data file (identifies columns, sheets)
+    - Fits the data with the specified model (linear, quadratic, sinusoidal, custom, etc.)
+    - Evaluates formulas using fitted parameters with uncertainty propagation
+    - Compares results to theoretical values via N-sigma
+    - Generates a summary report
+    - Includes built-in example datasets for Hooke's Law, Oscillation, and Free Fall
+    - Users just describe what they want in plain language!
 
 When context includes the user's current page, tailor your answers to that tool.
 When context includes last_result, reference those specific values in your explanation.

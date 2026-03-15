@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Plot from './PlotWrapper';
+import DataPreview from './DataPreview';
 import * as api from '../services/api';
 import { useAnalysis } from '../context/AnalysisContext';
 import { smartFormat, formatPValue } from '../utils/format';
@@ -223,6 +224,7 @@ function GraphFitting() {
             {/* ─── Column Selection ─── */}
             {parsedData && (
                 <>
+                    <DataPreview columns={parsedData.columns} rows={parsedData.rows} />
                     <h3>Column Selection ({parsedData.rows.length} rows)</h3>
                     <div className="grid grid-2">
                         <div className="form-group">

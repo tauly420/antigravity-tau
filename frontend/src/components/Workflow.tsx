@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import Plot from './PlotWrapper';
+import DataPreview from './DataPreview';
 import * as api from '../services/api';
 import FormulaCalculator from './FormulaCalculator';
 import NSigmaCalculator from './NSigmaCalculator';
@@ -390,6 +391,7 @@ function Workflow() {
                 {unlocked >= 2 && parsedData && (
                     <div className="wf-body">
                         <p className="step-desc">{parsedData.rows.length} rows loaded.</p>
+                        <DataPreview columns={parsedData.columns} rows={parsedData.rows} />
                         <div className="grid grid-2">
                             <div className="form-group">
                                 <label>X column</label>

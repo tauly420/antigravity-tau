@@ -1,26 +1,90 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Plot from './PlotWrapper';
+import DataPreview from './DataPreview';
 import { useAnalysis } from '../context/AnalysisContext';
+import * as api from '../services/api';
 
 /* ═══════════════════════════════════════════════════════════════
    AutoLab — AI-Powered Automated Analysis
    Upload data + give instructions → get complete results
    ═══════════════════════════════════════════════════════════════ */
 
-const EXAMPLE_INSTRUCTIONS = [
+/* ── Built-in example datasets ── */
+const EXAMPLE_DATASETS = [
     {
-        label: '📈 Linear fit',
-        text: 'Use the first sheet. Column A is x, column B is y, column C is y error. Fit a linear model and report the slope and intercept.',
+        label: '📈 Hooke\'s Law (Linear)',
+        instructions: 'Use the first sheet. Column "Extension_m" is x, "Force_N" is y, "Force_Error_N" is y error. Fit a linear model. Calculate the slope a (the spring constant k) and report its value.',
+        theoVal: '50.0',
+        theoUnc: '2.0',
+        columns: ['Extension_m', 'Force_N', 'Force_Error_N', 'Extension_Error_m'],
+        rows: [
+            { Extension_m: 0.01, Force_N: 0.51, Force_Error_N: 0.25, Extension_Error_m: 0.005 },
+            { Extension_m: 0.02, Force_N: 0.98, Force_Error_N: 0.25, Extension_Error_m: 0.005 },
+            { Extension_m: 0.03, Force_N: 1.52, Force_Error_N: 0.30, Extension_Error_m: 0.005 },
+            { Extension_m: 0.04, Force_N: 2.05, Force_Error_N: 0.30, Extension_Error_m: 0.005 },
+            { Extension_m: 0.05, Force_N: 2.48, Force_Error_N: 0.35, Extension_Error_m: 0.005 },
+            { Extension_m: 0.06, Force_N: 3.02, Force_Error_N: 0.35, Extension_Error_m: 0.005 },
+            { Extension_m: 0.07, Force_N: 3.55, Force_Error_N: 0.40, Extension_Error_m: 0.005 },
+            { Extension_m: 0.08, Force_N: 4.01, Force_Error_N: 0.40, Extension_Error_m: 0.005 },
+            { Extension_m: 0.09, Force_N: 4.53, Force_Error_N: 0.45, Extension_Error_m: 0.005 },
+            { Extension_m: 0.10, Force_N: 5.05, Force_Error_N: 0.50, Extension_Error_m: 0.005 },
+        ],
     },
     {
-        label: '🌊 Sinusoidal fit + formula',
-        text: 'Sheet 1, columns 1-4 are x, delta_x, y, delta_y (0-indexed). Fit a sinusoidal model. Calculate the amplitude times omega squared from the fitted parameters.',
+        label: '🌊 Oscillation (Sinusoidal)',
+        instructions: 'First sheet. Column "Time_s" is x, "Displacement_cm" is y, "Displacement_Error_cm" is y error. Fit a sinusoidal model. Calculate A*omega**2 from the fitted parameters (this approximates the maximum acceleration).',
+        theoVal: '78.5',
+        theoUnc: '5.0',
+        columns: ['Time_s', 'Displacement_cm', 'Displacement_Error_cm'],
+        rows: (() => {
+            const data = [];
+            for (let i = 0; i <= 20; i++) {
+                const t = i * 0.25;
+                const y = 5.0 * Math.sin(2.5 * t + 0.3) + 2.0;
+                const noise = (Math.random() - 0.5) * 0.8;
+                data.push({
+                    Time_s: parseFloat(t.toFixed(3)),
+                    Displacement_cm: parseFloat((y + noise).toFixed(3)),
+                    Displacement_Error_cm: 0.5,
+                });
+            }
+            return data;
+        })(),
     },
     {
-        label: '📊 Quadratic + compare',
-        text: 'First sheet. x is column A, y is column B, y-error is column C. Fit a quadratic model. Calculate the coefficient a times 2 and compare it to the theoretical value I provided.',
+        label: '📊 Free Fall (Quadratic)',
+        instructions: 'First sheet. "Time_s" is x, "Height_m" is y, "Height_Error_m" is y error. Fit a quadratic model (a*x**2 + b*x + c). The coefficient "a" should approximate g/2 ≈ 4.905. Calculate 2*a to extract g and compare to the theoretical value I provided.',
+        theoVal: '9.81',
+        theoUnc: '0.01',
+        columns: ['Time_s', 'Height_m', 'Height_Error_m', 'Time_Error_s'],
+        rows: [
+            { Time_s: 0.0, Height_m: 0.00, Height_Error_m: 0.10, Time_Error_s: 0.02 },
+            { Time_s: 0.1, Height_m: 0.05, Height_Error_m: 0.10, Time_Error_s: 0.02 },
+            { Time_s: 0.2, Height_m: 0.19, Height_Error_m: 0.12, Time_Error_s: 0.02 },
+            { Time_s: 0.3, Height_m: 0.45, Height_Error_m: 0.15, Time_Error_s: 0.02 },
+            { Time_s: 0.4, Height_m: 0.77, Height_Error_m: 0.18, Time_Error_s: 0.02 },
+            { Time_s: 0.5, Height_m: 1.23, Height_Error_m: 0.20, Time_Error_s: 0.02 },
+            { Time_s: 0.6, Height_m: 1.76, Height_Error_m: 0.22, Time_Error_s: 0.02 },
+            { Time_s: 0.7, Height_m: 2.42, Height_Error_m: 0.25, Time_Error_s: 0.02 },
+            { Time_s: 0.8, Height_m: 3.13, Height_Error_m: 0.28, Time_Error_s: 0.02 },
+            { Time_s: 0.9, Height_m: 3.95, Height_Error_m: 0.30, Time_Error_s: 0.02 },
+            { Time_s: 1.0, Height_m: 4.89, Height_Error_m: 0.35, Time_Error_s: 0.02 },
+            { Time_s: 1.1, Height_m: 5.93, Height_Error_m: 0.38, Time_Error_s: 0.02 },
+            { Time_s: 1.2, Height_m: 7.05, Height_Error_m: 0.40, Time_Error_s: 0.02 },
+            { Time_s: 1.3, Height_m: 8.28, Height_Error_m: 0.42, Time_Error_s: 0.02 },
+            { Time_s: 1.4, Height_m: 9.61, Height_Error_m: 0.45, Time_Error_s: 0.02 },
+            { Time_s: 1.5, Height_m: 11.03, Height_Error_m: 0.50, Time_Error_s: 0.02 },
+        ],
     },
 ];
+
+/** Convert rows to CSV and create a File object */
+function rowsToFile(columns: string[], rows: Record<string, any>[], filename: string): File {
+    const header = columns.join(',');
+    const body = rows.map(r => columns.map(c => r[c] ?? '').join(',')).join('\n');
+    const blob = new Blob([header + '\n' + body], { type: 'text/csv' });
+    return new File([blob], filename, { type: 'text/csv' });
+}
 
 interface StepResult {
     step: string;
@@ -42,10 +106,38 @@ function AutoLab() {
     const [fitData, setFitData] = useState<any>(null);
     const [error, setError] = useState('');
 
+    /* Data preview state */
+    const [previewData, setPreviewData] = useState<{ columns: string[]; rows: Record<string, any>[] } | null>(null);
+
     const fileRef = useRef<HTMLInputElement>(null);
     const { setCurrentTool } = useAnalysis();
 
-    useState(() => { setCurrentTool('AutoLab'); });
+    useEffect(() => { setCurrentTool('AutoLab'); }, []);
+
+    /* Parse file for preview when user selects one */
+    const handleFileChange = async (f: File) => {
+        setFile(f);
+        setPreviewData(null);
+        try {
+            const data = await api.parseFileData(f);
+            setPreviewData({ columns: data.columns, rows: data.rows });
+        } catch {
+            // Preview failed — not critical. AutoLab will still work.
+        }
+    };
+
+    /* Load example dataset */
+    const loadExample = (ex: typeof EXAMPLE_DATASETS[0]) => {
+        const f = rowsToFile(ex.columns, ex.rows, 'autolab_example.csv');
+        setFile(f);
+        setInstructions(ex.instructions);
+        setTheoVal(ex.theoVal || '');
+        setTheoUnc(ex.theoUnc || '');
+        setPreviewData({ columns: ex.columns, rows: ex.rows });
+        setSteps([]);
+        setFitData(null);
+        setError('');
+    };
 
     const handleRun = async () => {
         if (!file || !instructions.trim()) return;
@@ -127,7 +219,7 @@ function AutoLab() {
                             onDrop={e => {
                                 e.preventDefault();
                                 const f = e.dataTransfer.files[0];
-                                if (f) setFile(f);
+                                if (f) handleFileChange(f);
                             }}
                             style={{
                                 border: '2px dashed #1565c0',
@@ -154,9 +246,36 @@ function AutoLab() {
                             ref={fileRef}
                             type="file"
                             accept=".xlsx,.xls,.csv,.tsv,.ods,.dat,.txt"
-                            onChange={e => setFile(e.target.files?.[0] || null)}
+                            onChange={e => {
+                                const f = e.target.files?.[0];
+                                if (f) handleFileChange(f);
+                            }}
                             style={{ display: 'none' }}
                         />
+                    </div>
+
+                    {/* Data preview */}
+                    {previewData && (
+                        <DataPreview columns={previewData.columns} rows={previewData.rows} />
+                    )}
+
+                    {/* Example datasets */}
+                    <div style={{
+                        padding: '0.8rem 1rem', background: '#e8f5e9', borderRadius: '10px',
+                        border: '1px solid #a5d6a7', marginBottom: '1rem',
+                    }}>
+                        <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.9rem' }}>
+                            🧪 Try an example (loads data + instructions):
+                        </p>
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                            {EXAMPLE_DATASETS.map(ex => (
+                                <button key={ex.label} className="btn-accent"
+                                    onClick={() => loadExample(ex)}
+                                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.8rem' }}>
+                                    {ex.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Instructions */}
@@ -169,17 +288,6 @@ function AutoLab() {
                             placeholder="Describe your analysis in plain language. For example:&#10;&#10;&quot;Use sheet 2, columns 1-4 are x, δx, y, δy. Fit a sinusoidal model. Calculate amplitude × omega² from the fit. Compare to 42.0 ± 2.0.&quot;"
                             style={{ fontFamily: 'inherit', fontSize: '0.95rem', lineHeight: 1.5 }}
                         />
-                    </div>
-
-                    {/* Quick fill examples */}
-                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-                        {EXAMPLE_INSTRUCTIONS.map(ex => (
-                            <button key={ex.label} className="btn-accent"
-                                onClick={() => setInstructions(ex.text)}
-                                style={{ fontSize: '0.8rem', padding: '0.35rem 0.8rem' }}>
-                                {ex.label}
-                            </button>
-                        ))}
                     </div>
 
                     {/* Theoretical value (optional) */}
