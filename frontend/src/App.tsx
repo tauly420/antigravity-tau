@@ -12,6 +12,7 @@ import GraphFitting from './components/GraphFitting';
 import NSigmaCalculator from './components/NSigmaCalculator';
 import UnitConverter from './components/UnitConverter';
 import FourierAnalysis from './components/FourierAnalysis';
+import AutoLab from './components/AutoLab';
 import { AnalysisProvider } from './context/AnalysisContext';
 import Sidebar from './components/Sidebar';
 
@@ -30,6 +31,7 @@ function App() {
 
                         <nav className="nav-bar">
                             <Link to="/" className="nav-link">Home</Link>
+                            <Link to="/autolab" className="nav-link" style={{ background: 'linear-gradient(135deg, #1565c0, #7b1fa2)', color: 'white', borderRadius: '6px', padding: '0.35rem 0.8rem', fontWeight: 700 }}>🤖 AutoLab</Link>
                             <Link to="/workflow" className="nav-link">Workflow</Link>
                             <Link to="/formula" className="nav-link">Formula</Link>
                             <Link to="/matrix" className="nav-link">Matrix</Link>
@@ -44,6 +46,7 @@ function App() {
                         <main className="main-content">
                             <Routes>
                                 <Route path="/" element={<Home />} />
+                                <Route path="/autolab" element={<AutoLab />} />
                                 <Route path="/workflow" element={<Workflow />} />
                                 <Route path="/formula" element={<FormulaCalculator />} />
                                 <Route path="/matrix" element={<MatrixCalculator />} />
