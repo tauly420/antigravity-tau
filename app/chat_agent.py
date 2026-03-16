@@ -146,7 +146,7 @@ class ChatAgent:
             from openai import OpenAI as _OpenAI
             self._openai_module = _openai
             self.client = _OpenAI(api_key=api_key, timeout=timeout, max_retries=max_retries)
-            self.model = model or os.getenv("OPENAI_MODEL", "o4-mini")
+            self.model = model or os.getenv("OPENAI_MODEL", "gpt-5-mini-2025-08-07")
         elif self.provider == "gemini":
             api_key = os.getenv("GEMINI_API_KEY", "").strip()
             if not api_key:
