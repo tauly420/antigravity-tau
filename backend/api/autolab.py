@@ -236,7 +236,7 @@ def _run_orchestrator(file_bytes, filename, instructions, theoretical_value=None
         return {"error": "OPENAI_API_KEY not set. Please add it in Railway Variables.", "steps": []}
 
     client = OpenAI(api_key=api_key)
-    model_name = os.getenv("OPENAI_MODEL", "gpt-4o")
+    model_name = os.getenv("OPENAI_MODEL", "o4-mini")
 
     # State that accumulates as tools execute
     state = {
