@@ -219,91 +219,24 @@ def tool_compare_nsigma(value1, uncertainty1, value2, uncertainty2):
 
 
 # ════════════════════════════════════════════════════════════════
-# GEMINI FUNCTION-CALLING ORCHESTRATOR
+# OPENAI FUNCTION-CALLING ORCHESTRATOR
 # ════════════════════════════════════════════════════════════════
 
-TOOL_DECLARATIONS = [
-    {
-        "name": "parse_file",
-        "description": "Parse the uploaded data file and extract columns. Use column names OR 0-based column indices. You MUST call this first to get the data.",
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {
-                "sheet_name": {"type": "STRING", "description": "Sheet name to use (for Excel files). If not specified, uses the first sheet."},
-                "x_col": {"type": "STRING", "description": "Name of the X data column"},
-                "y_col": {"type": "STRING", "description": "Name of the Y data column"},
-                "x_err_col": {"type": "STRING", "description": "Name of the X error column (optional)"},
-                "y_err_col": {"type": "STRING", "description": "Name of the Y error column (optional)"},
-                "x_col_index": {"type": "INTEGER", "description": "0-based index of X column (use if name unknown)"},
-                "y_col_index": {"type": "INTEGER", "description": "0-based index of Y column"},
-                "x_err_col_index": {"type": "INTEGER", "description": "0-based index of X error column"},
-                "y_err_col_index": {"type": "INTEGER", "description": "0-based index of Y error column"},
-            },
-        },
-    },
-    {
-        "name": "fit_data",
-        "description": "Fit the parsed data with a model. Available models: linear, quadratic, cubic, power, exponential, sinusoidal, custom. For custom: provide custom_expr using 'x' as variable.",
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {
-                "model": {"type": "STRING", "description": "Model name: linear, quadratic, cubic, power, exponential, sinusoidal, or custom"},
-                "custom_expr": {"type": "STRING", "description": "Custom expression (e.g. 'A*sin(omega*x + phi) + D'). Only needed if model='custom'."},
-                "initial_guess": {"type": "ARRAY", "items": {"type": "NUMBER"}, "description": "Initial parameter guesses (optional)"},
-            },
-            "required": ["model"],
-        },
-    },
-    {
-        "name": "evaluate_formula",
-        "description": "Evaluate a formula using fitted parameters and propagate uncertainties. The expression must use Python/SymPy syntax (** for power, * for multiply). Variable names must match the fitted parameter names exactly.",
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {
-                "expression": {"type": "STRING", "description": "Formula expression in Python/SymPy syntax (e.g. 'A*phi**2')"},
-            },
-            "required": ["expression"],
-        },
-    },
-    {
-        "name": "compare_nsigma",
-        "description": "Compare the formula result with a theoretical value using N-sigma test.",
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {
-                "theoretical_value": {"type": "NUMBER", "description": "The expected/theoretical value to compare against"},
-                "theoretical_uncertainty": {"type": "NUMBER", "description": "Uncertainty of the theoretical value (0 if exact)"},
-            },
-            "required": ["theoretical_value"],
-        },
-    },
-    {
-        "name": "generate_summary",
-        "description": "Generate a final summary of all results. Call this as the LAST step after all analysis is done.",
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {
-                "language": {"type": "STRING", "description": "Language for the summary: 'en' or 'he'"},
-            },
-        },
-    },
-]
 
 
 def _run_orchestrator(file_bytes, filename, instructions, theoretical_value=None,
                       theoretical_uncertainty=None):
-    """Run the Gemini function-calling orchestrator."""
-    from google import genai
+    """Run the OpenAI function-calling orchestrator."""
+    from openai import OpenAI
 
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
-        # Debug: print all env var names to help diagnose
-        env_keys = [k for k in os.environ.keys() if 'KEY' in k.upper() or 'GEMINI' in k.upper() or 'API' in k.upper()]
-        print(f"[AutoLab] GEMINI_API_KEY not found! Related env vars: {env_keys}")
-        return {"error": "GEMINI_API_KEY not set. Please add it in Railway Variables.", "steps": []}
+        env_keys = [k for k in os.environ.keys() if 'KEY' in k.upper() or 'OPENAI' in k.upper() or 'API' in k.upper()]
+        print(f"[AutoLab] OPENAI_API_KEY not found! Related env vars: {env_keys}")
+        return {"error": "OPENAI_API_KEY not set. Please add it in Railway Variables.", "steps": []}
 
-    client = genai.Client(api_key=api_key)
-    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    client = OpenAI(api_key=api_key)
+    model_name = os.getenv("OPENAI_MODEL", "gpt-4o")
 
     # State that accumulates as tools execute
     state = {
@@ -335,66 +268,148 @@ def _run_orchestrator(file_bytes, filename, instructions, theoretical_value=None
             system += f" ± {theoretical_uncertainty}"
         system += "\n"
 
+    # OpenAI tools config
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "parse_file",
+                "description": "Parse the uploaded data file and extract columns. Use column names OR 0-based column indices. You MUST call this first to get the data.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "sheet_name": {"type": "string", "description": "Sheet name to use (for Excel files). If not specified, uses the first sheet."},
+                        "x_col": {"type": "string", "description": "Name of the X data column"},
+                        "y_col": {"type": "string", "description": "Name of the Y data column"},
+                        "x_err_col": {"type": "string", "description": "Name of the X error column (optional)"},
+                        "y_err_col": {"type": "string", "description": "Name of the Y error column (optional)"},
+                        "x_col_index": {"type": "integer", "description": "0-based index of X column (use if name unknown)"},
+                        "y_col_index": {"type": "integer", "description": "0-based index of Y column"},
+                        "x_err_col_index": {"type": "integer", "description": "0-based index of X error column"},
+                        "y_err_col_index": {"type": "integer", "description": "0-based index of Y error column"},
+                    },
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "fit_data",
+                "description": "Fit the parsed data with a model. Available models: linear, quadratic, cubic, power, exponential, sinusoidal, custom. For custom: provide custom_expr using 'x' as variable.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "model": {"type": "string", "description": "Model name: linear, quadratic, cubic, power, exponential, sinusoidal, or custom"},
+                        "custom_expr": {"type": "string", "description": "Custom expression (e.g. 'A*sin(omega*x + phi) + D'). Only needed if model='custom'."},
+                        "initial_guess": {"type": "array", "items": {"type": "number"}, "description": "Initial parameter guesses (optional)"},
+                    },
+                    "required": ["model"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "evaluate_formula",
+                "description": "Evaluate a formula using fitted parameters and propagate uncertainties. The expression must use Python/SymPy syntax (** for power, * for multiply). Variable names must match the fitted parameter names exactly.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "expression": {"type": "string", "description": "Formula expression in Python/SymPy syntax (e.g. 'A*phi**2')"},
+                    },
+                    "required": ["expression"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "compare_nsigma",
+                "description": "Compare the formula result with a theoretical value using N-sigma test.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "theoretical_value": {"type": "number", "description": "The expected/theoretical value to compare against"},
+                        "theoretical_uncertainty": {"type": "number", "description": "Uncertainty of the theoretical value (0 if exact)"},
+                    },
+                    "required": ["theoretical_value"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "generate_summary",
+                "description": "Generate a final summary of all results. Call this as the LAST step after all analysis is done.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "language": {"type": "string", "description": "Language for the summary: 'en' or 'he'"},
+                    },
+                },
+            },
+        },
+    ]
+
     # Initial user message
     user_msg = f"File: {filename}\n\nInstructions: {instructions}"
 
-    # Build Gemini tools config
-    tools = [{"function_declarations": TOOL_DECLARATIONS}]
-
-    contents = [{"role": "user", "parts": [{"text": user_msg}]}]
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user_msg},
+    ]
 
     max_turns = 10
     for turn in range(max_turns):
         try:
-            response = client.models.generate_content(
+            response = client.chat.completions.create(
                 model=model_name,
-                contents=contents,
-                config={
-                    "system_instruction": system,
-                    "tools": tools,
-                },
+                messages=messages,
+                tools=tools,
+                tool_choice="auto",
             )
         except Exception as e:
-            steps.append({"step": "error", "message": f"Gemini API error: {str(e)}"})
+            steps.append({"step": "error", "message": f"OpenAI API error: {str(e)}"})
             break
 
-        # Check if the response has function calls
-        candidate = response.candidates[0] if response.candidates else None
-        if not candidate:
+        choice = response.choices[0] if response.choices else None
+        if not choice:
             steps.append({"step": "error", "message": "No response from AI"})
             break
 
-        parts = candidate.content.parts if candidate.content else []
-        fn_calls = [p for p in parts if hasattr(p, 'function_call') and p.function_call]
-        text_parts = [p for p in parts if hasattr(p, 'text') and p.text]
+        msg = choice.message
 
-        if not fn_calls:
-            # AI is done — extract final text
-            final_text = " ".join(p.text for p in text_parts) if text_parts else ""
+        # If the model wants to call tools
+        if msg.tool_calls:
+            # Add assistant message to conversation
+            messages.append(msg)
+
+            for tool_call in msg.tool_calls:
+                fn_name = tool_call.function.name
+                try:
+                    fn_args = json.loads(tool_call.function.arguments)
+                except json.JSONDecodeError:
+                    fn_args = {}
+
+                step_result = _execute_tool(fn_name, fn_args, state, file_bytes, filename)
+                steps.append(step_result)
+
+                # Add tool response to conversation
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps(step_result.get("result", {"status": "done"}), default=str),
+                })
+        else:
+            # No tool calls — AI is done, extract final text
+            final_text = (msg.content or "").strip()
             if final_text:
                 steps.append({"step": "summary", "message": final_text})
             break
 
-        # Execute each function call
-        fn_responses = []
-        for part in fn_calls:
-            fc = part.function_call
-            fn_name = fc.name
-            fn_args = dict(fc.args) if fc.args else {}
-
-            step_result = _execute_tool(fn_name, fn_args, state, file_bytes, filename)
-            steps.append(step_result)
-
-            fn_responses.append({
-                "function_response": {
-                    "name": fn_name,
-                    "response": step_result.get("result", {"status": "done"}),
-                }
-            })
-
-        # Add assistant response + function results to conversation
-        contents.append(candidate.content)
-        contents.append({"role": "user", "parts": fn_responses})
+        # Check for stop
+        if choice.finish_reason == "stop":
+            break
 
     return {"steps": steps, "state": state}
 

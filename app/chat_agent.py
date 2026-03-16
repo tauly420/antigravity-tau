@@ -9,19 +9,19 @@ from typing import List, Dict, Optional, Any
 # ============================================================
 # PROVIDER SELECTION
 # ============================================================
-# Set CHAT_PROVIDER env var to "openai" or "gemini" (default: gemini)
-# Gemini: set GEMINI_API_KEY
+# Set CHAT_PROVIDER env var to "openai" or "gemini" (default: openai)
 # OpenAI: set OPENAI_API_KEY
-_PROVIDER = os.getenv("CHAT_PROVIDER", "").strip().lower() or "gemini"
+# Gemini: set GEMINI_API_KEY
+_PROVIDER = os.getenv("CHAT_PROVIDER", "").strip().lower() or "openai"
 
-# --- Gemini SDK ---
+# --- OpenAI SDK ---
+if _PROVIDER == "openai":
+    import openai
+    from openai import OpenAI
+
+# --- Gemini SDK (kept for easy switching) ---
 if _PROVIDER == "gemini":
     from google import genai
-
-# --- OpenAI SDK (kept for easy switching) ---
-# if _PROVIDER == "openai":
-#     import openai
-#     from openai import OpenAI
 
 
 _DEFAULT_PROMPT = """\
@@ -138,19 +138,24 @@ class ChatAgent:
         self.system_prompt = self._resolve_system_prompt(system_prompt, system_prompt_path)
         self.provider = _PROVIDER
 
-        if self.provider == "gemini":
-            api_key = os.getenv("GEMINI_API_KEY", "")
+        if self.provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY", "").strip()
             if not api_key:
-                raise RuntimeError("GEMINI_API_KEY not set")
-            self.client = genai.Client(api_key=api_key)
-            self.model = model or os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-        else:
-            # OpenAI fallback
+                raise RuntimeError("OPENAI_API_KEY not set")
             import openai as _openai
             from openai import OpenAI as _OpenAI
             self._openai_module = _openai
-            self.client = _OpenAI(timeout=timeout, max_retries=max_retries)
-            self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+            self.client = _OpenAI(api_key=api_key, timeout=timeout, max_retries=max_retries)
+            self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o")
+        elif self.provider == "gemini":
+            api_key = os.getenv("GEMINI_API_KEY", "").strip()
+            if not api_key:
+                raise RuntimeError("GEMINI_API_KEY not set")
+            from google import genai as _genai
+            self.client = _genai.Client(api_key=api_key)
+            self.model = model or os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        else:
+            raise RuntimeError(f"Unknown CHAT_PROVIDER: {self.provider}")
 
     # -------- public API --------
 
@@ -160,10 +165,12 @@ class ChatAgent:
         *,
         extra_context: Optional[Dict[str, Any]] = None,
     ) -> str:
-        if self.provider == "gemini":
+        if self.provider == "openai":
+            return self._ask_openai(messages, extra_context)
+        elif self.provider == "gemini":
             return self._ask_gemini(messages, extra_context)
         else:
-            return self._ask_openai(messages, extra_context)
+            raise RuntimeError(f"Unknown provider: {self.provider}")
 
     def set_system_prompt(self, text: str) -> None:
         """Dynamically replace the system prompt."""

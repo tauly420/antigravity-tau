@@ -23,21 +23,21 @@ assistant_bp = Blueprint('assistant', __name__)
 
 # Initialize chat agent if available
 chat_agent = None
-_provider = os.getenv("CHAT_PROVIDER", "").strip().lower() or "gemini"
+_provider = os.getenv("CHAT_PROVIDER", "").strip().lower() or "openai"
 if CHAT_AVAILABLE:
     try:
-        if _provider == "gemini":
-            api_key = os.environ.get("GEMINI_API_KEY", "")
-            if not api_key:
-                print("[Assistant] WARNING: GEMINI_API_KEY not set in environment")
-        else:
-            api_key = os.environ.get("OPENAI_API_KEY", "")
+        if _provider == "openai":
+            api_key = os.environ.get("OPENAI_API_KEY", "").strip()
             if not api_key:
                 print("[Assistant] WARNING: OPENAI_API_KEY not set in environment")
+        elif _provider == "gemini":
+            api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+            if not api_key:
+                print("[Assistant] WARNING: GEMINI_API_KEY not set in environment")
 
         chat_agent = ChatAgent()
         print(f"[Assistant] ChatAgent initialized successfully (provider: {_provider})")
-        print(f"[Assistant] GEMINI_API_KEY present: {bool(os.environ.get('GEMINI_API_KEY', ''))}")
+        print(f"[Assistant] OPENAI_API_KEY present: {bool(os.environ.get('OPENAI_API_KEY', '').strip())}")
     except Exception as e:
         print(f"[Assistant] ChatAgent init failed: {e}")
         traceback.print_exc()
@@ -49,7 +49,7 @@ def chat():
     Chat with AI assistant.
     """
     if not CHAT_AVAILABLE or chat_agent is None:
-        key_name = "GEMINI_API_KEY" if _provider == "gemini" else "OPENAI_API_KEY"
+        key_name = "OPENAI_API_KEY" if _provider == "openai" else "GEMINI_API_KEY"
         return jsonify({
             "error": f"Sorry, I encountered an error. Please check if your {key_name} is configured correctly.",
             "debug": f"ChatAgent not initialized. Check {key_name} env var."
