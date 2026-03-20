@@ -24,26 +24,23 @@ export function smartFormat(value: number | null | undefined, sigFigs: number = 
 }
 
 /**
- * Round value and uncertainty the physics way:
- * - Round uncertainty to 2 significant figures
- * - Round value to the same number of decimal places as the rounded uncertainty
- *
- * Example: value=100.1543, uncertainty=0.1412 → rounded: "100.15 ± 0.14"
+ * Scientific rounding: round uncertainty to 1 sig fig,
+ * then round the value to the same decimal place.
+ * Returns both a rounded string and an unrounded string.
  */
-export function roundWithUncertainty(
-    value: number,
-    uncertainty: number
-): { rounded: string; unrounded: string } {
-    const unrounded = `${smartFormat(value)} ± ${smartFormat(uncertainty)}`;
-    if (!isFinite(uncertainty) || uncertainty <= 0) {
-        return { rounded: unrounded, unrounded };
+export function roundWithUncertainty(value: number, uncertainty: number): { rounded: string; unrounded: string } {
+    const unrounded = `${value} \u00B1 ${uncertainty}`;
+    if (!isFinite(value) || !isFinite(uncertainty) || uncertainty <= 0) {
+        return { rounded: `${smartFormat(value)} \u00B1 ${smartFormat(uncertainty)}`, unrounded };
     }
-    const order = Math.floor(Math.log10(Math.abs(uncertainty)));
-    const decimals = Math.max(0, -order + 1); // gives 2 sig figs on uncertainty
-    const uRounded = uncertainty.toFixed(decimals);
-    const vRounded = value.toFixed(decimals);
+    const orderOfMagnitude = Math.floor(Math.log10(Math.abs(uncertainty)));
+    const factor = Math.pow(10, orderOfMagnitude);
+    const roundedUncertainty = Math.round(uncertainty / factor) * factor;
+    const decimalPlaces = Math.max(0, -orderOfMagnitude);
+    const roundedValue = parseFloat(value.toFixed(decimalPlaces));
+    const roundedUnc = parseFloat(roundedUncertainty.toFixed(decimalPlaces));
     return {
-        rounded: `${vRounded} ± ${uRounded}`,
+        rounded: `${roundedValue.toFixed(decimalPlaces)} \u00B1 ${roundedUnc.toFixed(decimalPlaces)}`,
         unrounded,
     };
 }

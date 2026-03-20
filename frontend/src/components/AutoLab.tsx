@@ -382,63 +382,104 @@ function AutoLab() {
         toImageButtonOptions: { format: 'png' as any, filename: 'autolab_fit', height: 800, width: 1200, scale: 2 },
     };
 
-    /** Export results as a formatted lab report section (HTML for pasting into Docs/Word) */
+    /** Export results as a clean table for pasting into Docs/Word/Sheets */
     const handleExportReport = () => {
         const names = fitStep?.result?.parameter_names as string[] || [];
         const params = fitStep?.result?.parameters || [];
         const uncs = fitStep?.result?.uncertainties || [];
         const modelKey = (fitStep?.args?.model || '').toLowerCase();
         const formula = MODEL_FORMULAS[modelKey] || fitStep?.args?.custom_expr || '';
-        const modelName = fitStep?.result?.model_name || modelKey;
 
-        let html = '<h3>Fit Results</h3>\n';
-        html += `<p><strong>Model:</strong> ${modelName} — <code>${formula}</code></p>\n`;
+        // Build HTML table
+        let html = '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:sans-serif;font-size:14px">';
+        html += '<thead><tr style="background:#e3f2fd"><th>Quantity</th><th>Rounded</th><th>Full Precision</th></tr></thead><tbody>';
 
-        // Parameter table
-        html += '<table border="1" cellpadding="4" cellspacing="0"><thead><tr><th>Parameter</th><th>Value ± Uncertainty</th></tr></thead><tbody>';
+        // Parameter rows
         names.forEach((name: string, j: number) => {
-            const fmt = roundWithUncertainty(Number(params[j]), Number(uncs[j]));
-            html += `<tr><td>${name}</td><td>${fmt.rounded}</td></tr>`;
+            const v = Number(params[j]);
+            const u = Number(uncs[j]);
+            const fmt = roundWithUncertainty(v, u);
+            html += `<tr><td>${name}</td><td>${fmt.rounded}</td><td>${fmt.unrounded}</td></tr>`;
         });
-        html += '</tbody></table>\n';
 
-        // Statistics
-        const stats: string[] = [];
-        if (fitStep?.result?.reduced_chi_squared != null) stats.push(`χ² reduced = ${Number(fitStep.result.reduced_chi_squared).toFixed(3)}`);
-        if (fitStep?.result?.p_value != null) stats.push(`P-value = ${formatPValue(Number(fitStep.result.p_value))}`);
-        if (fitStep?.result?.dof != null) stats.push(`DOF = ${fitStep.result.dof}`);
-        if (analysisState?.fit?.r_squared != null) stats.push(`R² = ${Number(analysisState.fit.r_squared).toFixed(5)}`);
-        if (stats.length > 0) html += `<p><strong>Statistics:</strong> ${stats.join(' | ')}</p>\n`;
+        // Chi-squared reduced
+        if (fitStep?.result?.reduced_chi_squared != null) {
+            const chi2 = Number(fitStep.result.reduced_chi_squared);
+            html += `<tr><td>χ² reduced</td><td>${isFinite(chi2) ? chi2.toFixed(3) : '—'}</td><td>${isFinite(chi2) ? chi2 : '—'}</td></tr>`;
+        }
 
-        // Formula result
+        // P-value
+        if (fitStep?.result?.p_value != null) {
+            const pv = Number(fitStep.result.p_value);
+            html += `<tr><td>P-value</td><td>${formatPValue(pv)}</td><td>${isFinite(pv) ? pv : '—'}</td></tr>`;
+        }
+
+        // Calculated formula result
         if (formulaStep?.result) {
             const val = Number(formulaStep.result.value);
             const unc = Number(formulaStep.result.uncertainty);
-            const fmt = (isFinite(val) && isFinite(unc) && unc > 0) ? roundWithUncertainty(val, unc) : { rounded: String(formulaStep.result.formatted ?? '--') };
-            html += `<p><strong>Derived quantity:</strong> ${formulaStep.args?.expression} = ${fmt.rounded}</p>\n`;
+            const expr = formulaStep.args?.expression || '';
+            if (isFinite(val) && isFinite(unc) && unc > 0) {
+                const fmt = roundWithUncertainty(val, unc);
+                html += `<tr><td>${expr}</td><td>${fmt.rounded}</td><td>${fmt.unrounded}</td></tr>`;
+            } else {
+                html += `<tr><td>${expr}</td><td>${formulaStep.result.formatted ?? '—'}</td><td>${smartFormat(val)} ± ${smartFormat(unc)}</td></tr>`;
+            }
         }
 
-        // N-sigma
+        // N-sigma result
         if (nsigmaStep?.result) {
             const ns = Number(nsigmaStep.result.n_sigma);
-            html += `<p><strong>N-σ comparison:</strong> ${ns.toFixed(2)}σ — ${nsigmaStep.result.verdict}</p>\n`;
+            html += `<tr><td>N-σ</td><td>${ns.toFixed(2)}σ — ${nsigmaStep.result.verdict}</td><td>${ns}σ</td></tr>`;
         }
 
-        // Summary
-        if (summaryStep?.message) {
-            html += `<h4>AI Summary</h4>\n<p>${summaryStep.message}</p>\n`;
+        // Fit formula row
+        if (formula) {
+            html += `<tr><td>Fit Formula</td><td colspan="2">${formula}</td></tr>`;
         }
 
-        // Copy as rich HTML
-        const plainText = html.replace(/<[^>]+>/g, '').replace(/\n\n/g, '\n');
+        html += '</tbody></table>';
+
+        // Plain text version (tab-separated)
+        let plain = 'Quantity\tRounded\tFull Precision\n';
+        names.forEach((name: string, j: number) => {
+            const v = Number(params[j]);
+            const u = Number(uncs[j]);
+            const fmt = roundWithUncertainty(v, u);
+            plain += `${name}\t${fmt.rounded}\t${fmt.unrounded}\n`;
+        });
+        if (fitStep?.result?.reduced_chi_squared != null) {
+            const chi2 = Number(fitStep.result.reduced_chi_squared);
+            plain += `χ² reduced\t${isFinite(chi2) ? chi2.toFixed(3) : '—'}\t${isFinite(chi2) ? chi2 : '—'}\n`;
+        }
+        if (fitStep?.result?.p_value != null) {
+            const pv = Number(fitStep.result.p_value);
+            plain += `P-value\t${formatPValue(pv)}\t${isFinite(pv) ? pv : '—'}\n`;
+        }
+        if (formulaStep?.result) {
+            const val = Number(formulaStep.result.value);
+            const unc = Number(formulaStep.result.uncertainty);
+            const expr = formulaStep.args?.expression || '';
+            const fmt = (isFinite(val) && isFinite(unc) && unc > 0) ? roundWithUncertainty(val, unc) : { rounded: String(formulaStep.result.formatted ?? '—'), unrounded: `${smartFormat(val)} ± ${smartFormat(unc)}` };
+            plain += `${expr}\t${fmt.rounded}\t${fmt.unrounded}\n`;
+        }
+        if (nsigmaStep?.result) {
+            const ns = Number(nsigmaStep.result.n_sigma);
+            plain += `N-σ\t${ns.toFixed(2)}σ — ${nsigmaStep.result.verdict}\t${ns}σ\n`;
+        }
+        if (formula) {
+            plain += `Fit Formula\t${formula}\n`;
+        }
+
+        // Copy as rich HTML table
         if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
             const item = new ClipboardItem({
                 'text/html': new Blob([html], { type: 'text/html' }),
-                'text/plain': new Blob([plainText], { type: 'text/plain' }),
+                'text/plain': new Blob([plain], { type: 'text/plain' }),
             });
             navigator.clipboard.write([item]);
         } else {
-            navigator.clipboard.writeText(plainText);
+            navigator.clipboard.writeText(plain);
         }
         setReportCopied(true);
         setTimeout(() => setReportCopied(false), 2000);
