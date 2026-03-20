@@ -45,7 +45,7 @@ function markdownToHtml(text: string): string {
     // Split into lines, process block-level elements
     const lines = text.split('\n');
     const out: string[] = [];
-    let inList: 'ul' | 'ol' | null = null;
+    let inList: string | null = null;
 
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i];
@@ -57,7 +57,7 @@ function markdownToHtml(text: string): string {
 
         if (olMatch) {
             if (inList !== 'ol') {
-                if (inList) out.push(inList === 'ul' ? '</ul>' : '</ol>');
+                if (inList) out.push(`</${inList}>`);
                 out.push('<ol>');
                 inList = 'ol';
             }
@@ -66,7 +66,7 @@ function markdownToHtml(text: string): string {
         }
         if (ulMatch) {
             if (inList !== 'ul') {
-                if (inList) out.push(inList === 'ul' ? '</ul>' : '</ol>');
+                if (inList) out.push(`</${inList}>`);
                 out.push('<ul>');
                 inList = 'ul';
             }
