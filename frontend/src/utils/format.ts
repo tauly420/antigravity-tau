@@ -24,6 +24,28 @@ export function smartFormat(value: number | null | undefined, sigFigs: number = 
 }
 
 /**
+ * Scientific rounding: round uncertainty to 1 sig fig,
+ * then round the value to the same decimal place.
+ * Returns both a rounded string and an unrounded string.
+ */
+export function roundWithUncertainty(value: number, uncertainty: number): { rounded: string; unrounded: string } {
+    const unrounded = `${value} \u00B1 ${uncertainty}`;
+    if (!isFinite(value) || !isFinite(uncertainty) || uncertainty <= 0) {
+        return { rounded: `${smartFormat(value)} \u00B1 ${smartFormat(uncertainty)}`, unrounded };
+    }
+    const orderOfMagnitude = Math.floor(Math.log10(Math.abs(uncertainty)));
+    const factor = Math.pow(10, orderOfMagnitude);
+    const roundedUncertainty = Math.round(uncertainty / factor) * factor;
+    const decimalPlaces = Math.max(0, -orderOfMagnitude);
+    const roundedValue = parseFloat(value.toFixed(decimalPlaces));
+    const roundedUnc = parseFloat(roundedUncertainty.toFixed(decimalPlaces));
+    return {
+        rounded: `${roundedValue.toFixed(decimalPlaces)} \u00B1 ${roundedUnc.toFixed(decimalPlaces)}`,
+        unrounded,
+    };
+}
+
+/**
  * Format P-value with appropriate notation:
  * Very small → scientific, otherwise show as percentage context
  */

@@ -13,6 +13,8 @@ import NSigmaCalculator from './components/NSigmaCalculator';
 import UnitConverter from './components/UnitConverter';
 import FourierAnalysis from './components/FourierAnalysis';
 import AutoLab from './components/AutoLab';
+import StatisticsCalculator from './components/StatisticsCalculator';
+import ConstantsReference from './components/ConstantsReference';
 import { AnalysisProvider } from './context/AnalysisContext';
 import Sidebar from './components/Sidebar';
 
@@ -41,6 +43,8 @@ function App() {
                             <Link to="/nsigma" className="nav-link">N-Sigma</Link>
                             <Link to="/units" className="nav-link">Units</Link>
                             <Link to="/fourier" className="nav-link">Fourier</Link>
+                            <Link to="/statistics" className="nav-link">Statistics</Link>
+                            <Link to="/constants" className="nav-link">Constants</Link>
                         </nav>
 
                         <main className="main-content">
@@ -56,11 +60,16 @@ function App() {
                                 <Route path="/nsigma" element={<NSigmaCalculator />} />
                                 <Route path="/units" element={<UnitConverter />} />
                                 <Route path="/fourier" element={<FourierAnalysis />} />
+                                <Route path="/statistics" element={<StatisticsCalculator />} />
+                                <Route path="/constants" element={<ConstantsReference />} />
                             </Routes>
                         </main>
 
                         <footer className="footer">
                             <p>© 2026 Tau-LY Lab Tools • All rights reserved to <a href="https://www.linkedin.com/in/uri-shulman-5690b2337" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Uri Shulman</a></p>
+                            <p style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.25rem' }}>
+                                AI-generated results may contain errors — always verify important calculations independently.
+                            </p>
                         </footer>
                     </div>
                     <Sidebar />

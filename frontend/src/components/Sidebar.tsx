@@ -2,30 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as api from '../services/api';
 import { useAnalysis } from '../context/AnalysisContext';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
-
-/* ─── LaTeX rendering helper ─── */
-const escapeHtml = (text: string) =>
-    text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-const renderLatex = (text: string): string => {
-    // First handle display math: $$...$$
-    let result = text.replace(/\$\$([\s\S]*?)\$\$/g, (_match, latex) => {
-        try {
-            return katex.renderToString(latex.trim(), { displayMode: true, throwOnError: false });
-        } catch { return escapeHtml(_match); }
-    });
-    // Then handle inline math: $...$  (but not $$)
-    result = result.replace(/(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/g, (_match, latex) => {
-        try {
-            return katex.renderToString(latex.trim(), { displayMode: false, throwOnError: false });
-        } catch { return escapeHtml(_match); }
-    });
-    // Escape remaining HTML but preserve rendered KaTeX spans
-    // KaTeX output already has HTML, so we only escape non-KaTeX parts
-    return result;
-};
+import { renderLatex } from '../utils/latex';
 
 /* ─── Page-specific welcome messages ─── */
 const PAGE_TIPS: Record<string, { title: string; tip: string }> = {
@@ -92,7 +69,7 @@ function Sidebar() {
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const location = useLocation();
-    const { currentTool, lastResult, analysisHistory, uploadedFileInfo } = useAnalysis();
+    const { currentTool, lastResult, analysisHistory, uploadedFileInfo, autolabResults } = useAnalysis();
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -184,6 +161,21 @@ function Sidebar() {
             if (Object.keys(summary).length > 0) ctx.last_result = summary;
         }
         if (analysisHistory.length > 0) ctx.recent_actions = analysisHistory.slice(-5);
+        if (autolabResults) {
+            ctx.autolab_results = {
+                fit: autolabResults.fit ? {
+                    model: autolabResults.fit.model_name,
+                    parameters: autolabResults.fit.parameter_names?.map((n: string, i: number) =>
+                        `${n} = ${autolabResults.fit.parameters?.[i]} ± ${autolabResults.fit.uncertainties?.[i]}`
+                    ),
+                    r_squared: autolabResults.fit.r_squared,
+                    reduced_chi_squared: autolabResults.fit.reduced_chi_squared,
+                    p_value: autolabResults.fit.p_value,
+                } : undefined,
+                formula: autolabResults.formula,
+                nsigma: autolabResults.nsigma,
+            };
+        }
         return ctx;
     };
 

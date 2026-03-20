@@ -74,6 +74,22 @@ const tools = [
         emoji: '〰️',
         color: '#e65100',
     },
+    {
+        title: 'Statistics Calculator',
+        desc: 'Enter repeated measurements to get mean, standard deviation, standard error, and histogram visualization.',
+        path: '/statistics',
+        icon: '',
+        emoji: '📊',
+        color: '#2e7d32',
+    },
+    {
+        title: 'Constants Reference',
+        desc: 'Quick reference for physical constants and common lab formulas with copy-to-clipboard.',
+        path: '/constants',
+        icon: '',
+        emoji: '📚',
+        color: '#5d4037',
+    },
 ];
 
 function Home() {
