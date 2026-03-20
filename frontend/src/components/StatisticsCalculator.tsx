@@ -367,11 +367,11 @@ function StatisticsCalculator() {
                             ]}
                             layout={{
                                 xaxis: {
-                                    title: 'Value',
+                                    title: { text: 'Value' },
                                     gridcolor: '#eee',
                                 },
                                 yaxis: {
-                                    title: 'Count',
+                                    title: { text: 'Count' },
                                     gridcolor: '#eee',
                                 },
                                 shapes: [
