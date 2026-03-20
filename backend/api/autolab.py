@@ -12,6 +12,32 @@ from scipy import optimize, stats
 from sympy import sympify, symbols, diff, lambdify
 import math
 
+
+def _sanitize_float(v):
+    """Convert Infinity/NaN floats to None for JSON safety."""
+    if v is None:
+        return None
+    if isinstance(v, float) and (math.isinf(v) or math.isnan(v)):
+        return None
+    return v
+
+
+def _sanitize_dict(d):
+    """Recursively sanitize a dict so it's JSON-serializable (no Infinity/NaN)."""
+    if not isinstance(d, dict):
+        return d
+    safe = {}
+    for k, v in d.items():
+        if isinstance(v, float):
+            safe[k] = _sanitize_float(v)
+        elif isinstance(v, dict):
+            safe[k] = _sanitize_dict(v)
+        elif isinstance(v, list):
+            safe[k] = [_sanitize_float(x) if isinstance(x, float) else x for x in v]
+        else:
+            safe[k] = v
+    return safe
+
 autolab_bp = Blueprint('autolab', __name__)
 
 # ── Import existing utilities ──
@@ -92,12 +118,17 @@ def tool_parse_file(file_bytes: bytes, filename: str, sheet_name: str = None,
     return result
 
 
-def tool_fit_data(x_data, y_data, y_errors=None, model='linear',
+def tool_fit_data(x_data, y_data, y_errors=None, x_errors=None, model='linear',
                   custom_expr=None, initial_guess=None):
-    """Fit data with a model. Returns parameters, uncertainties, chi-squared, etc."""
+    """Fit data with a model. Returns parameters, uncertainties, chi-squared, etc.
+    When x_errors are provided, effective errors are computed via error propagation:
+    sigma_eff = sqrt(y_err² + (df/dx · x_err)²)
+    """
     x = np.array(x_data, dtype=float)
     y = np.array(y_data, dtype=float)
-    sigma = np.array(y_errors, dtype=float) if y_errors else None
+    sigma_y = np.array(y_errors, dtype=float) if y_errors else None
+    sigma_x = np.array(x_errors, dtype=float) if x_errors else None
+    sigma = sigma_y  # will be upgraded to effective sigma if x_errors present
 
     # Model definitions
     models = {
@@ -132,11 +163,26 @@ def tool_fit_data(x_data, y_data, y_errors=None, model='linear',
         return {"error": f"Unknown model: {model}"}
 
     try:
+        # First fit (using y_errors only if no x_errors, or as initial pass)
         popt, pcov = optimize.curve_fit(
             func, x, y, p0=p0, sigma=sigma,
             absolute_sigma=True if sigma is not None else False,
             maxfev=10000
         )
+
+        # If x-errors are provided, compute effective sigma and refit
+        if sigma_x is not None:
+            dx = np.gradient(func(x, *popt), x)  # numerical dy/dx at data points
+            y_err_sq = sigma_y**2 if sigma_y is not None else np.zeros_like(x)
+            sigma_eff = np.sqrt(y_err_sq + (dx * sigma_x)**2)
+            sigma_eff[sigma_eff == 0] = np.min(sigma_eff[sigma_eff > 0]) * 0.1 if np.any(sigma_eff > 0) else 1.0
+            sigma = sigma_eff
+            # Refit with effective errors
+            popt, pcov = optimize.curve_fit(
+                func, x, y, p0=popt, sigma=sigma,
+                absolute_sigma=True, maxfev=10000
+            )
+
         perr = np.sqrt(np.diag(pcov))
 
         # Compute fit statistics
@@ -151,7 +197,7 @@ def tool_fit_data(x_data, y_data, y_errors=None, model='linear',
         else:
             chi2 = float(np.sum(residuals ** 2))
 
-        reduced_chi2 = chi2 / dof if dof > 0 else float('inf')
+        reduced_chi2 = chi2 / dof if dof > 0 else None
 
         # P-value
         p_value = None
@@ -170,14 +216,14 @@ def tool_fit_data(x_data, y_data, y_errors=None, model='linear',
         x_fit = np.linspace(x.min(), x.max(), 300)
         y_fit = func(x_fit, *popt)
 
-        return {
+        result = {
             "parameters": popt.tolist(),
             "uncertainties": perr.tolist(),
             "parameter_names": param_names,
-            "chi_squared": chi2,
-            "reduced_chi_squared": reduced_chi2,
-            "p_value": p_value,
-            "r_squared": r_squared,
+            "chi_squared": _sanitize_float(chi2),
+            "reduced_chi_squared": _sanitize_float(reduced_chi2),
+            "p_value": _sanitize_float(p_value),
+            "r_squared": _sanitize_float(float(r_squared)),
             "dof": dof,
             "n_data": n_data,
             "n_params": n_params,
@@ -188,7 +234,9 @@ def tool_fit_data(x_data, y_data, y_errors=None, model='linear',
             "x_data": x.tolist(),
             "y_data": y.tolist(),
             "y_errors": sigma.tolist() if sigma is not None else None,
+            "x_errors": sigma_x.tolist() if sigma_x is not None else None,
         }
+        return result
     except Exception as e:
         return {"error": f"Fit failed: {str(e)}"}
 
@@ -250,9 +298,19 @@ SYSTEM_PROMPT = (
     "   - Sinusoidal fit (A, omega, phi, D): period T = '2*pi/omega', max velocity = 'A*omega', "
     "max acceleration = 'A*omega**2'\n"
     "   - Linear fit (a, b): slope is 'a', intercept is 'b'\n"
-    "10. SUMMARY — Write a concise scientific summary: model used, key parameter values with "
-    "uncertainties (properly rounded), derived quantity if applicable, and N-sigma result with "
-    "interpretation. Keep it to 3-5 sentences.\n"
+    "10. SUMMARY — Write a concise scientific summary: model used (include the formula, e.g. 'y = ax + b'), "
+    "key parameter values with uncertainties (properly rounded using ± symbol, NOT \\pm), "
+    "derived quantity if applicable, and N-sigma result with interpretation. Keep it to 3-5 sentences. "
+    "Use Unicode symbols: ± for plus-minus, χ² for chi-squared, σ for sigma. Do NOT use LaTeX backslash notation.\n"
+    "11. DATA AWARENESS — Always read column headers carefully:\n"
+    "   - If columns are labeled like 'x', 'x_error', 'y', 'y_error', automatically map them.\n"
+    "   - If user says 'y as function of x', identify y and x columns by name.\n"
+    "   - ALWAYS include error columns when they exist — look for columns containing "
+    "'error', 'err', 'uncertainty', 'unc', 'sigma', 'δ', 'Δ' in their names.\n"
+    "   - When x-error columns exist, ALWAYS pass x_err_col to parse_file. "
+    "The fit will automatically propagate x-errors into effective uncertainties.\n"
+    "12. DATA MANIPULATION — If the user asks to transform data (multiply, divide, convert units, "
+    "take logarithm), acknowledge the transformation in the summary and apply it as described.\n"
 )
 
 
@@ -369,8 +427,16 @@ def _run_orchestrator(file_bytes, filename, instructions, theoretical_value=None
         },
     ]
 
+    # Pre-scan columns so the AI knows what's in the file before tool calls
+    try:
+        _pre = tool_parse_file(file_bytes, filename)
+        col_list = _pre.get("columns", [])
+        col_info = f"\nColumns in file: {', '.join(col_list)}" if col_list else ""
+    except Exception:
+        col_info = ""
+
     # Initial user message
-    user_msg = f"File: {filename}\n\nInstructions: {instructions}"
+    user_msg = f"File: {filename}{col_info}\n\nInstructions: {instructions}"
 
     messages = [
         {"role": "system", "content": system},
@@ -455,6 +521,7 @@ def _execute_tool(fn_name, fn_args, state, file_bytes, filename):
                 x_data=state["parsed"]["x_data"],
                 y_data=state["parsed"]["y_data"],
                 y_errors=state["parsed"].get("y_errors"),
+                x_errors=state["parsed"].get("x_errors"),
                 **fn_args,
             )
             if "error" not in result:
@@ -529,7 +596,7 @@ def _execute_tool(fn_name, fn_args, state, file_bytes, filename):
 
 
 def _safe_result(result):
-    """Make result JSON-safe, truncating large arrays."""
+    """Make result JSON-safe, truncating large arrays and sanitizing floats."""
     if not isinstance(result, dict):
         return result
     safe = {}
@@ -538,7 +605,9 @@ def _safe_result(result):
             safe[k] = v[:5] + ["..."] + v[-5:]
             safe[f"{k}_length"] = len(v)
         elif isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
-            safe[k] = str(v)
+            safe[k] = None
+        elif isinstance(v, dict):
+            safe[k] = _safe_result(v)
         else:
             safe[k] = v
     return safe
@@ -592,6 +661,21 @@ def _build_chat_system(context: dict) -> str:
         tu = nsigma.get("theoretical_uncertainty", "")
         lines.append(f"N-sigma comparison: N-σ = {ns} — {verdict}")
         lines.append(f"  Theoretical value used: {tv} ± {tu}")
+
+    parsed = context.get("parsed")
+    if parsed:
+        lines.append(f"Data columns: {', '.join(parsed.get('columns', []))}")
+        lines.append(f"Data rows: {parsed.get('num_rows', '?')}")
+        if parsed.get("x_col"):
+            lines.append(f"X column: {parsed['x_col']}, Y column: {parsed.get('y_col', '?')}")
+
+    instr = context.get("instructions")
+    if instr:
+        lines.append(f"User's original instructions: {instr}")
+
+    file_info = context.get("file_info")
+    if file_info:
+        lines.append(f"File: {file_info.get('name', '?')} ({file_info.get('size', 0) / 1024:.1f} KB)")
 
     lines.append("=================================")
     return "\n".join(lines)
@@ -647,6 +731,7 @@ def run():
                 "x_data": fit.get("x_data"),
                 "y_data": fit.get("y_data"),
                 "y_errors": fit.get("y_errors"),
+                "x_errors": fit.get("x_errors"),
                 "x_fit": fit.get("x_fit"),
                 "y_fit": fit.get("y_fit"),
                 "residuals": fit.get("residuals"),
@@ -661,6 +746,8 @@ def run():
                 "r_squared": fit.get("r_squared"),
             }
 
+        # Sanitize entire result to prevent JSON Infinity/NaN errors
+        result = _sanitize_dict(result)
         return jsonify(result)
 
     except Exception as e:

@@ -4,6 +4,7 @@ import DataPreview from './DataPreview';
 import { useAnalysis } from '../context/AnalysisContext';
 import * as api from '../services/api';
 import { roundWithUncertainty, smartFormat, formatPValue } from '../utils/format';
+import { renderLatex, mathToUnicode } from '../utils/latex';
 
 /* ═══════════════════════════════════════════════════════════════
    AutoLab — AI-Powered Automated Analysis
@@ -14,21 +15,21 @@ import { roundWithUncertainty, smartFormat, formatPValue } from '../utils/format
 const EXAMPLE_DATASETS = [
     {
         label: '📈 Hooke\'s Law (Linear)',
-        instructions: 'Use the first sheet. Column "Extension_m" is x, "Force_N" is y, "Force_Error_N" is y error. Fit a linear model. Calculate the slope a (the spring constant k) and report its value.',
+        instructions: 'Use the first sheet. Column "Extension_m" is x, "Force_N" is y, "Force_Error_N" is y error, "Extension_Error_m" is x error. Fit a linear model. Calculate the slope a (the spring constant k) and report its value.',
         theoVal: '50.0',
         theoUnc: '2.0',
         columns: ['Extension_m', 'Force_N', 'Force_Error_N', 'Extension_Error_m'],
         rows: [
-            { Extension_m: 0.01, Force_N: 0.51, Force_Error_N: 0.25, Extension_Error_m: 0.005 },
-            { Extension_m: 0.02, Force_N: 0.98, Force_Error_N: 0.25, Extension_Error_m: 0.005 },
-            { Extension_m: 0.03, Force_N: 1.52, Force_Error_N: 0.30, Extension_Error_m: 0.005 },
-            { Extension_m: 0.04, Force_N: 2.05, Force_Error_N: 0.30, Extension_Error_m: 0.005 },
-            { Extension_m: 0.05, Force_N: 2.48, Force_Error_N: 0.35, Extension_Error_m: 0.005 },
-            { Extension_m: 0.06, Force_N: 3.02, Force_Error_N: 0.35, Extension_Error_m: 0.005 },
-            { Extension_m: 0.07, Force_N: 3.55, Force_Error_N: 0.40, Extension_Error_m: 0.005 },
-            { Extension_m: 0.08, Force_N: 4.01, Force_Error_N: 0.40, Extension_Error_m: 0.005 },
-            { Extension_m: 0.09, Force_N: 4.53, Force_Error_N: 0.45, Extension_Error_m: 0.005 },
-            { Extension_m: 0.10, Force_N: 5.05, Force_Error_N: 0.50, Extension_Error_m: 0.005 },
+            { Extension_m: 0.01, Force_N: 0.65, Force_Error_N: 0.50, Extension_Error_m: 0.005 },
+            { Extension_m: 0.02, Force_N: 0.82, Force_Error_N: 0.50, Extension_Error_m: 0.005 },
+            { Extension_m: 0.03, Force_N: 1.68, Force_Error_N: 0.55, Extension_Error_m: 0.005 },
+            { Extension_m: 0.04, Force_N: 1.85, Force_Error_N: 0.55, Extension_Error_m: 0.005 },
+            { Extension_m: 0.05, Force_N: 2.72, Force_Error_N: 0.60, Extension_Error_m: 0.005 },
+            { Extension_m: 0.06, Force_N: 2.88, Force_Error_N: 0.60, Extension_Error_m: 0.005 },
+            { Extension_m: 0.07, Force_N: 3.70, Force_Error_N: 0.65, Extension_Error_m: 0.005 },
+            { Extension_m: 0.08, Force_N: 3.85, Force_Error_N: 0.65, Extension_Error_m: 0.005 },
+            { Extension_m: 0.09, Force_N: 4.65, Force_Error_N: 0.70, Extension_Error_m: 0.005 },
+            { Extension_m: 0.10, Force_N: 4.90, Force_Error_N: 0.75, Extension_Error_m: 0.005 },
         ],
     },
     {
@@ -106,6 +107,16 @@ interface ChatMessage {
     content: string;
 }
 
+/** Model formula map for display */
+const MODEL_FORMULAS: Record<string, string> = {
+    linear: 'y = ax + b',
+    quadratic: 'y = ax² + bx + c',
+    cubic: 'y = ax³ + bx² + cx + d',
+    power: 'y = axᵇ',
+    exponential: 'y = ae^(bx)',
+    sinusoidal: 'y = A·sin(ωx + φ) + D',
+};
+
 /** N-sigma colour: green ≤ 2, orange 2–3, red > 3 */
 function nsigmaColor(ns: number): string {
     if (ns <= 2) return '#2e7d32';
@@ -146,8 +157,10 @@ function AutoLab() {
     const [chatLoading, setChatLoading] = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
+    const [tableCopied, setTableCopied] = useState(false);
+
     const fileRef = useRef<HTMLInputElement>(null);
-    const { setCurrentTool } = useAnalysis();
+    const { setCurrentTool, setAutolabResults } = useAnalysis();
 
     useEffect(() => { setCurrentTool('AutoLab'); }, []);
 
@@ -217,6 +230,24 @@ function AutoLab() {
                 setSteps(data.steps || []);
                 setFitData(data.fit_data || null);
                 setAnalysisState(data.state || null);
+                // Share results with sidebar chat via context
+                if (data.state) {
+                    setAutolabResults({
+                        fit: data.state.fit ? {
+                            model_name: data.state.fit.model_name,
+                            parameter_names: data.state.fit.parameter_names,
+                            parameters: data.state.fit.parameters,
+                            uncertainties: data.state.fit.uncertainties,
+                            reduced_chi_squared: data.state.fit.reduced_chi_squared,
+                            p_value: data.state.fit.p_value,
+                            r_squared: data.state.fit.r_squared,
+                        } : undefined,
+                        formula: data.state.formula,
+                        nsigma: data.state.nsigma,
+                        instructions,
+                        filename: file?.name,
+                    });
+                }
             }
         } catch (err: any) {
             setError(err.message || 'AutoLab failed');
@@ -244,9 +275,20 @@ function AutoLab() {
                     reduced_chi_squared: analysisState.fit.reduced_chi_squared,
                     p_value: analysisState.fit.p_value,
                     r_squared: analysisState.fit.r_squared,
+                    dof: analysisState.fit.dof,
+                    n_data: analysisState.fit.n_data,
+                    chi_squared: analysisState.fit.chi_squared,
                 } : undefined,
                 formula: analysisState?.formula,
                 nsigma: analysisState?.nsigma,
+                parsed: analysisState?.parsed ? {
+                    columns: analysisState.parsed.columns,
+                    num_rows: analysisState.parsed.num_rows,
+                    x_col: analysisState.parsed.x_col,
+                    y_col: analysisState.parsed.y_col,
+                } : undefined,
+                instructions,
+                file_info: file ? { name: file.name, size: file.size } : undefined,
             };
             const result = await api.autolabChat({ messages: newMessages, context });
             setChatMessages(prev => [...prev, { role: 'assistant', content: result.reply }]);
@@ -437,19 +479,55 @@ function AutoLab() {
                             <div style={{ fontWeight: 700, marginBottom: '0.5rem', fontSize: '1rem' }}>
                                 ✅ Analysis Summary
                             </div>
-                            <div style={{ fontSize: '0.95rem', whiteSpace: 'pre-wrap', lineHeight: 1.7, color: '#1b5e20' }}>
-                                {summaryStep.message}
-                            </div>
+                            <div
+                                style={{ fontSize: '0.95rem', whiteSpace: 'pre-wrap', lineHeight: 1.7, color: '#1b5e20' }}
+                                dangerouslySetInnerHTML={{ __html: renderLatex(summaryStep.message || '') }}
+                            />
                         </div>
                     )}
 
                     {/* ── Parameter table ── */}
                     {fitStep && fitStep.result && (
                         <div style={{ marginBottom: '1.5rem' }}>
-                            <h4 style={{ margin: '0 0 0.6rem', color: '#333', fontSize: '1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+                            <h4 style={{ margin: 0, color: '#333', fontSize: '1rem' }}>
                                 📈 Fit Parameters — <em style={{ fontWeight: 400 }}>{fitStep.result.model_name || fitStep.args?.model}</em>
+                                {(() => {
+                                    const modelKey = (fitStep.args?.model || '').toLowerCase();
+                                    const formula = MODEL_FORMULAS[modelKey] || (fitStep.args?.custom_expr ? fitStep.args.custom_expr : null);
+                                    return formula ? (
+                                        <span style={{ marginLeft: '0.5rem', fontSize: '0.88rem', color: '#666', fontFamily: 'monospace' }}>
+                                            ({formula})
+                                        </span>
+                                    ) : null;
+                                })()}
                             </h4>
-                            <div style={{ overflowX: 'auto' }}>
+                            <button
+                                onClick={() => {
+                                    const names = fitStep.result!.parameter_names as string[] || [];
+                                    const lines = ['Parameter\tRounded\tFull Precision'];
+                                    names.forEach((name: string, j: number) => {
+                                        const val = Number(fitStep.result!.parameters?.[j]);
+                                        const unc = Number(fitStep.result!.uncertainties?.[j]);
+                                        const fmt = roundWithUncertainty(val, unc);
+                                        lines.push(`${name}\t${fmt.rounded}\t${fmt.unrounded}`);
+                                    });
+                                    navigator.clipboard.writeText(lines.join('\n'));
+                                    setTableCopied(true);
+                                    setTimeout(() => setTableCopied(false), 1500);
+                                }}
+                                style={{
+                                    padding: '0.3rem 0.7rem', fontSize: '0.8rem',
+                                    border: '1px solid #ccc', borderRadius: '6px',
+                                    background: tableCopied ? '#e8f5e9' : '#fff',
+                                    color: tableCopied ? '#2e7d32' : '#555',
+                                    cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s',
+                                }}
+                            >
+                                {tableCopied ? '✓ Copied!' : '📋 Copy Table'}
+                            </button>
+                            </div>
+                            <div style={{ overflowX: 'auto', userSelect: 'text' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                                     <thead>
                                         <tr style={{ background: '#e3f2fd' }}>
@@ -584,6 +662,10 @@ function AutoLab() {
                                             type: 'data' as const, array: fitData.y_errors,
                                             visible: true, color: '#1565c0', thickness: 1.5,
                                         } : undefined,
+                                        error_x: fitData.x_errors ? {
+                                            type: 'data' as const, array: fitData.x_errors,
+                                            visible: true, color: '#1565c0', thickness: 1.5,
+                                        } : undefined,
                                         type: 'scatter' as const, mode: 'markers' as const,
                                         name: 'Data', marker: { size: 6, color: '#1565c0' },
                                     },
@@ -614,6 +696,10 @@ function AutoLab() {
                                             type: 'data' as const, array: fitData.y_errors,
                                             visible: true, color: '#7b1fa2', thickness: 1.5,
                                         } : undefined,
+                                        error_x: fitData.x_errors ? {
+                                            type: 'data' as const, array: fitData.x_errors,
+                                            visible: true, color: '#7b1fa2', thickness: 1.5,
+                                        } : undefined,
                                         type: 'scatter' as const, mode: 'markers' as const,
                                         name: 'Residuals', marker: { size: 5, color: '#7b1fa2' },
                                     }, {
@@ -641,21 +727,24 @@ function AutoLab() {
 
                     {/* ═══ INLINE AI CHAT ═══ */}
                     <div style={{
-                        marginTop: '1rem', border: '2px solid #1565c0',
+                        marginTop: '1.5rem', border: '1px solid #e0e0e0',
                         borderRadius: '12px', overflow: 'hidden',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                        fontFamily: "'Inter', sans-serif",
                     }}>
                         <div style={{
                             background: 'linear-gradient(135deg, #1565c0, #7b1fa2)',
-                            padding: '0.75rem 1rem', color: 'white',
-                            fontWeight: 700, fontSize: '1rem',
+                            padding: '0.85rem 1.2rem', color: 'white',
+                            fontWeight: 700, fontSize: '1.05rem',
+                            letterSpacing: '-0.01em',
                         }}>
                             💬 Chat with AI about your results
                         </div>
 
                         {/* Message thread */}
                         <div style={{
-                            minHeight: '80px', maxHeight: '380px', overflowY: 'auto',
-                            padding: '1rem', background: '#fafafa',
+                            minHeight: '100px', maxHeight: '400px', overflowY: 'auto',
+                            padding: '1rem 1.2rem', background: '#fafafa',
                             display: 'flex', flexDirection: 'column', gap: '0.75rem',
                         }}>
                             {chatMessages.length === 0 && (
@@ -672,9 +761,13 @@ function AutoLab() {
                                         color: msg.role === 'user' ? 'white' : '#333',
                                         border: msg.role === 'assistant' ? '1px solid #e0e0e0' : 'none',
                                         fontSize: '0.9rem', lineHeight: 1.6, whiteSpace: 'pre-wrap',
-                                    }}>
-                                        {msg.content}
-                                    </div>
+                                    }}
+                                        dangerouslySetInnerHTML={{
+                                            __html: msg.role === 'assistant'
+                                                ? renderLatex(msg.content)
+                                                : msg.content
+                                        }}
+                                    />
                                 </div>
                             ))}
                             {chatLoading && (
@@ -693,30 +786,33 @@ function AutoLab() {
 
                         {/* Input row */}
                         <div style={{
-                            display: 'flex', gap: '0.5rem', padding: '0.75rem',
+                            display: 'flex', gap: '0.5rem', padding: '0.85rem 1.2rem',
                             background: '#fff', borderTop: '1px solid #e0e0e0',
                         }}>
                             <input
                                 type="text" value={chatInput}
                                 onChange={e => setChatInput(e.target.value)}
                                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
-                                placeholder="Ask about your results…"
+                                placeholder="Ask about your results — interpretation, further analysis, comparisons…"
                                 disabled={chatLoading}
                                 style={{
-                                    flex: 1, padding: '0.5rem 0.75rem',
+                                    flex: 1, padding: '0.55rem 0.85rem',
                                     border: '1px solid #ccc', borderRadius: '8px',
                                     fontSize: '0.9rem', outline: 'none',
+                                    fontFamily: "'Inter', sans-serif",
+                                    transition: 'border-color 0.2s',
                                 }}
                             />
                             <button
                                 onClick={handleSendChat}
                                 disabled={chatLoading || !chatInput.trim()}
                                 style={{
-                                    padding: '0.5rem 1.1rem',
-                                    background: (chatLoading || !chatInput.trim()) ? '#ccc' : '#1565c0',
+                                    padding: '0.55rem 1.2rem',
+                                    background: (chatLoading || !chatInput.trim()) ? '#ccc' : 'linear-gradient(135deg, #1565c0, #7b1fa2)',
                                     color: 'white', border: 'none', borderRadius: '8px',
                                     cursor: (chatLoading || !chatInput.trim()) ? 'default' : 'pointer',
-                                    fontWeight: 600, fontSize: '0.9rem', transition: 'background 0.2s',
+                                    fontWeight: 600, fontSize: '0.9rem', transition: 'all 0.2s',
+                                    fontFamily: "'Inter', sans-serif",
                                 }}
                             >
                                 Send
