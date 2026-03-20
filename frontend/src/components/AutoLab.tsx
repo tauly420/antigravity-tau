@@ -131,10 +131,32 @@ const MODEL_FORMULAS: Record<string, string> = {
     linear: 'y = ax + b',
     quadratic: 'y = ax\u00B2 + bx + c',
     cubic: 'y = ax\u00B3 + bx\u00B2 + cx + d',
-    power: 'y = ax\u1D47',
-    exponential: 'y = ae^(bx)',
+    power: 'y = ax\u1D47 + c',
+    exponential: 'y = ae^(bx) + c',
     sinusoidal: 'y = A\u00B7sin(\u03C9x + \u03C6) + D',
 };
+
+/** Parameter names for each model (used for fixing constants) */
+const MODEL_PARAMS: Record<string, string[]> = {
+    linear: ['a', 'b'],
+    quadratic: ['a', 'b', 'c'],
+    cubic: ['a', 'b', 'c', 'd'],
+    power: ['a', 'b', 'c'],
+    exponential: ['a', 'b', 'c'],
+    sinusoidal: ['A', 'omega', 'phi', 'D'],
+};
+
+/** Fit model options for the dropdown */
+const FIT_MODEL_OPTIONS = [
+    { value: 'auto', label: '🤖 Auto (AI chooses)', desc: 'Let the AI pick the best model' },
+    { value: 'linear', label: '📏 Linear', desc: 'y = ax + b' },
+    { value: 'quadratic', label: '📐 Quadratic', desc: 'y = ax² + bx + c' },
+    { value: 'cubic', label: '🔣 Cubic', desc: 'y = ax³ + bx² + cx + d' },
+    { value: 'power', label: '⚡ Power', desc: 'y = axᵇ + c' },
+    { value: 'exponential', label: '📈 Exponential', desc: 'y = ae^(bx) + c' },
+    { value: 'sinusoidal', label: '🌊 Sinusoidal', desc: 'y = A·sin(ωx + φ) + D' },
+    { value: 'custom', label: '✏️ Custom', desc: 'Enter your own expression' },
+];
 
 /** N-sigma colour: green <= 2, orange 2-3, red > 3 */
 function nsigmaColor(ns: number): string {
@@ -171,6 +193,11 @@ function AutoLab() {
     const [theoVal, setTheoVal] = useState('');
     const [theoUnc, setTheoUnc] = useState('');
 
+    /* Fit model selection */
+    const [selectedModel, setSelectedModel] = useState('auto');
+    const [customExpr, setCustomExpr] = useState('');
+    const [fixedParams, setFixedParams] = useState<Record<string, string>>({});
+
     const [running, setRunning] = useState(false);
     const [steps, setSteps] = useState<StepResult[]>([]);
     const [fitData, setFitData] = useState<any>(null);
@@ -188,6 +215,7 @@ function AutoLab() {
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     const [tableCopied, setTableCopied] = useState(false);
+    const [reportCopied, setReportCopied] = useState(false);
 
     const fileRef = useRef<HTMLInputElement>(null);
     const { setCurrentTool, setAutolabResults } = useAnalysis();
@@ -228,6 +256,9 @@ function AutoLab() {
         setAnalysisState(null);
         setChatMessages([]);
         setError('');
+        setSelectedModel('auto');
+        setCustomExpr('');
+        setFixedParams({});
     };
 
     const handleRun = async () => {
@@ -240,9 +271,24 @@ function AutoLab() {
         setError('');
 
         try {
+            // Build augmented instructions with model selection and fixed params
+            let augmented = instructions;
+            if (selectedModel !== 'auto') {
+                if (selectedModel === 'custom' && customExpr.trim()) {
+                    augmented += `\n\n[MODEL SELECTION: Use a custom model with expression: ${customExpr.trim()}]`;
+                } else {
+                    augmented += `\n\n[MODEL SELECTION: Use the ${selectedModel} model.]`;
+                }
+            }
+            const fixedEntries = Object.entries(fixedParams).filter(([, v]) => v.trim() !== '');
+            if (fixedEntries.length > 0) {
+                const fixedStr = fixedEntries.map(([k, v]) => `${k}=${v}`).join(', ');
+                augmented += `\n[FIXED PARAMETERS: Fix these parameters to the given values: ${fixedStr}]`;
+            }
+
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('instructions', instructions);
+            formData.append('instructions', augmented);
             if (theoVal) formData.append('theoretical_value', theoVal);
             if (theoUnc) formData.append('theoretical_uncertainty', theoUnc);
 
@@ -336,6 +382,68 @@ function AutoLab() {
         toImageButtonOptions: { format: 'png' as any, filename: 'autolab_fit', height: 800, width: 1200, scale: 2 },
     };
 
+    /** Export results as a formatted lab report section (HTML for pasting into Docs/Word) */
+    const handleExportReport = () => {
+        const names = fitStep?.result?.parameter_names as string[] || [];
+        const params = fitStep?.result?.parameters || [];
+        const uncs = fitStep?.result?.uncertainties || [];
+        const modelKey = (fitStep?.args?.model || '').toLowerCase();
+        const formula = MODEL_FORMULAS[modelKey] || fitStep?.args?.custom_expr || '';
+        const modelName = fitStep?.result?.model_name || modelKey;
+
+        let html = '<h3>Fit Results</h3>\n';
+        html += `<p><strong>Model:</strong> ${modelName} — <code>${formula}</code></p>\n`;
+
+        // Parameter table
+        html += '<table border="1" cellpadding="4" cellspacing="0"><thead><tr><th>Parameter</th><th>Value ± Uncertainty</th></tr></thead><tbody>';
+        names.forEach((name: string, j: number) => {
+            const fmt = roundWithUncertainty(Number(params[j]), Number(uncs[j]));
+            html += `<tr><td>${name}</td><td>${fmt.rounded}</td></tr>`;
+        });
+        html += '</tbody></table>\n';
+
+        // Statistics
+        const stats: string[] = [];
+        if (fitStep?.result?.reduced_chi_squared != null) stats.push(`χ² reduced = ${Number(fitStep.result.reduced_chi_squared).toFixed(3)}`);
+        if (fitStep?.result?.p_value != null) stats.push(`P-value = ${formatPValue(Number(fitStep.result.p_value))}`);
+        if (fitStep?.result?.dof != null) stats.push(`DOF = ${fitStep.result.dof}`);
+        if (analysisState?.fit?.r_squared != null) stats.push(`R² = ${Number(analysisState.fit.r_squared).toFixed(5)}`);
+        if (stats.length > 0) html += `<p><strong>Statistics:</strong> ${stats.join(' | ')}</p>\n`;
+
+        // Formula result
+        if (formulaStep?.result) {
+            const val = Number(formulaStep.result.value);
+            const unc = Number(formulaStep.result.uncertainty);
+            const fmt = (isFinite(val) && isFinite(unc) && unc > 0) ? roundWithUncertainty(val, unc) : { rounded: String(formulaStep.result.formatted ?? '--') };
+            html += `<p><strong>Derived quantity:</strong> ${formulaStep.args?.expression} = ${fmt.rounded}</p>\n`;
+        }
+
+        // N-sigma
+        if (nsigmaStep?.result) {
+            const ns = Number(nsigmaStep.result.n_sigma);
+            html += `<p><strong>N-σ comparison:</strong> ${ns.toFixed(2)}σ — ${nsigmaStep.result.verdict}</p>\n`;
+        }
+
+        // Summary
+        if (summaryStep?.message) {
+            html += `<h4>AI Summary</h4>\n<p>${summaryStep.message}</p>\n`;
+        }
+
+        // Copy as rich HTML
+        const plainText = html.replace(/<[^>]+>/g, '').replace(/\n\n/g, '\n');
+        if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+            const item = new ClipboardItem({
+                'text/html': new Blob([html], { type: 'text/html' }),
+                'text/plain': new Blob([plainText], { type: 'text/plain' }),
+            });
+            navigator.clipboard.write([item]);
+        } else {
+            navigator.clipboard.writeText(plainText);
+        }
+        setReportCopied(true);
+        setTimeout(() => setReportCopied(false), 2000);
+    };
+
     /* -- Derive structured result sections from steps -- */
     const summaryStep = steps.find(s => s.step === 'summary' && s.message);
     const fitStep = steps.find(s => s.step === 'fit' && s.success && s.result && !s.result.error);
@@ -383,9 +491,9 @@ function AutoLab() {
         <div className="card" style={{ maxWidth: '1100px', margin: '0 auto' }}>
             {/* -- Header -- */}
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <h2 style={{ fontSize: '1.8rem', margin: 0 }}>AutoLab</h2>
+                <h2 style={{ fontSize: '1.8rem', margin: 0 }}>🤖 AutoLab</h2>
                 <p style={{ color: '#666', marginTop: '0.4rem', fontSize: '1.05rem' }}>
-                    AI-Powered Automated Analysis -- Upload, Instruct, Get Results
+                    🔬 AI-Powered Automated Analysis — Upload, Instruct, Get Results
                 </p>
             </div>
 
@@ -393,7 +501,7 @@ function AutoLab() {
             <div>
                 {/* File upload */}
                 <div className="form-group">
-                    <label style={{ fontWeight: 600, fontSize: '1rem' }}>Data File</label>
+                    <label style={{ fontWeight: 600, fontSize: '1rem' }}>📁 Data File</label>
                     <div
                         onClick={() => fileRef.current?.click()}
                         onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
@@ -443,7 +551,7 @@ function AutoLab() {
                     border: '1px solid #a5d6a7', marginBottom: '1rem',
                 }}>
                     <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.9rem' }}>
-                        Try an example (loads data + instructions):
+                        🧪 Try an example (loads data + instructions):
                     </p>
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         {EXAMPLE_DATASETS.map(ex => (
@@ -458,7 +566,7 @@ function AutoLab() {
 
                 {/* Instructions */}
                 <div className="form-group">
-                    <label style={{ fontWeight: 600, fontSize: '1rem' }}>Instructions</label>
+                    <label style={{ fontWeight: 600, fontSize: '1rem' }}>📝 Instructions</label>
                     <textarea
                         value={instructions}
                         onChange={e => setInstructions(e.target.value)}
@@ -478,13 +586,90 @@ function AutoLab() {
                     />
                 </div>
 
+                {/* Fit Model Selection */}
+                <div style={{
+                    padding: '1rem', background: '#e3f2fd', borderRadius: '10px',
+                    border: '1px solid #90caf9', marginBottom: '1rem',
+                }}>
+                    <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.95rem' }}>
+                        📊 Fit Model
+                    </p>
+                    <select
+                        value={selectedModel}
+                        onChange={e => { setSelectedModel(e.target.value); setFixedParams({}); }}
+                        style={{
+                            width: '100%', padding: '0.55rem 0.75rem', fontSize: '0.95rem',
+                            border: '1px solid #ccc', borderRadius: '8px', background: '#fff',
+                            fontFamily: 'inherit', cursor: 'pointer',
+                        }}
+                    >
+                        {FIT_MODEL_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>
+                                {opt.label} — {opt.desc}
+                            </option>
+                        ))}
+                    </select>
+
+                    {/* Custom expression input */}
+                    {selectedModel === 'custom' && (
+                        <div style={{ marginTop: '0.6rem' }}>
+                            <label style={{ fontSize: '0.85rem', color: '#555' }}>Custom expression (use x as variable):</label>
+                            <input
+                                type="text"
+                                value={customExpr}
+                                onChange={e => setCustomExpr(e.target.value)}
+                                placeholder="e.g. A*exp(-x/tau) + C"
+                                style={{
+                                    width: '100%', padding: '0.5rem 0.75rem', fontSize: '0.9rem',
+                                    border: '1px solid #ccc', borderRadius: '6px', fontFamily: 'monospace',
+                                    marginTop: '0.3rem', boxSizing: 'border-box',
+                                }}
+                            />
+                        </div>
+                    )}
+
+                    {/* Fixed parameters (show when a specific model is selected) */}
+                    {selectedModel !== 'auto' && selectedModel !== 'custom' && MODEL_PARAMS[selectedModel] && (
+                        <div style={{ marginTop: '0.6rem' }}>
+                            <p style={{ fontSize: '0.85rem', color: '#555', margin: '0 0 0.4rem' }}>
+                                🔒 Fix constants (leave blank to fit freely):
+                            </p>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                {MODEL_PARAMS[selectedModel].map(param => (
+                                    <div key={param} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                        <label style={{
+                                            fontSize: '0.88rem', fontFamily: 'monospace',
+                                            fontWeight: 600, color: '#333', minWidth: '1.5rem',
+                                        }}>{param} =</label>
+                                        <input
+                                            type="text"
+                                            value={fixedParams[param] || ''}
+                                            onChange={e => setFixedParams(prev => ({ ...prev, [param]: e.target.value }))}
+                                            placeholder="free"
+                                            style={{
+                                                width: '5rem', padding: '0.3rem 0.5rem',
+                                                fontSize: '0.85rem', border: '1px solid #ccc',
+                                                borderRadius: '5px', fontFamily: 'monospace',
+                                                background: fixedParams[param]?.trim() ? '#fff3e0' : '#fff',
+                                            }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                            <p style={{ fontSize: '0.78rem', color: '#888', margin: '0.3rem 0 0' }}>
+                                Tip: Set c=0 for no vertical offset, b=0 to remove a term, etc.
+                            </p>
+                        </div>
+                    )}
+                </div>
+
                 {/* Theoretical value (optional) */}
                 <div style={{
                     padding: '1rem', background: '#f3e5f5', borderRadius: '10px',
                     border: '1px solid #ce93d8', marginBottom: '1rem',
                 }}>
                     <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.95rem' }}>
-                        Theoretical Value (optional)
+                        🎯 Theoretical Value (optional)
                     </p>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
                         <div className="form-group" style={{ flex: 1, margin: 0 }}>
@@ -514,7 +699,7 @@ function AutoLab() {
                         cursor: running ? 'wait' : 'pointer', transition: 'all 0.3s',
                     }}
                 >
-                    {running ? <span>AI is analyzing... please wait</span> : <span>Run AutoLab</span>}
+                    {running ? <span>🔄 AI is analyzing... please wait</span> : <span>🚀 Run AutoLab</span>}
                 </button>
 
                 {error && (
@@ -526,7 +711,7 @@ function AutoLab() {
             {hasResults && (
                 <div style={{ marginTop: '2.5rem' }}>
                     <h3 style={{ color: '#c62828', marginBottom: '1.25rem', fontSize: '1.2rem' }}>
-                        Results
+                        📊 Results
                     </h3>
 
                     {/* -- Errors -- */}
@@ -535,7 +720,7 @@ function AutoLab() {
                             padding: '0.8rem 1rem', borderRadius: '10px',
                             border: '2px solid #ef9a9a', background: '#ffebee', marginBottom: '1rem',
                         }}>
-                            <strong>Errors during analysis:</strong>
+                            <strong>⚠️ Errors during analysis:</strong>
                             {errorSteps.map((s, i) => (
                                 <p key={i} style={{ margin: '0.3rem 0 0', fontSize: '0.88rem', color: '#c62828' }}>
                                     {s.step}: {s.result?.error || s.message}
@@ -570,7 +755,7 @@ function AutoLab() {
                                     cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s',
                                 }}
                             >
-                                {tableCopied ? 'Copied!' : 'Copy Table'}
+                                {tableCopied ? '✅ Copied!' : '📋 Copy Table'}
                             </button>
                             </div>
                             <div style={{ overflowX: 'auto', userSelect: 'text' }}>
@@ -624,7 +809,7 @@ function AutoLab() {
                     {formulaStep && formulaStep.result && (
                         <div style={{ marginBottom: '1.5rem' }}>
                             <h4 style={{ margin: '0 0 0.6rem', color: '#333', fontSize: '1rem' }}>
-                                Formula Calculation
+                                🔢 Formula Calculation
                             </h4>
                             <div style={{
                                 padding: '0.85rem 1rem', background: '#ede7f6',
@@ -660,7 +845,7 @@ function AutoLab() {
                     {nsigmaStep && nsigmaStep.result && (
                         <div style={{ marginBottom: '1.5rem' }}>
                             <h4 style={{ margin: '0 0 0.6rem', color: '#333', fontSize: '1rem' }}>
-                                N-Sigma Comparison
+                                🎯 N-Sigma Comparison
                             </h4>
                             {(() => {
                                 const ns = Number(nsigmaStep.result!.n_sigma);
@@ -698,7 +883,7 @@ function AutoLab() {
                     {/* === FIT PLOT === */}
                     {fitData && fitData.x_data && (
                         <div style={{ marginBottom: '1.5rem' }}>
-                            <h4 style={{ color: '#333', margin: '0 0 0.5rem', fontSize: '1rem' }}>Fit Plot</h4>
+                            <h4 style={{ color: '#333', margin: '0 0 0.5rem', fontSize: '1rem' }}>📈 Fit Plot</h4>
                             <Plot
                                 data={[
                                     {
@@ -771,6 +956,27 @@ function AutoLab() {
                         </div>
                     )}
 
+                    {/* === LAB REPORT EXPORT === */}
+                    {fitStep && (
+                        <div style={{
+                            marginBottom: '1.5rem', display: 'flex', justifyContent: 'center',
+                        }}>
+                            <button
+                                onClick={handleExportReport}
+                                style={{
+                                    padding: '0.6rem 1.5rem', fontSize: '0.95rem',
+                                    border: '2px solid #1565c0', borderRadius: '8px',
+                                    background: reportCopied ? '#e8f5e9' : '#e3f2fd',
+                                    color: reportCopied ? '#2e7d32' : '#1565c0',
+                                    cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s',
+                                    fontFamily: "'Inter', sans-serif",
+                                }}
+                            >
+                                {reportCopied ? '✅ Report Copied to Clipboard!' : '📋 Copy Results as Lab Report'}
+                            </button>
+                        </div>
+                    )}
+
                     {/* === INLINE AI CHAT === */}
                     <div style={{
                         marginTop: '1.5rem', border: '1px solid #e0e0e0',
@@ -784,7 +990,7 @@ function AutoLab() {
                             fontWeight: 700, fontSize: '1.05rem',
                             letterSpacing: '-0.01em',
                         }}>
-                            AI Analysis Assistant
+                            🤖 AI Analysis Assistant
                         </div>
 
                         {/* Message thread */}

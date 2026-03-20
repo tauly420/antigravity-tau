@@ -119,7 +119,7 @@ def tool_parse_file(file_bytes: bytes, filename: str, sheet_name: str = None,
 
 
 def tool_fit_data(x_data, y_data, y_errors=None, x_errors=None, model='linear',
-                  custom_expr=None, initial_guess=None):
+                  custom_expr=None, initial_guess=None, fixed_params=None):
     """Fit data with a model. Returns parameters, uncertainties, chi-squared, etc.
     When x_errors are provided, effective errors are computed via error propagation:
     sigma_eff = sqrt(y_err² + (df/dx · x_err)²)
@@ -135,8 +135,8 @@ def tool_fit_data(x_data, y_data, y_errors=None, x_errors=None, model='linear',
         'linear': (lambda x, a, b: a * x + b, ['a', 'b'], [1.0, 0.0]),
         'quadratic': (lambda x, a, b, c: a * x**2 + b * x + c, ['a', 'b', 'c'], [1.0, 1.0, 0.0]),
         'cubic': (lambda x, a, b, c, d: a * x**3 + b * x**2 + c * x + d, ['a', 'b', 'c', 'd'], [0.01, 1.0, 1.0, 0.0]),
-        'power': (lambda x, a, b: a * np.power(np.abs(x), b), ['a', 'b'], [1.0, 1.0]),
-        'exponential': (lambda x, a, b: a * np.exp(b * x), ['a', 'b'], [1.0, 0.1]),
+        'power': (lambda x, a, b, c: a * np.power(np.abs(x), b) + c, ['a', 'b', 'c'], [1.0, 1.0, 0.0]),
+        'exponential': (lambda x, a, b, c: a * np.exp(b * x) + c, ['a', 'b', 'c'], [1.0, 0.1, 0.0]),
         'sinusoidal': (lambda x, A, omega, phi, D: A * np.sin(omega * x + phi) + D,
                        ['A', 'omega', 'phi', 'D'], [1.0, 1.0, 0.0, 0.0]),
     }
@@ -161,6 +161,47 @@ def tool_fit_data(x_data, y_data, y_errors=None, x_errors=None, model='linear',
             p0 = initial_guess
     else:
         return {"error": f"Unknown model: {model}"}
+
+    # Handle fixed parameters: wrap the model function to inject fixed values
+    all_param_names = list(param_names)  # full list before removing fixed
+    fixed_params = fixed_params or {}
+    if fixed_params:
+        fixed_indices = []
+        free_indices = []
+        for i, name in enumerate(param_names):
+            if name in fixed_params:
+                fixed_indices.append((i, fixed_params[name]))
+            else:
+                free_indices.append(i)
+
+        if not free_indices:
+            return {"error": "All parameters are fixed — nothing to fit."}
+
+        # Build a wrapper that injects fixed values into the full param vector
+        _original_func = func
+        _all_n = len(param_names)
+
+        def _wrapped(x_val, *free_vals):
+            full = [None] * _all_n
+            fi = 0
+            for idx in range(len(full)):
+                # check if this index is fixed
+                fixed_val = None
+                for fidx, fval in fixed_indices:
+                    if fidx == idx:
+                        fixed_val = fval
+                        break
+                if fixed_val is not None:
+                    full[idx] = fixed_val
+                else:
+                    full[idx] = free_vals[fi]
+                    fi += 1
+            return _original_func(x_val, *full)
+
+        func = _wrapped
+        free_param_names = [param_names[i] for i in free_indices]
+        p0 = [p0[i] for i in free_indices]
+        param_names = free_param_names
 
     try:
         # First fit (using y_errors only if no x_errors, or as initial pass)
@@ -212,9 +253,30 @@ def tool_fit_data(x_data, y_data, y_errors=None, x_errors=None, model='linear',
         ss_tot = np.sum((y - np.mean(y)) ** 2)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
 
-        # Generate smooth fit curve
+        # Reconstruct full parameter list if some were fixed
+        if fixed_params:
+            full_popt = np.zeros(len(all_param_names))
+            full_perr = np.zeros(len(all_param_names))
+            fi = 0
+            for i, name in enumerate(all_param_names):
+                if name in fixed_params:
+                    full_popt[i] = fixed_params[name]
+                    full_perr[i] = 0.0  # no uncertainty for fixed params
+                else:
+                    full_popt[i] = popt[fi]
+                    full_perr[i] = perr[fi]
+                    fi += 1
+            popt = full_popt
+            perr = full_perr
+            param_names = all_param_names
+
+        # Generate smooth fit curve using the wrapped func with free params only
         x_fit = np.linspace(x.min(), x.max(), 300)
-        y_fit = func(x_fit, *popt)
+        if fixed_params:
+            free_popt = [popt[i] for i in range(len(all_param_names)) if all_param_names[i] not in fixed_params]
+            y_fit = func(x_fit, *free_popt)
+        else:
+            y_fit = func(x_fit, *popt)
 
         result = {
             "parameters": popt.tolist(),
@@ -319,6 +381,13 @@ SYSTEM_PROMPT = (
     "axis labels. For example, if the experiment is 'voltage vs time on a capacitor', the x-axis "
     "should be 'Time [s]' and y-axis 'Voltage [V]'. Use the column names and units when possible. "
     "The frontend will use the x_col and y_col names from parse_file as axis labels.\n"
+    "14. FIXED PARAMETERS — If the user specifies that a parameter should be fixed "
+    "(e.g. 'no offset', 'c=0', 'force through origin'), use fixed_params to set it. "
+    "For example, fixed_params={'c': 0} fixes the constant at zero. The general model forms "
+    "include a +c constant by default; fix c=0 if the user wants a simpler model without offset.\n"
+    "15. FIT MODEL SELECTION — The user's instructions may specify which model to use. "
+    "If the user says 'fit linear', 'fit exponential', etc., use that model. The user may also "
+    "specify fixed parameters like 'exponential with no offset' (use fixed_params={'c': 0}).\n"
 )
 
 
@@ -386,6 +455,7 @@ def _run_orchestrator(file_bytes, filename, instructions, theoretical_value=None
                         "model": {"type": "string", "description": "Model name: linear, quadratic, cubic, power, exponential, sinusoidal, or custom"},
                         "custom_expr": {"type": "string", "description": "Custom expression (e.g. 'A*sin(omega*x+phi)+D'). Only needed if model='custom'."},
                         "initial_guess": {"type": "array", "items": {"type": "number"}, "description": "Initial parameter guesses — required for custom models, optional otherwise"},
+                        "fixed_params": {"type": "object", "description": "Dict mapping parameter names to fixed values. E.g. {'c': 0} to fix the constant term at zero. Parameters not in this dict will be fitted freely."},
                     },
                     "required": ["model"],
                 },
@@ -525,12 +595,17 @@ def _execute_tool(fn_name, fn_args, state, file_bytes, filename):
             if not state["parsed"] or "x_data" not in state["parsed"]:
                 return {"step": "fit", "tool": fn_name, "result": {"error": "No parsed data"}, "success": False}
 
+            # Extract fixed_params separately to pass as keyword arg
+            fit_args = dict(fn_args)
+            fixed_params = fit_args.pop("fixed_params", None)
+
             result = tool_fit_data(
                 x_data=state["parsed"]["x_data"],
                 y_data=state["parsed"]["y_data"],
                 y_errors=state["parsed"].get("y_errors"),
                 x_errors=state["parsed"].get("x_errors"),
-                **fn_args,
+                fixed_params=fixed_params,
+                **fit_args,
             )
             if "error" not in result:
                 state["fit"] = result
