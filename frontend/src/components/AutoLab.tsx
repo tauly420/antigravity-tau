@@ -4,7 +4,7 @@ import DataPreview from './DataPreview';
 import { useAnalysis } from '../context/AnalysisContext';
 import * as api from '../services/api';
 import { roundWithUncertainty, smartFormat, formatPValue } from '../utils/format';
-import { renderLatex, mathToUnicode } from '../utils/latex';
+import { renderLatex } from '../utils/latex';
 
 /* ═══════════════════════════════════════════════════════════════
    AutoLab — AI-Powered Automated Analysis
