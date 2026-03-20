@@ -1,7 +1,7 @@
 """
 AutoLab — AI-Driven Workflow Automation
 Orchestrates: parse → fit → formula → N-sigma → report
-using Gemini function-calling to chain existing tools.
+using OpenAI function-calling to chain existing tools.
 """
 
 from flask import Blueprint, request, jsonify
@@ -53,6 +53,8 @@ def tool_parse_file(file_bytes: bytes, filename: str, sheet_name: str = None,
         return {"error": f"Unsupported file type: {filename}"}
 
     df = df.dropna(how='all').reset_index(drop=True)
+    # Ensure column names are strings (handles integer-indexed columns)
+    df.columns = [str(c) for c in df.columns]
     cols = list(df.columns)
 
     # Resolve columns by index if names not provided
@@ -222,6 +224,36 @@ def tool_compare_nsigma(value1, uncertainty1, value2, uncertainty2):
 # OPENAI FUNCTION-CALLING ORCHESTRATOR
 # ════════════════════════════════════════════════════════════════
 
+SYSTEM_PROMPT = (
+    "You are an automated lab analysis agent. The user has uploaded a data file "
+    "and given instructions. You must execute the analysis step by step using the tools.\n\n"
+    "RULES:\n"
+    "1. ALWAYS call parse_file first to get the data.\n"
+    "2. Then call fit_data to fit the data.\n"
+    "3. If the user asks for a formula calculation, call evaluate_formula.\n"
+    "4. If a theoretical value is provided, call compare_nsigma.\n"
+    "5. ALWAYS call generate_summary as the last step.\n"
+    "6. For column selection: if the user says 'columns 1-4' they mean 0-based indices 0,1,2,3. "
+    "If they say 'column A, B, C' they mean column names.\n"
+    "7. For the formula expression, use EXACTLY the parameter names from the fit result.\n"
+    "8. CUSTOM FUNCTION KNOWLEDGE — If the user asks to fit a non-standard function, "
+    "use model='custom' and provide custom_expr. Examples:\n"
+    "   - sinc: custom_expr='A * sin(pi*x/x0) / (pi*x/x0)', initial_guess=[<y_max>, <x_range/4>]\n"
+    "   - Gaussian: custom_expr='A * exp(-((x-mu)**2)/(2*sigma**2))', initial_guess=[<y_max>, <x_mid>, <x_range/4>]\n"
+    "   - Lorentzian: custom_expr='A * gamma**2 / ((x-x0)**2 + gamma**2)', initial_guess=[<y_max>, <x_mid>, 1.0]\n"
+    "   - Damped oscillation: custom_expr='A * exp(-b*x) * sin(omega*x + phi)', initial_guess=[1.0, 0.1, 1.0, 0.0]\n"
+    "   - Always estimate initial_guess from the data range to help convergence.\n"
+    "   - For standard named models (linear, quadratic, cubic, power, exponential, sinusoidal), "
+    "use those model names directly — no custom needed.\n"
+    "9. FORMULA INTELLIGENCE — Derive quantities smartly from fit parameters:\n"
+    "   - Quadratic fit (a, b, c): to extract g from free-fall, evaluate '2*a'\n"
+    "   - Sinusoidal fit (A, omega, phi, D): period T = '2*pi/omega', max velocity = 'A*omega', "
+    "max acceleration = 'A*omega**2'\n"
+    "   - Linear fit (a, b): slope is 'a', intercept is 'b'\n"
+    "10. SUMMARY — Write a concise scientific summary: model used, key parameter values with "
+    "uncertainties (properly rounded), derived quantity if applicable, and N-sigma result with "
+    "interpretation. Keep it to 3-5 sentences.\n"
+)
 
 
 def _run_orchestrator(file_bytes, filename, instructions, theoretical_value=None,
@@ -236,7 +268,7 @@ def _run_orchestrator(file_bytes, filename, instructions, theoretical_value=None
         return {"error": "OPENAI_API_KEY not set. Please add it in Railway Variables.", "steps": []}
 
     client = OpenAI(api_key=api_key)
-    model_name = os.getenv("OPENAI_MODEL", "gpt-5-mini-2025-08-07")
+    model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     # State that accumulates as tools execute
     state = {
@@ -247,21 +279,7 @@ def _run_orchestrator(file_bytes, filename, instructions, theoretical_value=None
     }
     steps = []  # log of what happened
 
-    # Build the system instruction
-    system = (
-        "You are an automated lab analysis agent. The user has uploaded a data file "
-        "and given instructions. You must execute the analysis step by step using the tools.\n\n"
-        "RULES:\n"
-        "1. ALWAYS call parse_file first to get the data.\n"
-        "2. Then call fit_data to fit the data.\n"
-        "3. If the user asks for a formula calculation, call evaluate_formula.\n"
-        "4. If a theoretical value is provided, call compare_nsigma.\n"
-        "5. ALWAYS call generate_summary as the last step.\n"
-        "6. For column selection: if the user says 'columns 1-4' they mean 0-based indices 0,1,2,3. "
-        "If they say 'column A, B, C' they mean column names.\n"
-        "7. For the formula expression, use EXACTLY the parameter names from the fit result.\n"
-    )
-
+    system = SYSTEM_PROMPT
     if theoretical_value is not None:
         system += f"\nTheoretical value to compare against: {theoretical_value}"
         if theoretical_uncertainty:
@@ -295,13 +313,13 @@ def _run_orchestrator(file_bytes, filename, instructions, theoretical_value=None
             "type": "function",
             "function": {
                 "name": "fit_data",
-                "description": "Fit the parsed data with a model. Available models: linear, quadratic, cubic, power, exponential, sinusoidal, custom. For custom: provide custom_expr using 'x' as variable.",
+                "description": "Fit the parsed data with a model. Available models: linear, quadratic, cubic, power, exponential, sinusoidal, custom. For custom: provide custom_expr using 'x' as variable and initial_guess.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "model": {"type": "string", "description": "Model name: linear, quadratic, cubic, power, exponential, sinusoidal, or custom"},
-                        "custom_expr": {"type": "string", "description": "Custom expression (e.g. 'A*sin(omega*x + phi) + D'). Only needed if model='custom'."},
-                        "initial_guess": {"type": "array", "items": {"type": "number"}, "description": "Initial parameter guesses (optional)"},
+                        "custom_expr": {"type": "string", "description": "Custom expression (e.g. 'A*sin(omega*x+phi)+D'). Only needed if model='custom'."},
+                        "initial_guess": {"type": "array", "items": {"type": "number"}, "description": "Initial parameter guesses — required for custom models, optional otherwise"},
                     },
                     "required": ["model"],
                 },
@@ -315,7 +333,7 @@ def _run_orchestrator(file_bytes, filename, instructions, theoretical_value=None
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "expression": {"type": "string", "description": "Formula expression in Python/SymPy syntax (e.g. 'A*phi**2')"},
+                        "expression": {"type": "string", "description": "Formula expression in Python/SymPy syntax (e.g. '2*a' or 'A*omega**2')"},
                     },
                     "required": ["expression"],
                 },
@@ -495,7 +513,7 @@ def _execute_tool(fn_name, fn_args, state, file_bytes, filename):
             }
 
         elif fn_name == "generate_summary":
-            # Summary is generated by the AI text response
+            # Summary is generated by the AI text response after this tool call
             return {
                 "step": "summary",
                 "tool": fn_name,
@@ -527,7 +545,60 @@ def _safe_result(result):
 
 
 # ════════════════════════════════════════════════════════════════
-# API ENDPOINT
+# CHAT ENDPOINT — talk about analysis results
+# ════════════════════════════════════════════════════════════════
+
+def _build_chat_system(context: dict) -> str:
+    """Build a system prompt for post-analysis chat, injecting analysis context."""
+    lines = [
+        "You are a lab analysis assistant. The user has just completed an automated analysis. "
+        "Help them understand, interpret, and extend their results. Be concise and scientific.\n",
+        "=== ANALYSIS RESULTS CONTEXT ===",
+    ]
+
+    fit = context.get("fit")
+    if fit:
+        lines.append(f"Model fitted: {fit.get('model_name', 'unknown')}")
+        params = fit.get("parameter_names", [])
+        values = fit.get("parameters", [])
+        uncs = fit.get("uncertainties", [])
+        if params:
+            lines.append("Fitted parameters:")
+            for i, p in enumerate(params):
+                v = values[i] if i < len(values) else "?"
+                u = uncs[i] if i < len(uncs) else "?"
+                lines.append(f"  {p} = {v} ± {u}")
+        rchi2 = fit.get("reduced_chi_squared")
+        if rchi2 is not None:
+            lines.append(f"Reduced χ²/dof = {rchi2:.4f}")
+        pval = fit.get("p_value")
+        if pval is not None:
+            lines.append(f"P-value = {pval:.4f}")
+        rsq = fit.get("r_squared")
+        if rsq is not None:
+            lines.append(f"R² = {rsq:.6f}")
+
+    formula = context.get("formula")
+    if formula:
+        expr = formula.get("expression", "")
+        fmt = formula.get("formatted", "")
+        lines.append(f"Formula evaluated: {expr} = {fmt}")
+
+    nsigma = context.get("nsigma")
+    if nsigma:
+        ns = nsigma.get("n_sigma", "?")
+        verdict = nsigma.get("verdict", "")
+        tv = nsigma.get("theoretical_value", "")
+        tu = nsigma.get("theoretical_uncertainty", "")
+        lines.append(f"N-sigma comparison: N-σ = {ns} — {verdict}")
+        lines.append(f"  Theoretical value used: {tv} ± {tu}")
+
+    lines.append("=================================")
+    return "\n".join(lines)
+
+
+# ════════════════════════════════════════════════════════════════
+# API ENDPOINTS
 # ════════════════════════════════════════════════════════════════
 
 @autolab_bp.route('/run', methods=['POST'])
@@ -587,6 +658,7 @@ def run():
                 "p_value": fit.get("p_value"),
                 "dof": fit.get("dof"),
                 "model_name": fit.get("model_name"),
+                "r_squared": fit.get("r_squared"),
             }
 
         return jsonify(result)
@@ -594,3 +666,41 @@ def run():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e), "steps": []}), 500
+
+
+@autolab_bp.route('/chat', methods=['POST'])
+def chat():
+    """
+    Chat about AutoLab analysis results.
+
+    JSON body:
+      - messages: [{role: 'user'|'assistant', content: str}]
+      - context: {fit: {...}, formula: {...}, nsigma: {...}}
+    """
+    try:
+        from openai import OpenAI
+
+        api_key = os.getenv("OPENAI_API_KEY", "").strip()
+        if not api_key:
+            return jsonify({"error": "OPENAI_API_KEY not set"}), 500
+
+        client = OpenAI(api_key=api_key)
+        model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+        data = request.get_json(force=True)
+        messages = data.get("messages", [])
+        context = data.get("context", {})
+
+        system_content = _build_chat_system(context)
+
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "system", "content": system_content}] + messages,
+        )
+
+        reply = response.choices[0].message.content if response.choices else "No response."
+        return jsonify({"reply": reply})
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500

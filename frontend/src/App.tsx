@@ -61,6 +61,9 @@ function App() {
 
                         <footer className="footer">
                             <p>© 2026 Tau-LY Lab Tools • All rights reserved to <a href="https://www.linkedin.com/in/uri-shulman-5690b2337" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Uri Shulman</a></p>
+                            <p style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.25rem' }}>
+                                AI-generated results may contain errors — always verify important calculations independently.
+                            </p>
                         </footer>
                     </div>
                     <Sidebar />

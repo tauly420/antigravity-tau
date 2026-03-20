@@ -120,6 +120,10 @@ def fit():
         y_errors = data.get('y_errors')
         if y_errors:
             y_errors = np.array(y_errors, dtype=float)
+            # Replace zero uncertainties with a small positive value to avoid division by zero
+            if np.any(y_errors == 0):
+                min_nonzero = np.min(y_errors[y_errors > 0]) if np.any(y_errors > 0) else 1.0
+                y_errors = np.where(y_errors == 0, min_nonzero * 0.1, y_errors)
 
         model_type = data.get('model', 'linear').lower()
         custom_expr = data.get('custom_expr')

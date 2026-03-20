@@ -76,8 +76,8 @@ def parse_num_expr(s: str) -> float:
         def _eval(n):
             if isinstance(n, ast.Expression):
                 return _eval(n.body)
-            elif isinstance(n, ast.Num):
-                return n.n
+            elif isinstance(n, ast.Constant) and isinstance(n.value, (int, float)):
+                return n.value
             elif isinstance(n, ast.BinOp):
                 left = _eval(n.left)
                 right = _eval(n.right)
@@ -173,7 +173,7 @@ def _expand_all_frac(s: str) -> str:
 
 
 def _expand_sqrt(s: str) -> str:
-    """Expand \sqrt{x} to sqrt(x) and \sqrt[n]{x} to x**(1/n)"""
+    r"""Expand \sqrt{x} to sqrt(x) and \sqrt[n]{x} to x**(1/n)"""
     # \sqrt[n]{x} -> x**(1/n)
     s = re.sub(r'\\sqrt\[(\d+)\]\{([^{}]+)\}', r'((\2)**(1/\1))', s)
     # \sqrt{x} -> sqrt(x)

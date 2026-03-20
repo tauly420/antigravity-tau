@@ -216,3 +216,16 @@ export const inverseFourier = async (data: {
     const response = await api.post('/fourier/inverse', data);
     return response.data;
 };
+
+// AutoLab Chat API
+export const autolabChat = async (data: {
+    messages: { role: 'user' | 'assistant'; content: string }[];
+    context: {
+        fit?: any;
+        formula?: any;
+        nsigma?: any;
+    };
+}): Promise<{ reply: string }> => {
+    const response = await api.post('/autolab/chat', data);
+    return response.data;
+};

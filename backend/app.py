@@ -10,7 +10,10 @@ import os
 def create_app():
     """Create and configure the Flask application"""
     app = Flask(__name__, static_folder='../frontend/dist')
-    
+
+    # Allow up to 50 MB uploads (default Flask limit is 16 MB)
+    app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
+
     # CORS configuration - allow frontend to communicate with backend
     CORS(app, resources={
         r"/api/*": {
@@ -60,7 +63,11 @@ def create_app():
     @app.errorhandler(404)
     def not_found(error):
         return jsonify({"error": "Not found"}), 404
-    
+
+    @app.errorhandler(413)
+    def too_large(error):
+        return jsonify({"error": "File too large. Maximum upload size is 50 MB."}), 413
+
     @app.errorhandler(500)
     def internal_error(error):
         return jsonify({"error": "Internal server error"}), 500

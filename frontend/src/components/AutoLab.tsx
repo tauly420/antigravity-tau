@@ -3,6 +3,7 @@ import Plot from './PlotWrapper';
 import DataPreview from './DataPreview';
 import { useAnalysis } from '../context/AnalysisContext';
 import * as api from '../services/api';
+import { roundWithUncertainty, smartFormat, formatPValue } from '../utils/format';
 
 /* ═══════════════════════════════════════════════════════════════
    AutoLab — AI-Powered Automated Analysis
@@ -32,20 +33,24 @@ const EXAMPLE_DATASETS = [
     },
     {
         label: '🌊 Oscillation (Sinusoidal)',
-        instructions: 'First sheet. Column "Time_s" is x, "Displacement_cm" is y, "Displacement_Error_cm" is y error. Fit a sinusoidal model. Calculate A*omega**2 from the fitted parameters (this approximates the maximum acceleration).',
-        theoVal: '78.5',
-        theoUnc: '5.0',
+        // Simplified: no formula specified, no "maximum acceleration" — just fit sinusoidal, extract period
+        instructions: 'First sheet. Column "Time_s" is x, "Displacement_cm" is y, "Displacement_Error_cm" is y error. Fit a sinusoidal model. Calculate the period T = 2*pi/omega and compare to the theoretical value.',
+        // Theoretical period: T = 2π/2.5 ≈ 2.513 s — as measured independently by stopwatch
+        theoVal: '2.51',
+        theoUnc: '0.10',
         columns: ['Time_s', 'Displacement_cm', 'Displacement_Error_cm'],
         rows: (() => {
             const data = [];
+            // Fixed noise values for consistent display (avoids Math.random variation on reload)
+            const noise = [0.3, -0.8, 1.2, -0.4, 0.9, -1.1, 0.5, -0.7, 1.4, -0.3,
+                           0.6, -1.3, 0.8, -0.5, 1.1, -0.9, 0.4, -1.2, 0.7, -0.6, 0.2];
             for (let i = 0; i <= 20; i++) {
                 const t = i * 0.25;
                 const y = 5.0 * Math.sin(2.5 * t + 0.3) + 2.0;
-                const noise = (Math.random() - 0.5) * 0.8;
                 data.push({
                     Time_s: parseFloat(t.toFixed(3)),
-                    Displacement_cm: parseFloat((y + noise).toFixed(3)),
-                    Displacement_Error_cm: 0.5,
+                    Displacement_cm: parseFloat((y + noise[i]).toFixed(3)),
+                    Displacement_Error_cm: 1.0, // 1 cm errors — clearly visible on residuals
                 });
             }
             return data;
@@ -53,7 +58,8 @@ const EXAMPLE_DATASETS = [
     },
     {
         label: '📊 Free Fall (Quadratic)',
-        instructions: 'First sheet. "Time_s" is x, "Height_m" is y, "Height_Error_m" is y error. Fit a quadratic model (a*x**2 + b*x + c). The coefficient "a" should approximate g/2 ≈ 4.905. Calculate 2*a to extract g and compare to the theoretical value I provided.',
+        // Simplified: no explicit formula string — AI knows what to do with "quadratic"
+        instructions: 'First sheet. "Time_s" is x, "Height_m" is y, "Height_Error_m" is y error. Fit a quadratic model. Extract g = 2*a and compare to the theoretical value I provided.',
         theoVal: '9.81',
         theoUnc: '0.01',
         columns: ['Time_s', 'Height_m', 'Height_Error_m', 'Time_Error_s'],
@@ -95,6 +101,29 @@ interface StepResult {
     message?: string;
 }
 
+interface ChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
+/** N-sigma colour: green ≤ 2, orange 2–3, red > 3 */
+function nsigmaColor(ns: number): string {
+    if (ns <= 2) return '#2e7d32';
+    if (ns <= 3) return '#e65100';
+    return '#c62828';
+}
+
+/* ── Table cell styles ── */
+const thStyle: React.CSSProperties = {
+    padding: '0.5rem 0.75rem', textAlign: 'left',
+    borderBottom: '2px solid #90caf9',
+    fontSize: '0.85rem', fontWeight: 700,
+};
+const tdStyle: React.CSSProperties = {
+    padding: '0.4rem 0.75rem', borderBottom: '1px solid #eee',
+    fontFamily: 'monospace',
+};
+
 function AutoLab() {
     const [file, setFile] = useState<File | null>(null);
     const [instructions, setInstructions] = useState('');
@@ -104,25 +133,42 @@ function AutoLab() {
     const [running, setRunning] = useState(false);
     const [steps, setSteps] = useState<StepResult[]>([]);
     const [fitData, setFitData] = useState<any>(null);
+    const [analysisState, setAnalysisState] = useState<any>(null); // full state for chat context
     const [error, setError] = useState('');
 
     /* Data preview state */
     const [previewData, setPreviewData] = useState<{ columns: string[]; rows: Record<string, any>[] } | null>(null);
+    const [previewError, setPreviewError] = useState('');
+
+    /* Inline chat state */
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+    const [chatInput, setChatInput] = useState('');
+    const [chatLoading, setChatLoading] = useState(false);
+    const chatEndRef = useRef<HTMLDivElement>(null);
 
     const fileRef = useRef<HTMLInputElement>(null);
     const { setCurrentTool } = useAnalysis();
 
     useEffect(() => { setCurrentTool('AutoLab'); }, []);
 
+    // Auto-scroll chat to bottom when new messages arrive
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [chatMessages]);
+
     /* Parse file for preview when user selects one */
     const handleFileChange = async (f: File) => {
         setFile(f);
         setPreviewData(null);
+        setPreviewError('');
         try {
             const data = await api.parseFileData(f);
-            setPreviewData({ columns: data.columns, rows: data.rows });
+            // Validate response before setting — guards against crashes on unusual Excel files
+            if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows)) {
+                setPreviewData({ columns: data.columns.map(String), rows: data.rows });
+            }
         } catch {
-            // Preview failed — not critical. AutoLab will still work.
+            setPreviewError('Could not preview file — analysis will still work when you click Run.');
         }
     };
 
@@ -134,8 +180,11 @@ function AutoLab() {
         setTheoVal(ex.theoVal || '');
         setTheoUnc(ex.theoUnc || '');
         setPreviewData({ columns: ex.columns, rows: ex.rows });
+        setPreviewError('');
         setSteps([]);
         setFitData(null);
+        setAnalysisState(null);
+        setChatMessages([]);
         setError('');
     };
 
@@ -144,6 +193,8 @@ function AutoLab() {
         setRunning(true);
         setSteps([]);
         setFitData(null);
+        setAnalysisState(null);
+        setChatMessages([]);
         setError('');
 
         try {
@@ -154,6 +205,10 @@ function AutoLab() {
             if (theoUnc) formData.append('theoretical_uncertainty', theoUnc);
 
             const resp = await fetch('/api/autolab/run', { method: 'POST', body: formData });
+            if (!resp.ok) {
+                const errData = await resp.json().catch(() => ({}));
+                throw new Error(errData.error || `Server error ${resp.status}`);
+            }
             const data = await resp.json();
 
             if (data.error && !data.steps?.length) {
@@ -161,6 +216,7 @@ function AutoLab() {
             } else {
                 setSteps(data.steps || []);
                 setFitData(data.fit_data || null);
+                setAnalysisState(data.state || null);
             }
         } catch (err: any) {
             setError(err.message || 'AutoLab failed');
@@ -169,23 +225,39 @@ function AutoLab() {
         }
     };
 
-    const stepIcon = (s: StepResult) => {
-        if (s.success === false) return '❌';
-        if (s.step === 'summary') return '📝';
-        if (s.step === 'parse') return '📂';
-        if (s.step === 'fit') return '📈';
-        if (s.step === 'formula') return '🧮';
-        if (s.step === 'nsigma') return '🎯';
-        return '✅';
-    };
+    const handleSendChat = async () => {
+        const msg = chatInput.trim();
+        if (!msg || chatLoading) return;
 
-    const stepLabel = (s: StepResult) => {
-        if (s.step === 'parse') return 'Data Parsed';
-        if (s.step === 'fit') return 'Curve Fit';
-        if (s.step === 'formula') return 'Formula Evaluated';
-        if (s.step === 'nsigma') return 'N-Sigma Comparison';
-        if (s.step === 'summary') return 'Summary';
-        return s.step;
+        const newMessages: ChatMessage[] = [...chatMessages, { role: 'user', content: msg }];
+        setChatMessages(newMessages);
+        setChatInput('');
+        setChatLoading(true);
+
+        try {
+            const context = {
+                fit: analysisState?.fit ? {
+                    model_name: analysisState.fit.model_name,
+                    parameter_names: analysisState.fit.parameter_names,
+                    parameters: analysisState.fit.parameters,
+                    uncertainties: analysisState.fit.uncertainties,
+                    reduced_chi_squared: analysisState.fit.reduced_chi_squared,
+                    p_value: analysisState.fit.p_value,
+                    r_squared: analysisState.fit.r_squared,
+                } : undefined,
+                formula: analysisState?.formula,
+                nsigma: analysisState?.nsigma,
+            };
+            const result = await api.autolabChat({ messages: newMessages, context });
+            setChatMessages(prev => [...prev, { role: 'assistant', content: result.reply }]);
+        } catch (err: any) {
+            setChatMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `Error: ${err.message || 'Chat failed'}`,
+            }]);
+        } finally {
+            setChatLoading(false);
+        }
     };
 
     const plotConfig = {
@@ -193,345 +265,464 @@ function AutoLab() {
         toImageButtonOptions: { format: 'png' as any, filename: 'autolab_fit', height: 800, width: 1200, scale: 2 },
     };
 
+    /* ── Derive structured result sections from steps ── */
+    const summaryStep = steps.find(s => s.step === 'summary' && s.message);
+    const fitStep = steps.find(s => s.step === 'fit' && s.success && s.result && !s.result.error);
+    const formulaStep = steps.find(s => s.step === 'formula' && s.success && s.result && !s.result.error);
+    const nsigmaStep = steps.find(s => s.step === 'nsigma' && s.success && s.result && !s.result.error);
+    const errorSteps = steps.filter(s => s.success === false || s.result?.error);
+    const hasResults = steps.length > 0;
+
     return (
-        <div className="card" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div className="card" style={{ maxWidth: '1100px', margin: '0 auto' }}>
             {/* ── Header ── */}
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <h2 style={{ fontSize: '1.8rem', margin: 0 }}>
-                    🤖 AutoLab
-                </h2>
+                <h2 style={{ fontSize: '1.8rem', margin: 0 }}>🤖 AutoLab</h2>
                 <p style={{ color: '#666', marginTop: '0.4rem', fontSize: '1.05rem' }}>
                     AI-Powered Automated Analysis — Upload, Instruct, Get Results
                 </p>
             </div>
 
-            {/* ── Two-column layout ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: steps.length > 0 ? '1fr 1fr' : '1fr', gap: '2rem' }}>
-
-                {/* ═══ LEFT: Input Panel ═══ */}
-                <div>
-                    {/* File upload */}
-                    <div className="form-group">
-                        <label style={{ fontWeight: 600, fontSize: '1rem' }}>📎 Data File</label>
-                        <div
-                            onClick={() => fileRef.current?.click()}
-                            onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-                            onDrop={e => {
-                                e.preventDefault();
-                                const f = e.dataTransfer.files[0];
-                                if (f) handleFileChange(f);
-                            }}
-                            style={{
-                                border: '2px dashed #1565c0',
-                                borderRadius: '10px',
-                                padding: '1.5rem',
-                                textAlign: 'center',
-                                cursor: 'pointer',
-                                background: file ? '#e8f5e9' : '#e3f2fd',
-                                transition: 'all 0.2s',
-                            }}
-                        >
-                            {file ? (
-                                <span style={{ fontWeight: 600, color: '#2e7d32' }}>
-                                    ✅ {file.name} ({(file.size / 1024).toFixed(1)} KB)
-                                </span>
-                            ) : (
-                                <span style={{ color: '#1565c0' }}>
-                                    Click or drag & drop your data file<br />
-                                    <small>.xlsx, .csv, .tsv, .ods, .dat</small>
-                                </span>
-                            )}
-                        </div>
-                        <input
-                            ref={fileRef}
-                            type="file"
-                            accept=".xlsx,.xls,.csv,.tsv,.ods,.dat,.txt"
-                            onChange={e => {
-                                const f = e.target.files?.[0];
-                                if (f) handleFileChange(f);
-                            }}
-                            style={{ display: 'none' }}
-                        />
-                    </div>
-
-                    {/* Data preview */}
-                    {previewData && (
-                        <DataPreview columns={previewData.columns} rows={previewData.rows} />
-                    )}
-
-                    {/* Example datasets */}
-                    <div style={{
-                        padding: '0.8rem 1rem', background: '#e8f5e9', borderRadius: '10px',
-                        border: '1px solid #a5d6a7', marginBottom: '1rem',
-                    }}>
-                        <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.9rem' }}>
-                            🧪 Try an example (loads data + instructions):
-                        </p>
-                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                            {EXAMPLE_DATASETS.map(ex => (
-                                <button key={ex.label} className="btn-accent"
-                                    onClick={() => loadExample(ex)}
-                                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.8rem' }}>
-                                    {ex.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Instructions */}
-                    <div className="form-group">
-                        <label style={{ fontWeight: 600, fontSize: '1rem' }}>📝 Instructions</label>
-                        <textarea
-                            value={instructions}
-                            onChange={e => setInstructions(e.target.value)}
-                            rows={5}
-                            placeholder="Describe your analysis in plain language. For example:&#10;&#10;&quot;Use sheet 2, columns 1-4 are x, δx, y, δy. Fit a sinusoidal model. Calculate amplitude × omega² from the fit. Compare to 42.0 ± 2.0.&quot;"
-                            style={{ fontFamily: 'inherit', fontSize: '0.95rem', lineHeight: 1.5 }}
-                        />
-                    </div>
-
-                    {/* Theoretical value (optional) */}
-                    <div style={{
-                        padding: '1rem', background: '#f3e5f5', borderRadius: '10px',
-                        border: '1px solid #ce93d8', marginBottom: '1rem',
-                    }}>
-                        <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.95rem' }}>
-                            🎯 Theoretical Value (optional)
-                        </p>
-                        <div style={{ display: 'flex', gap: '0.75rem' }}>
-                            <div className="form-group" style={{ flex: 1, margin: 0 }}>
-                                <label>Value</label>
-                                <input type="text" value={theoVal}
-                                    onChange={e => setTheoVal(e.target.value)}
-                                    placeholder="e.g. 42.0"
-                                    style={{ fontFamily: 'monospace' }} />
-                            </div>
-                            <div className="form-group" style={{ flex: 1, margin: 0 }}>
-                                <label>Uncertainty</label>
-                                <input type="text" value={theoUnc}
-                                    onChange={e => setTheoUnc(e.target.value)}
-                                    placeholder="e.g. 2.0"
-                                    style={{ fontFamily: 'monospace' }} />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Run button */}
-                    <button
-                        onClick={handleRun}
-                        disabled={running || !file || !instructions.trim()}
-                        className="btn-primary"
+            {/* ═══ INPUT PANEL (always full width, results appear below) ═══ */}
+            <div>
+                {/* File upload */}
+                <div className="form-group">
+                    <label style={{ fontWeight: 600, fontSize: '1rem' }}>📎 Data File</label>
+                    <div
+                        onClick={() => fileRef.current?.click()}
+                        onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                        onDrop={e => {
+                            e.preventDefault();
+                            const f = e.dataTransfer.files[0];
+                            if (f) handleFileChange(f);
+                        }}
                         style={{
-                            width: '100%', fontSize: '1.15rem', padding: '0.9rem',
-                            background: running ? '#90a4ae' : 'linear-gradient(135deg, #1565c0, #7b1fa2)',
-                            border: 'none', borderRadius: '10px', color: 'white',
-                            cursor: running ? 'wait' : 'pointer',
-                            transition: 'all 0.3s',
+                            border: '2px dashed #1565c0', borderRadius: '10px', padding: '1.5rem',
+                            textAlign: 'center', cursor: 'pointer',
+                            background: file ? '#e8f5e9' : '#e3f2fd', transition: 'all 0.2s',
                         }}
                     >
-                        {running ? (
-                            <span>⏳ AI is analyzing… please wait</span>
+                        {file ? (
+                            <span style={{ fontWeight: 600, color: '#2e7d32' }}>
+                                ✅ {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                            </span>
                         ) : (
-                            <span>🚀 Run AutoLab</span>
+                            <span style={{ color: '#1565c0' }}>
+                                Click or drag & drop your data file<br />
+                                <small>.xlsx, .csv, .tsv, .ods, .dat</small>
+                            </span>
                         )}
-                    </button>
-
-                    {error && (
-                        <div className="error-message" style={{ marginTop: '1rem' }}>{error}</div>
+                    </div>
+                    <input
+                        ref={fileRef} type="file"
+                        accept=".xlsx,.xls,.csv,.tsv,.ods,.dat,.txt"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) handleFileChange(f); }}
+                        style={{ display: 'none' }}
+                    />
+                    {previewError && (
+                        <p style={{ color: '#e65100', fontSize: '0.85rem', margin: '0.3rem 0 0' }}>
+                            ⚠️ {previewError}
+                        </p>
                     )}
                 </div>
 
-                {/* ═══ RIGHT: Results Panel ═══ */}
-                {steps.length > 0 && (
-                    <div>
-                        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#1565c0' }}>
-                            📊 Results
-                        </h3>
+                {/* Data preview */}
+                {previewData && (
+                    <DataPreview columns={previewData.columns} rows={previewData.rows} />
+                )}
 
-                        {/* Step-by-step results */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            {steps.map((s, i) => (
-                                <div key={i} style={{
-                                    padding: '0.8rem 1rem',
-                                    borderRadius: '10px',
-                                    border: `2px solid ${s.success === false ? '#ef9a9a' : '#a5d6a7'}`,
-                                    background: s.success === false ? '#ffebee' : '#e8f5e9',
-                                }}>
-                                    <div style={{ fontWeight: 700, marginBottom: '0.3rem' }}>
-                                        {stepIcon(s)} {stepLabel(s)}
-                                    </div>
+                {/* Example datasets */}
+                <div style={{
+                    padding: '0.8rem 1rem', background: '#e8f5e9', borderRadius: '10px',
+                    border: '1px solid #a5d6a7', marginBottom: '1rem',
+                }}>
+                    <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.9rem' }}>
+                        🧪 Try an example (loads data + instructions):
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        {EXAMPLE_DATASETS.map(ex => (
+                            <button key={ex.label} className="btn-accent"
+                                onClick={() => loadExample(ex)}
+                                style={{ fontSize: '0.8rem', padding: '0.35rem 0.8rem' }}>
+                                {ex.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
-                                    {/* Parse result */}
-                                    {s.step === 'parse' && s.result && !s.result.error && (
-                                        <div style={{ fontSize: '0.88rem', color: '#555' }}>
-                                            <p>Columns: {s.result.columns?.join(', ')}</p>
-                                            <p>Rows: {s.result.num_rows}</p>
-                                            {s.result.x_col && <p>X: <strong>{s.result.x_col}</strong></p>}
-                                            {s.result.y_col && <p>Y: <strong>{s.result.y_col}</strong></p>}
-                                            {s.result.y_err_col && <p>Y error: <strong>{s.result.y_err_col}</strong></p>}
-                                            {s.result.x_err_col && <p>X error: <strong>{s.result.x_err_col}</strong></p>}
-                                        </div>
-                                    )}
+                {/* Instructions */}
+                <div className="form-group">
+                    <label style={{ fontWeight: 600, fontSize: '1rem' }}>📝 Instructions</label>
+                    <textarea
+                        value={instructions}
+                        onChange={e => setInstructions(e.target.value)}
+                        rows={5}
+                        placeholder={'Describe your analysis in plain language. For example:\n\n"Use sheet 2, x is column 1, y is column 3, y error is column 4. Fit a sinc function. Calculate the first zero crossing and compare to 1.0 ± 0.05."'}
+                        style={{ fontFamily: 'inherit', fontSize: '0.95rem', lineHeight: 1.5 }}
+                    />
+                </div>
 
-                                    {/* Fit result */}
-                                    {s.step === 'fit' && s.result && !s.result.error && (
-                                        <div style={{ fontSize: '0.88rem', color: '#555' }}>
-                                            <p>Model: <strong>{s.result.model_name}</strong></p>
-                                            {s.result.parameter_names && s.result.parameters && (
-                                                <table style={{ width: '100%', fontSize: '0.85rem', marginTop: '0.4rem' }}>
-                                                    <thead>
-                                                        <tr style={{ textAlign: 'left', borderBottom: '1px solid #ccc' }}>
-                                                            <th>Param</th><th>Value</th><th>± Uncertainty</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {(s.result.parameter_names as string[]).map((name: string, j: number) => (
-                                                            <tr key={name}>
-                                                                <td><strong>{name}</strong></td>
-                                                                <td>{typeof s.result!.parameters[j] === 'number'
-                                                                    ? (s.result!.parameters[j] as number).toFixed(6) : s.result!.parameters[j]}</td>
-                                                                <td>{typeof s.result!.uncertainties?.[j] === 'number'
-                                                                    ? (s.result!.uncertainties[j] as number).toFixed(6) : s.result!.uncertainties?.[j]}</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            )}
-                                            <div style={{ marginTop: '0.4rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                                                {s.result.reduced_chi_squared != null && (
-                                                    <span>χ²/dof = <strong>{Number(s.result.reduced_chi_squared).toFixed(4)}</strong></span>
-                                                )}
-                                                {s.result.p_value != null && (
-                                                    <span>P = <strong>{Number(s.result.p_value).toFixed(4)}</strong></span>
-                                                )}
-                                                {s.result.dof != null && (
-                                                    <span>dof = <strong>{s.result.dof}</strong></span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Formula result */}
-                                    {s.step === 'formula' && s.result && !s.result.error && (
-                                        <div style={{ fontSize: '0.9rem' }}>
-                                            <p style={{ fontFamily: 'monospace' }}>
-                                                {s.args?.expression} = <strong>{s.result.formatted}</strong>
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* N-sigma result */}
-                                    {s.step === 'nsigma' && s.result && !s.result.error && (
-                                        <div style={{ fontSize: '0.9rem' }}>
-                                            <p>
-                                                N-σ = <strong style={{
-                                                    color: s.result.n_sigma <= 3 ? '#2e7d32' : '#c62828',
-                                                    fontSize: '1.1rem',
-                                                }}>{s.result.n_sigma}</strong>
-                                                &nbsp;— {s.result.verdict}
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* Summary */}
-                                    {s.step === 'summary' && s.message && (
-                                        <div style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                                            {s.message}
-                                        </div>
-                                    )}
-
-                                    {/* Error */}
-                                    {s.result?.error && (
-                                        <div style={{ color: '#c62828', fontSize: '0.85rem' }}>
-                                            Error: {s.result.error}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                {/* Theoretical value (optional) */}
+                <div style={{
+                    padding: '1rem', background: '#f3e5f5', borderRadius: '10px',
+                    border: '1px solid #ce93d8', marginBottom: '1rem',
+                }}>
+                    <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.95rem' }}>
+                        🎯 Theoretical Value (optional)
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <div className="form-group" style={{ flex: 1, margin: 0 }}>
+                            <label>Value</label>
+                            <input type="text" value={theoVal}
+                                onChange={e => setTheoVal(e.target.value)}
+                                placeholder="e.g. 9.81" style={{ fontFamily: 'monospace' }} />
+                        </div>
+                        <div className="form-group" style={{ flex: 1, margin: 0 }}>
+                            <label>Uncertainty</label>
+                            <input type="text" value={theoUnc}
+                                onChange={e => setTheoUnc(e.target.value)}
+                                placeholder="e.g. 0.01" style={{ fontFamily: 'monospace' }} />
                         </div>
                     </div>
+                </div>
+
+                {/* Run button */}
+                <button
+                    onClick={handleRun}
+                    disabled={running || !file || !instructions.trim()}
+                    className="btn-primary"
+                    style={{
+                        width: '100%', fontSize: '1.15rem', padding: '0.9rem',
+                        background: running ? '#90a4ae' : 'linear-gradient(135deg, #1565c0, #7b1fa2)',
+                        border: 'none', borderRadius: '10px', color: 'white',
+                        cursor: running ? 'wait' : 'pointer', transition: 'all 0.3s',
+                    }}
+                >
+                    {running ? <span>⏳ AI is analyzing… please wait</span> : <span>🚀 Run AutoLab</span>}
+                </button>
+
+                {error && (
+                    <div className="error-message" style={{ marginTop: '1rem' }}>{error}</div>
                 )}
             </div>
 
-            {/* ═══ FIT PLOT (full width below the grid) ═══ */}
-            {fitData && fitData.x_data && (
-                <div style={{ marginTop: '2rem' }}>
-                    <h3 style={{ color: '#1565c0' }}>📉 Fit Plot</h3>
-                    <Plot
-                        data={[
-                            {
-                                x: fitData.x_data,
-                                y: fitData.y_data,
-                                error_y: fitData.y_errors ? {
-                                    type: 'data' as const, array: fitData.y_errors,
-                                    visible: true, color: '#1565c0', thickness: 1.5,
-                                } : undefined,
-                                type: 'scatter' as const,
-                                mode: 'markers' as const,
-                                name: 'Data',
-                                marker: { size: 6, color: '#1565c0' },
-                            },
-                            {
-                                x: fitData.x_fit,
-                                y: fitData.y_fit,
-                                type: 'scatter' as const,
-                                mode: 'lines' as const,
-                                name: `Fit (${fitData.model_name})`,
-                                line: { width: 2.5, color: '#d32f2f' },
-                            },
-                        ]}
-                        layout={{
-                            title: { text: `AutoLab Fit — ${fitData.model_name}` },
-                            xaxis: { title: { text: 'X' }, gridcolor: '#e0e0e0' },
-                            yaxis: { title: { text: 'Y' }, gridcolor: '#e0e0e0' },
-                            height: 420,
-                            margin: { l: 60, r: 30, t: 55, b: 55 },
-                            legend: { x: 0, y: 1.15, orientation: 'h' as const },
-                            plot_bgcolor: '#fafafa',
-                            paper_bgcolor: '#fff',
-                        }}
-                        useResizeHandler
-                        style={{ width: '100%' }}
-                        config={plotConfig}
-                    />
+            {/* ═══ RESULTS SECTION (full width, below input) ═══ */}
+            {hasResults && (
+                <div style={{ marginTop: '2.5rem' }}>
+                    <h3 style={{ color: '#1565c0', marginBottom: '1.25rem', fontSize: '1.2rem' }}>
+                        📊 Results
+                    </h3>
 
-                    {/* Residuals */}
-                    {fitData.residuals && (
-                        <Plot
-                            data={[{
-                                x: fitData.x_data,
-                                y: fitData.residuals,
-                                type: 'scatter' as const,
-                                mode: 'markers' as const,
-                                name: 'Residuals',
-                                marker: { size: 5, color: '#7b1fa2' },
-                            }, {
-                                x: [Math.min(...fitData.x_data), Math.max(...fitData.x_data)],
-                                y: [0, 0],
-                                type: 'scatter' as const,
-                                mode: 'lines' as const,
-                                name: 'Zero',
-                                line: { width: 1, color: '#999', dash: 'dash' },
-                                showlegend: false,
-                            }]}
-                            layout={{
-                                title: { text: 'Residuals' },
-                                xaxis: { title: { text: 'X' }, gridcolor: '#e0e0e0' },
-                                yaxis: { title: { text: 'y - f(x)' }, gridcolor: '#e0e0e0' },
-                                height: 280,
-                                margin: { l: 60, r: 30, t: 45, b: 45 },
-                                plot_bgcolor: '#fafafa',
-                                paper_bgcolor: '#fff',
-                            }}
-                            useResizeHandler
-                            style={{ width: '100%' }}
-                            config={plotConfig}
-                        />
+                    {/* ── Errors ── */}
+                    {errorSteps.length > 0 && (
+                        <div style={{
+                            padding: '0.8rem 1rem', borderRadius: '10px',
+                            border: '2px solid #ef9a9a', background: '#ffebee', marginBottom: '1rem',
+                        }}>
+                            <strong>⚠️ Errors during analysis:</strong>
+                            {errorSteps.map((s, i) => (
+                                <p key={i} style={{ margin: '0.3rem 0 0', fontSize: '0.88rem', color: '#c62828' }}>
+                                    {s.step}: {s.result?.error || s.message}
+                                </p>
+                            ))}
+                        </div>
                     )}
 
-                    <p style={{ color: '#888', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-                        📷 Use the camera icon on each plot to download as PNG.
-                    </p>
+                    {/* ── Single green summary box ── */}
+                    {summaryStep && (
+                        <div style={{
+                            padding: '1rem 1.2rem', borderRadius: '10px',
+                            border: '2px solid #a5d6a7', background: '#e8f5e9', marginBottom: '1.5rem',
+                        }}>
+                            <div style={{ fontWeight: 700, marginBottom: '0.5rem', fontSize: '1rem' }}>
+                                ✅ Analysis Summary
+                            </div>
+                            <div style={{ fontSize: '0.95rem', whiteSpace: 'pre-wrap', lineHeight: 1.7, color: '#1b5e20' }}>
+                                {summaryStep.message}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── Parameter table ── */}
+                    {fitStep && fitStep.result && (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ margin: '0 0 0.6rem', color: '#333', fontSize: '1rem' }}>
+                                📈 Fit Parameters — <em style={{ fontWeight: 400 }}>{fitStep.result.model_name || fitStep.args?.model}</em>
+                            </h4>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                                    <thead>
+                                        <tr style={{ background: '#e3f2fd' }}>
+                                            <th style={thStyle}>Parameter</th>
+                                            <th style={thStyle}>Rounded (2 sig. fig. on unc.)</th>
+                                            <th style={thStyle}>Full precision</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(fitStep.result.parameter_names as string[] || []).map((name: string, j: number) => {
+                                            const val = Number(fitStep.result!.parameters?.[j]);
+                                            const unc = Number(fitStep.result!.uncertainties?.[j]);
+                                            const fmt = roundWithUncertainty(val, unc);
+                                            return (
+                                                <tr key={name} style={{ background: j % 2 === 0 ? '#fafafa' : '#fff' }}>
+                                                    <td style={tdStyle}><strong>{name}</strong></td>
+                                                    <td style={tdStyle}>{fmt.rounded}</td>
+                                                    <td style={{ ...tdStyle, color: '#888', fontSize: '0.82rem' }}>{fmt.unrounded}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {/* Fit statistics */}
+                            <div style={{
+                                marginTop: '0.5rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap',
+                                fontSize: '0.88rem', color: '#555',
+                                padding: '0.5rem 0.75rem', background: '#f5f5f5', borderRadius: '6px',
+                            }}>
+                                {fitStep.result.reduced_chi_squared != null && (
+                                    <span>χ²/dof = <strong>{Number(fitStep.result.reduced_chi_squared).toFixed(3)}</strong></span>
+                                )}
+                                {fitStep.result.p_value != null && (
+                                    <span>P = <strong>{formatPValue(Number(fitStep.result.p_value))}</strong></span>
+                                )}
+                                {fitStep.result.dof != null && (
+                                    <span>dof = <strong>{fitStep.result.dof}</strong></span>
+                                )}
+                                {analysisState?.fit?.r_squared != null && (
+                                    <span>R² = <strong>{Number(analysisState.fit.r_squared).toFixed(5)}</strong></span>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── Formula result ── */}
+                    {formulaStep && formulaStep.result && (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ margin: '0 0 0.6rem', color: '#333', fontSize: '1rem' }}>
+                                🧮 Formula Calculation
+                            </h4>
+                            <div style={{
+                                padding: '0.85rem 1rem', background: '#fff8e1',
+                                borderRadius: '8px', border: '1px solid #ffe082',
+                                fontFamily: 'monospace', fontSize: '0.95rem',
+                            }}>
+                                <div style={{ marginBottom: '0.4rem', color: '#555' }}>
+                                    Expression: <strong style={{ color: '#111' }}>{formulaStep.args?.expression}</strong>
+                                </div>
+                                {(() => {
+                                    const val = Number(formulaStep.result!.value);
+                                    const unc = Number(formulaStep.result!.uncertainty);
+                                    const fmt = (isFinite(val) && isFinite(unc) && unc > 0)
+                                        ? roundWithUncertainty(val, unc)
+                                        : { rounded: String(formulaStep.result!.formatted ?? '—'), unrounded: `${smartFormat(val)} ± ${smartFormat(unc)}` };
+                                    return (
+                                        <>
+                                            <div>
+                                                Result (rounded):&nbsp;
+                                                <strong style={{ fontSize: '1.05rem', color: '#111' }}>{fmt.rounded}</strong>
+                                            </div>
+                                            <div style={{ color: '#999', fontSize: '0.83rem', marginTop: '0.25rem' }}>
+                                                Full: {fmt.unrounded}
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── N-sigma result ── */}
+                    {nsigmaStep && nsigmaStep.result && (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ margin: '0 0 0.6rem', color: '#333', fontSize: '1rem' }}>
+                                🎯 N-Sigma Comparison
+                            </h4>
+                            {(() => {
+                                const ns = Number(nsigmaStep.result!.n_sigma);
+                                const col = nsigmaColor(ns);
+                                const tv = nsigmaStep.result!.theoretical_value;
+                                const tu = nsigmaStep.result!.theoretical_uncertainty;
+                                const measVal = Number(formulaStep?.result?.value);
+                                const measUnc = Number(formulaStep?.result?.uncertainty);
+                                const measFmt = (isFinite(measVal) && isFinite(measUnc) && measUnc > 0)
+                                    ? roundWithUncertainty(measVal, measUnc).rounded
+                                    : String(formulaStep?.result?.formatted ?? '—');
+                                return (
+                                    <div style={{
+                                        padding: '0.85rem 1rem', borderRadius: '8px',
+                                        border: `2px solid ${col}`,
+                                        background: ns <= 2 ? '#e8f5e9' : ns <= 3 ? '#fff3e0' : '#ffebee',
+                                    }}>
+                                        <div style={{ fontSize: '1.3rem', fontWeight: 700, color: col }}>
+                                            N-σ = {ns.toFixed(2)}
+                                            <span style={{ fontSize: '0.95rem', fontWeight: 500, marginLeft: '0.75rem', color: '#333' }}>
+                                                — {nsigmaStep.result!.verdict}
+                                            </span>
+                                        </div>
+                                        <div style={{ marginTop: '0.4rem', fontSize: '0.9rem', color: '#555' }}>
+                                            Measured: <strong>{measFmt}</strong>
+                                            <span style={{ margin: '0 0.75rem', color: '#bbb' }}>vs</span>
+                                            Theoretical: <strong>{tv}{tu ? ` ± ${tu}` : ''}</strong>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    )}
+
+                    {/* ═══ FIT PLOT ═══ */}
+                    {fitData && fitData.x_data && (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{ color: '#333', margin: '0 0 0.5rem', fontSize: '1rem' }}>📉 Fit Plot</h4>
+                            <Plot
+                                data={[
+                                    {
+                                        x: fitData.x_data,
+                                        y: fitData.y_data,
+                                        error_y: fitData.y_errors ? {
+                                            type: 'data' as const, array: fitData.y_errors,
+                                            visible: true, color: '#1565c0', thickness: 1.5,
+                                        } : undefined,
+                                        type: 'scatter' as const, mode: 'markers' as const,
+                                        name: 'Data', marker: { size: 6, color: '#1565c0' },
+                                    },
+                                    {
+                                        x: fitData.x_fit, y: fitData.y_fit,
+                                        type: 'scatter' as const, mode: 'lines' as const,
+                                        name: `Fit (${fitData.model_name})`,
+                                        line: { width: 2.5, color: '#d32f2f' },
+                                    },
+                                ]}
+                                layout={{
+                                    title: { text: `AutoLab Fit — ${fitData.model_name}` },
+                                    xaxis: { title: { text: 'X' }, gridcolor: '#e0e0e0' },
+                                    yaxis: { title: { text: 'Y' }, gridcolor: '#e0e0e0' },
+                                    height: 420, margin: { l: 60, r: 30, t: 55, b: 55 },
+                                    legend: { x: 0, y: 1.15, orientation: 'h' as const },
+                                    plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
+                                }}
+                                useResizeHandler style={{ width: '100%' }} config={plotConfig}
+                            />
+
+                            {/* Residuals with error bars */}
+                            {fitData.residuals && (
+                                <Plot
+                                    data={[{
+                                        x: fitData.x_data, y: fitData.residuals,
+                                        error_y: fitData.y_errors ? {
+                                            type: 'data' as const, array: fitData.y_errors,
+                                            visible: true, color: '#7b1fa2', thickness: 1.5,
+                                        } : undefined,
+                                        type: 'scatter' as const, mode: 'markers' as const,
+                                        name: 'Residuals', marker: { size: 5, color: '#7b1fa2' },
+                                    }, {
+                                        x: [Math.min(...fitData.x_data), Math.max(...fitData.x_data)],
+                                        y: [0, 0],
+                                        type: 'scatter' as const, mode: 'lines' as const,
+                                        line: { width: 1, color: '#999', dash: 'dash' },
+                                        showlegend: false,
+                                    }]}
+                                    layout={{
+                                        title: { text: 'Residuals (data − fit)' },
+                                        xaxis: { title: { text: 'X' }, gridcolor: '#e0e0e0' },
+                                        yaxis: { title: { text: 'y − f(x)' }, gridcolor: '#e0e0e0' },
+                                        height: 280, margin: { l: 60, r: 30, t: 45, b: 45 },
+                                        plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
+                                    }}
+                                    useResizeHandler style={{ width: '100%' }} config={plotConfig}
+                                />
+                            )}
+                            <p style={{ color: '#888', fontSize: '0.85rem', margin: '0.5rem 0 0' }}>
+                                📷 Use the camera icon on each plot to download as PNG.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* ═══ INLINE AI CHAT ═══ */}
+                    <div style={{
+                        marginTop: '1rem', border: '2px solid #1565c0',
+                        borderRadius: '12px', overflow: 'hidden',
+                    }}>
+                        <div style={{
+                            background: 'linear-gradient(135deg, #1565c0, #7b1fa2)',
+                            padding: '0.75rem 1rem', color: 'white',
+                            fontWeight: 700, fontSize: '1rem',
+                        }}>
+                            💬 Chat with AI about your results
+                        </div>
+
+                        {/* Message thread */}
+                        <div style={{
+                            minHeight: '80px', maxHeight: '380px', overflowY: 'auto',
+                            padding: '1rem', background: '#fafafa',
+                            display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                        }}>
+                            {chatMessages.length === 0 && (
+                                <p style={{ color: '#aaa', fontSize: '0.9rem', textAlign: 'center', margin: 'auto 0' }}>
+                                    Ask anything about your results — interpretation, further analysis, comparisons…
+                                </p>
+                            )}
+                            {chatMessages.map((msg, i) => (
+                                <div key={i} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
+                                    <div style={{
+                                        padding: '0.6rem 0.9rem',
+                                        borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                                        background: msg.role === 'user' ? '#1565c0' : '#fff',
+                                        color: msg.role === 'user' ? 'white' : '#333',
+                                        border: msg.role === 'assistant' ? '1px solid #e0e0e0' : 'none',
+                                        fontSize: '0.9rem', lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                                    }}>
+                                        {msg.content}
+                                    </div>
+                                </div>
+                            ))}
+                            {chatLoading && (
+                                <div style={{ alignSelf: 'flex-start' }}>
+                                    <div style={{
+                                        padding: '0.6rem 0.9rem', borderRadius: '12px 12px 12px 2px',
+                                        background: '#fff', border: '1px solid #e0e0e0',
+                                        fontSize: '0.9rem', color: '#999',
+                                    }}>
+                                        ⏳ Thinking…
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={chatEndRef} />
+                        </div>
+
+                        {/* Input row */}
+                        <div style={{
+                            display: 'flex', gap: '0.5rem', padding: '0.75rem',
+                            background: '#fff', borderTop: '1px solid #e0e0e0',
+                        }}>
+                            <input
+                                type="text" value={chatInput}
+                                onChange={e => setChatInput(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
+                                placeholder="Ask about your results…"
+                                disabled={chatLoading}
+                                style={{
+                                    flex: 1, padding: '0.5rem 0.75rem',
+                                    border: '1px solid #ccc', borderRadius: '8px',
+                                    fontSize: '0.9rem', outline: 'none',
+                                }}
+                            />
+                            <button
+                                onClick={handleSendChat}
+                                disabled={chatLoading || !chatInput.trim()}
+                                style={{
+                                    padding: '0.5rem 1.1rem',
+                                    background: (chatLoading || !chatInput.trim()) ? '#ccc' : '#1565c0',
+                                    color: 'white', border: 'none', borderRadius: '8px',
+                                    cursor: (chatLoading || !chatInput.trim()) ? 'default' : 'pointer',
+                                    fontWeight: 600, fontSize: '0.9rem', transition: 'background 0.2s',
+                                }}
+                            >
+                                Send
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

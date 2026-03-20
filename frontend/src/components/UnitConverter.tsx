@@ -3,9 +3,9 @@ import * as api from '../services/api';
 
 function UnitConverter() {
     const [value, setValue] = useState<string>('1');
-    const [fromUnit, setFromUnit] = useState<string>('meter');
-    const [toUnit, setToUnit] = useState<string>('foot');
-    const [category, setCategory] = useState<string>('length'); // Default category
+    const [fromUnit, setFromUnit] = useState<string>('m');
+    const [toUnit, setToUnit] = useState<string>('ft');
+    const [category, setCategory] = useState<string>('Length'); // Matches backend key
     const [categories, setCategories] = useState<Record<string, string[]>>({});
     const [result, setResult] = useState<any>(null);
     const [error, setError] = useState<string>('');
@@ -17,8 +17,16 @@ function UnitConverter() {
                 const data = await api.getUnitCategories();
                 setCategories(data);
                 // Ensure defaults are valid
-                if (data && data.length && data.length.length > 0) {
-                    // kept default logic simple
+                // Set defaults from the first category's units
+                const cats = Object.keys(data);
+                if (cats.length > 0) {
+                    const firstCat = cats[0];
+                    const units = data[firstCat] || [];
+                    setCategory(firstCat);
+                    if (units.length >= 2) {
+                        setFromUnit(units[0]);
+                        setToUnit(units[1]);
+                    }
                 }
             } catch (err) {
                 console.error('Failed to fetch unit categories', err);
