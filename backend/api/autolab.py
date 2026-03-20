@@ -298,10 +298,14 @@ SYSTEM_PROMPT = (
     "   - Sinusoidal fit (A, omega, phi, D): period T = '2*pi/omega', max velocity = 'A*omega', "
     "max acceleration = 'A*omega**2'\n"
     "   - Linear fit (a, b): slope is 'a', intercept is 'b'\n"
-    "10. SUMMARY — Write a concise scientific summary: model used (include the formula, e.g. 'y = ax + b'), "
+    "   - Exponential fit (a, b): time constant tau = '-1/b' (for decay), half-life = 'log(2)/abs(b)'\n"
+    "10. SUMMARY — Write a concise scientific summary using **Markdown formatting**.\n"
+    "   Use **bold** for key values and parameter names. Use numbered or bulleted lists if helpful.\n"
+    "   Include: model used (include the formula, e.g. 'y = ax + b'), "
     "key parameter values with uncertainties (properly rounded using ± symbol, NOT \\pm), "
     "derived quantity if applicable, and N-sigma result with interpretation. Keep it to 3-5 sentences. "
     "Use Unicode symbols: ± for plus-minus, χ² for chi-squared, σ for sigma. Do NOT use LaTeX backslash notation.\n"
+    "   Refer to χ² reduced (not χ²/dof).\n"
     "11. DATA AWARENESS — Always read column headers carefully:\n"
     "   - If columns are labeled like 'x', 'x_error', 'y', 'y_error', automatically map them.\n"
     "   - If user says 'y as function of x', identify y and x columns by name.\n"
@@ -311,6 +315,10 @@ SYSTEM_PROMPT = (
     "The fit will automatically propagate x-errors into effective uncertainties.\n"
     "12. DATA MANIPULATION — If the user asks to transform data (multiply, divide, convert units, "
     "take logarithm), acknowledge the transformation in the summary and apply it as described.\n"
+    "13. AXIS LABELS — Use the experiment context from the user's instructions to choose meaningful "
+    "axis labels. For example, if the experiment is 'voltage vs time on a capacitor', the x-axis "
+    "should be 'Time [s]' and y-axis 'Voltage [V]'. Use the column names and units when possible. "
+    "The frontend will use the x_col and y_col names from parse_file as axis labels.\n"
 )
 
 
@@ -621,7 +629,10 @@ def _build_chat_system(context: dict) -> str:
     """Build a system prompt for post-analysis chat, injecting analysis context."""
     lines = [
         "You are a lab analysis assistant. The user has just completed an automated analysis. "
-        "Help them understand, interpret, and extend their results. Be concise and scientific.\n",
+        "Help them understand, interpret, and extend their results. Be concise and scientific.\n"
+        "FORMAT: Use **Markdown formatting** — **bold** for key values, numbered/bulleted lists where helpful. "
+        "Use Unicode symbols: ± for plus-minus, χ² for chi-squared, σ for sigma. Do NOT use LaTeX backslash notation. "
+        "Refer to χ² reduced (not χ²/dof).\n",
         "=== ANALYSIS RESULTS CONTEXT ===",
     ]
 
@@ -639,7 +650,7 @@ def _build_chat_system(context: dict) -> str:
                 lines.append(f"  {p} = {v} ± {u}")
         rchi2 = fit.get("reduced_chi_squared")
         if rchi2 is not None:
-            lines.append(f"Reduced χ²/dof = {rchi2:.4f}")
+            lines.append(f"χ² reduced = {rchi2:.4f}")
         pval = fit.get("p_value")
         if pval is not None:
             lines.append(f"P-value = {pval:.4f}")

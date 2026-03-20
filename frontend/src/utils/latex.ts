@@ -38,8 +38,66 @@ export function mathToUnicode(text: string): string {
 }
 
 /**
+ * Convert basic Markdown formatting to HTML.
+ * Supports: **bold**, *italic*, numbered lists (1. ...), bullet lists (- ...).
+ */
+function markdownToHtml(text: string): string {
+    // Split into lines, process block-level elements
+    const lines = text.split('\n');
+    const out: string[] = [];
+    let inList: 'ul' | 'ol' | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+
+        // Numbered list: 1. item, 2. item
+        const olMatch = line.match(/^\s*(\d+)\.\s+(.+)/);
+        // Bullet list: - item or * item (but not **bold**)
+        const ulMatch = !olMatch ? line.match(/^\s*[-]\s+(.+)/) : null;
+
+        if (olMatch) {
+            if (inList !== 'ol') {
+                if (inList) out.push(inList === 'ul' ? '</ul>' : '</ol>');
+                out.push('<ol>');
+                inList = 'ol';
+            }
+            out.push(`<li>${olMatch[2]}</li>`);
+            continue;
+        }
+        if (ulMatch) {
+            if (inList !== 'ul') {
+                if (inList) out.push(inList === 'ul' ? '</ul>' : '</ol>');
+                out.push('<ul>');
+                inList = 'ul';
+            }
+            out.push(`<li>${ulMatch[1]}</li>`);
+            continue;
+        }
+
+        // Close any open list
+        if (inList) {
+            out.push(inList === 'ul' ? '</ul>' : '</ol>');
+            inList = null;
+        }
+        out.push(line);
+    }
+    if (inList) {
+        out.push(inList === 'ul' ? '</ul>' : '</ol>');
+    }
+
+    let result = out.join('\n');
+
+    // Inline formatting: **bold** and *italic*
+    result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    result = result.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+
+    return result;
+}
+
+/**
  * Render LaTeX delimiters ($$...$$ and $...$) via KaTeX,
- * and convert remaining backslash notations to Unicode.
+ * convert remaining backslash notations to Unicode,
+ * and process basic Markdown formatting.
  * Returns HTML string safe for dangerouslySetInnerHTML.
  */
 export function renderLatex(text: string): string {
@@ -59,6 +117,9 @@ export function renderLatex(text: string): string {
             return katex.renderToString(latex.trim(), { displayMode: false, throwOnError: false });
         } catch { return escapeHtml(_match); }
     });
+
+    // Process Markdown formatting (bold, italic, lists)
+    result = markdownToHtml(result);
 
     return result;
 }

@@ -6,15 +6,15 @@ import * as api from '../services/api';
 import { roundWithUncertainty, smartFormat, formatPValue } from '../utils/format';
 import { renderLatex } from '../utils/latex';
 
-/* ═══════════════════════════════════════════════════════════════
-   AutoLab — AI-Powered Automated Analysis
-   Upload data + give instructions → get complete results
-   ═══════════════════════════════════════════════════════════════ */
+/* ===================================================================
+   AutoLab -- AI-Powered Automated Analysis
+   Upload data + give instructions -> get complete results
+   =================================================================== */
 
-/* ── Built-in example datasets ── */
+/* -- Built-in example datasets -- */
 const EXAMPLE_DATASETS = [
     {
-        label: '📈 Hooke\'s Law (Linear)',
+        label: "Hooke's Law (Linear)",
         instructions: 'Use the first sheet. Column "Extension_m" is x, "Force_N" is y, "Force_Error_N" is y error, "Extension_Error_m" is x error. Fit a linear model. Calculate the slope a (the spring constant k) and report its value.',
         theoVal: '50.0',
         theoUnc: '2.0',
@@ -33,16 +33,13 @@ const EXAMPLE_DATASETS = [
         ],
     },
     {
-        label: '🌊 Oscillation (Sinusoidal)',
-        // Simplified: no formula specified, no "maximum acceleration" — just fit sinusoidal, extract period
+        label: 'Oscillation (Sinusoidal)',
         instructions: 'First sheet. Column "Time_s" is x, "Displacement_cm" is y, "Displacement_Error_cm" is y error. Fit a sinusoidal model. Calculate the period T = 2*pi/omega and compare to the theoretical value.',
-        // Theoretical period: T = 2π/2.5 ≈ 2.513 s — as measured independently by stopwatch
         theoVal: '2.51',
         theoUnc: '0.10',
         columns: ['Time_s', 'Displacement_cm', 'Displacement_Error_cm'],
         rows: (() => {
             const data = [];
-            // Fixed noise values for consistent display (avoids Math.random variation on reload)
             const noise = [0.3, -0.8, 1.2, -0.4, 0.9, -1.1, 0.5, -0.7, 1.4, -0.3,
                            0.6, -1.3, 0.8, -0.5, 1.1, -0.9, 0.4, -1.2, 0.7, -0.6, 0.2];
             for (let i = 0; i <= 20; i++) {
@@ -51,15 +48,14 @@ const EXAMPLE_DATASETS = [
                 data.push({
                     Time_s: parseFloat(t.toFixed(3)),
                     Displacement_cm: parseFloat((y + noise[i]).toFixed(3)),
-                    Displacement_Error_cm: 1.0, // 1 cm errors — clearly visible on residuals
+                    Displacement_Error_cm: 1.0,
                 });
             }
             return data;
         })(),
     },
     {
-        label: '📊 Free Fall (Quadratic)',
-        // Simplified: no explicit formula string — AI knows what to do with "quadratic"
+        label: 'Free Fall (Quadratic)',
         instructions: 'First sheet. "Time_s" is x, "Height_m" is y, "Height_Error_m" is y error. Fit a quadratic model. Extract g = 2*a and compare to the theoretical value I provided.',
         theoVal: '9.81',
         theoUnc: '0.01',
@@ -82,6 +78,29 @@ const EXAMPLE_DATASETS = [
             { Time_s: 1.4, Height_m: 9.61, Height_Error_m: 0.45, Time_Error_s: 0.02 },
             { Time_s: 1.5, Height_m: 11.03, Height_Error_m: 0.50, Time_Error_s: 0.02 },
         ],
+    },
+    {
+        label: 'RC Discharge (Exponential)',
+        instructions: 'First sheet. "Time_s" is x, "Voltage_V" is y, "Voltage_Error_V" is y error. This is an RC circuit discharge experiment. Fit an exponential model (V = V0 * e^(-t/RC)). Calculate the time constant tau = -1/b and compare to the theoretical value.',
+        theoVal: '2.2',
+        theoUnc: '0.1',
+        columns: ['Time_s', 'Voltage_V', 'Voltage_Error_V'],
+        rows: (() => {
+            // V(t) = 5.0 * exp(-t/2.2) with noise
+            const noise = [0.08, -0.12, 0.15, -0.06, 0.10, -0.14, 0.07, -0.09, 0.11, -0.05,
+                           0.04, -0.08, 0.06, -0.03, 0.02];
+            const data = [];
+            for (let i = 0; i < 15; i++) {
+                const t = i * 0.5;
+                const v = 5.0 * Math.exp(-t / 2.2) + noise[i];
+                data.push({
+                    Time_s: parseFloat(t.toFixed(2)),
+                    Voltage_V: parseFloat(Math.max(0.01, v).toFixed(3)),
+                    Voltage_Error_V: 0.15,
+                });
+            }
+            return data;
+        })(),
     },
 ];
 
@@ -110,21 +129,21 @@ interface ChatMessage {
 /** Model formula map for display */
 const MODEL_FORMULAS: Record<string, string> = {
     linear: 'y = ax + b',
-    quadratic: 'y = ax² + bx + c',
-    cubic: 'y = ax³ + bx² + cx + d',
-    power: 'y = axᵇ',
+    quadratic: 'y = ax\u00B2 + bx + c',
+    cubic: 'y = ax\u00B3 + bx\u00B2 + cx + d',
+    power: 'y = ax\u1D47',
     exponential: 'y = ae^(bx)',
-    sinusoidal: 'y = A·sin(ωx + φ) + D',
+    sinusoidal: 'y = A\u00B7sin(\u03C9x + \u03C6) + D',
 };
 
-/** N-sigma colour: green ≤ 2, orange 2–3, red > 3 */
+/** N-sigma colour: green <= 2, orange 2-3, red > 3 */
 function nsigmaColor(ns: number): string {
     if (ns <= 2) return '#2e7d32';
     if (ns <= 3) return '#e65100';
     return '#c62828';
 }
 
-/* ── Table cell styles ── */
+/* -- Table cell styles -- */
 const thStyle: React.CSSProperties = {
     padding: '0.5rem 0.75rem', textAlign: 'left',
     borderBottom: '2px solid #90caf9',
@@ -135,6 +154,17 @@ const tdStyle: React.CSSProperties = {
     fontFamily: 'monospace',
 };
 
+/** Build an HTML table string for clipboard (pastes as table in Google Docs/Word) */
+function buildHtmlTable(names: string[], params: number[], uncs: number[], roundFn: (v: number, u: number) => { rounded: string; unrounded: string }): string {
+    let html = '<table><thead><tr><th>Parameter</th><th>Rounded</th><th>Full Precision</th></tr></thead><tbody>';
+    names.forEach((name, j) => {
+        const fmt = roundFn(Number(params[j]), Number(uncs[j]));
+        html += `<tr><td>${name}</td><td>${fmt.rounded}</td><td>${fmt.unrounded}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    return html;
+}
+
 function AutoLab() {
     const [file, setFile] = useState<File | null>(null);
     const [instructions, setInstructions] = useState('');
@@ -144,7 +174,7 @@ function AutoLab() {
     const [running, setRunning] = useState(false);
     const [steps, setSteps] = useState<StepResult[]>([]);
     const [fitData, setFitData] = useState<any>(null);
-    const [analysisState, setAnalysisState] = useState<any>(null); // full state for chat context
+    const [analysisState, setAnalysisState] = useState<any>(null);
     const [error, setError] = useState('');
 
     /* Data preview state */
@@ -176,12 +206,11 @@ function AutoLab() {
         setPreviewError('');
         try {
             const data = await api.parseFileData(f);
-            // Validate response before setting — guards against crashes on unusual Excel files
             if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows)) {
                 setPreviewData({ columns: data.columns.map(String), rows: data.rows });
             }
         } catch {
-            setPreviewError('Could not preview file — analysis will still work when you click Run.');
+            setPreviewError('Could not preview file -- analysis will still work when you click Run.');
         }
     };
 
@@ -307,7 +336,7 @@ function AutoLab() {
         toImageButtonOptions: { format: 'png' as any, filename: 'autolab_fit', height: 800, width: 1200, scale: 2 },
     };
 
-    /* ── Derive structured result sections from steps ── */
+    /* -- Derive structured result sections from steps -- */
     const summaryStep = steps.find(s => s.step === 'summary' && s.message);
     const fitStep = steps.find(s => s.step === 'fit' && s.success && s.result && !s.result.error);
     const formulaStep = steps.find(s => s.step === 'formula' && s.success && s.result && !s.result.error);
@@ -315,21 +344,56 @@ function AutoLab() {
     const errorSteps = steps.filter(s => s.success === false || s.result?.error);
     const hasResults = steps.length > 0;
 
+    /* -- Resolve axis labels from parsed state or AI instructions -- */
+    const xLabel = analysisState?.parsed?.x_col || 'X';
+    const yLabel = analysisState?.parsed?.y_col || 'Y';
+
+    /** Copy table as rich HTML (pastes as table in Docs/Word) + plain text fallback */
+    const handleCopyTable = () => {
+        const names = fitStep?.result?.parameter_names as string[] || [];
+        const params = fitStep?.result?.parameters || [];
+        const uncs = fitStep?.result?.uncertainties || [];
+
+        // Plain text (tab-separated)
+        const plainLines = ['Parameter\tRounded\tFull Precision'];
+        names.forEach((name: string, j: number) => {
+            const fmt = roundWithUncertainty(Number(params[j]), Number(uncs[j]));
+            plainLines.push(`${name}\t${fmt.rounded}\t${fmt.unrounded}`);
+        });
+        const plainText = plainLines.join('\n');
+
+        // Rich HTML table
+        const htmlStr = buildHtmlTable(names, params, uncs, roundWithUncertainty);
+
+        // Use Clipboard API with both formats
+        if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+            const item = new ClipboardItem({
+                'text/html': new Blob([htmlStr], { type: 'text/html' }),
+                'text/plain': new Blob([plainText], { type: 'text/plain' }),
+            });
+            navigator.clipboard.write([item]);
+        } else {
+            navigator.clipboard.writeText(plainText);
+        }
+        setTableCopied(true);
+        setTimeout(() => setTableCopied(false), 1500);
+    };
+
     return (
         <div className="card" style={{ maxWidth: '1100px', margin: '0 auto' }}>
-            {/* ── Header ── */}
+            {/* -- Header -- */}
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <h2 style={{ fontSize: '1.8rem', margin: 0 }}>🤖 AutoLab</h2>
+                <h2 style={{ fontSize: '1.8rem', margin: 0 }}>AutoLab</h2>
                 <p style={{ color: '#666', marginTop: '0.4rem', fontSize: '1.05rem' }}>
-                    AI-Powered Automated Analysis — Upload, Instruct, Get Results
+                    AI-Powered Automated Analysis -- Upload, Instruct, Get Results
                 </p>
             </div>
 
-            {/* ═══ INPUT PANEL (always full width, results appear below) ═══ */}
+            {/* === INPUT PANEL === */}
             <div>
                 {/* File upload */}
                 <div className="form-group">
-                    <label style={{ fontWeight: 600, fontSize: '1rem' }}>📎 Data File</label>
+                    <label style={{ fontWeight: 600, fontSize: '1rem' }}>Data File</label>
                     <div
                         onClick={() => fileRef.current?.click()}
                         onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
@@ -346,7 +410,7 @@ function AutoLab() {
                     >
                         {file ? (
                             <span style={{ fontWeight: 600, color: '#2e7d32' }}>
-                                ✅ {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                                {file.name} ({(file.size / 1024).toFixed(1)} KB)
                             </span>
                         ) : (
                             <span style={{ color: '#1565c0' }}>
@@ -363,7 +427,7 @@ function AutoLab() {
                     />
                     {previewError && (
                         <p style={{ color: '#e65100', fontSize: '0.85rem', margin: '0.3rem 0 0' }}>
-                            ⚠️ {previewError}
+                            {previewError}
                         </p>
                     )}
                 </div>
@@ -379,7 +443,7 @@ function AutoLab() {
                     border: '1px solid #a5d6a7', marginBottom: '1rem',
                 }}>
                     <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.9rem' }}>
-                        🧪 Try an example (loads data + instructions):
+                        Try an example (loads data + instructions):
                     </p>
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         {EXAMPLE_DATASETS.map(ex => (
@@ -394,12 +458,22 @@ function AutoLab() {
 
                 {/* Instructions */}
                 <div className="form-group">
-                    <label style={{ fontWeight: 600, fontSize: '1rem' }}>📝 Instructions</label>
+                    <label style={{ fontWeight: 600, fontSize: '1rem' }}>Instructions</label>
                     <textarea
                         value={instructions}
                         onChange={e => setInstructions(e.target.value)}
-                        rows={5}
-                        placeholder={'Describe your analysis in plain language. For example:\n\n"Use sheet 2, x is column 1, y is column 3, y error is column 4. Fit a sinc function. Calculate the first zero crossing and compare to 1.0 ± 0.05."'}
+                        rows={6}
+                        placeholder={
+                            'Tell the model about your analysis. Include:\n' +
+                            '\n' +
+                            '  - What experiment you performed (e.g. "RC discharge", "Hooke\'s law")\n' +
+                            '  - Which fit model to use (linear, quadratic, exponential, sinusoidal, custom...)\n' +
+                            '  - How your file is organized: column names for x, y, and errors\n' +
+                            '  - Which sheet to use (if Excel with multiple sheets)\n' +
+                            '  - Any formulas to calculate from fitted parameters (e.g. "period T = 2*pi/omega")\n' +
+                            '  - Axis labels if you want custom names (e.g. "label x-axis as Time [s]")\n' +
+                            '  - Theoretical values to compare against are entered below'
+                        }
                         style={{ fontFamily: 'inherit', fontSize: '0.95rem', lineHeight: 1.5 }}
                     />
                 </div>
@@ -410,7 +484,7 @@ function AutoLab() {
                     border: '1px solid #ce93d8', marginBottom: '1rem',
                 }}>
                     <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.95rem' }}>
-                        🎯 Theoretical Value (optional)
+                        Theoretical Value (optional)
                     </p>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
                         <div className="form-group" style={{ flex: 1, margin: 0 }}>
@@ -435,12 +509,12 @@ function AutoLab() {
                     className="btn-primary"
                     style={{
                         width: '100%', fontSize: '1.15rem', padding: '0.9rem',
-                        background: running ? '#90a4ae' : 'linear-gradient(135deg, #1565c0, #7b1fa2)',
+                        background: running ? '#90a4ae' : 'linear-gradient(135deg, #c62828, #d32f2f)',
                         border: 'none', borderRadius: '10px', color: 'white',
                         cursor: running ? 'wait' : 'pointer', transition: 'all 0.3s',
                     }}
                 >
-                    {running ? <span>⏳ AI is analyzing… please wait</span> : <span>🚀 Run AutoLab</span>}
+                    {running ? <span>AI is analyzing... please wait</span> : <span>Run AutoLab</span>}
                 </button>
 
                 {error && (
@@ -448,20 +522,20 @@ function AutoLab() {
                 )}
             </div>
 
-            {/* ═══ RESULTS SECTION (full width, below input) ═══ */}
+            {/* === RESULTS SECTION === */}
             {hasResults && (
                 <div style={{ marginTop: '2.5rem' }}>
-                    <h3 style={{ color: '#1565c0', marginBottom: '1.25rem', fontSize: '1.2rem' }}>
-                        📊 Results
+                    <h3 style={{ color: '#c62828', marginBottom: '1.25rem', fontSize: '1.2rem' }}>
+                        Results
                     </h3>
 
-                    {/* ── Errors ── */}
+                    {/* -- Errors -- */}
                     {errorSteps.length > 0 && (
                         <div style={{
                             padding: '0.8rem 1rem', borderRadius: '10px',
                             border: '2px solid #ef9a9a', background: '#ffebee', marginBottom: '1rem',
                         }}>
-                            <strong>⚠️ Errors during analysis:</strong>
+                            <strong>Errors during analysis:</strong>
                             {errorSteps.map((s, i) => (
                                 <p key={i} style={{ margin: '0.3rem 0 0', fontSize: '0.88rem', color: '#c62828' }}>
                                     {s.step}: {s.result?.error || s.message}
@@ -470,28 +544,12 @@ function AutoLab() {
                         </div>
                     )}
 
-                    {/* ── Single green summary box ── */}
-                    {summaryStep && (
-                        <div style={{
-                            padding: '1rem 1.2rem', borderRadius: '10px',
-                            border: '2px solid #a5d6a7', background: '#e8f5e9', marginBottom: '1.5rem',
-                        }}>
-                            <div style={{ fontWeight: 700, marginBottom: '0.5rem', fontSize: '1rem' }}>
-                                ✅ Analysis Summary
-                            </div>
-                            <div
-                                style={{ fontSize: '0.95rem', whiteSpace: 'pre-wrap', lineHeight: 1.7, color: '#1b5e20' }}
-                                dangerouslySetInnerHTML={{ __html: renderLatex(summaryStep.message || '') }}
-                            />
-                        </div>
-                    )}
-
-                    {/* ── Parameter table ── */}
+                    {/* -- Parameter table (raw results, shown first) -- */}
                     {fitStep && fitStep.result && (
                         <div style={{ marginBottom: '1.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
                             <h4 style={{ margin: 0, color: '#333', fontSize: '1rem' }}>
-                                📈 Fit Parameters — <em style={{ fontWeight: 400 }}>{fitStep.result.model_name || fitStep.args?.model}</em>
+                                Fit Parameters -- <em style={{ fontWeight: 400 }}>{fitStep.result.model_name || fitStep.args?.model}</em>
                                 {(() => {
                                     const modelKey = (fitStep.args?.model || '').toLowerCase();
                                     const formula = MODEL_FORMULAS[modelKey] || (fitStep.args?.custom_expr ? fitStep.args.custom_expr : null);
@@ -503,19 +561,7 @@ function AutoLab() {
                                 })()}
                             </h4>
                             <button
-                                onClick={() => {
-                                    const names = fitStep.result!.parameter_names as string[] || [];
-                                    const lines = ['Parameter\tRounded\tFull Precision'];
-                                    names.forEach((name: string, j: number) => {
-                                        const val = Number(fitStep.result!.parameters?.[j]);
-                                        const unc = Number(fitStep.result!.uncertainties?.[j]);
-                                        const fmt = roundWithUncertainty(val, unc);
-                                        lines.push(`${name}\t${fmt.rounded}\t${fmt.unrounded}`);
-                                    });
-                                    navigator.clipboard.writeText(lines.join('\n'));
-                                    setTableCopied(true);
-                                    setTimeout(() => setTableCopied(false), 1500);
-                                }}
+                                onClick={handleCopyTable}
                                 style={{
                                     padding: '0.3rem 0.7rem', fontSize: '0.8rem',
                                     border: '1px solid #ccc', borderRadius: '6px',
@@ -524,7 +570,7 @@ function AutoLab() {
                                     cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s',
                                 }}
                             >
-                                {tableCopied ? '✓ Copied!' : '📋 Copy Table'}
+                                {tableCopied ? 'Copied!' : 'Copy Table'}
                             </button>
                             </div>
                             <div style={{ overflowX: 'auto', userSelect: 'text' }}>
@@ -559,7 +605,7 @@ function AutoLab() {
                                 padding: '0.5rem 0.75rem', background: '#f5f5f5', borderRadius: '6px',
                             }}>
                                 {fitStep.result.reduced_chi_squared != null && (
-                                    <span>χ²/dof = <strong>{Number(fitStep.result.reduced_chi_squared).toFixed(3)}</strong></span>
+                                    <span>{'\u03C7\u00B2'} reduced = <strong>{Number(fitStep.result.reduced_chi_squared).toFixed(3)}</strong></span>
                                 )}
                                 {fitStep.result.p_value != null && (
                                     <span>P = <strong>{formatPValue(Number(fitStep.result.p_value))}</strong></span>
@@ -568,21 +614,21 @@ function AutoLab() {
                                     <span>dof = <strong>{fitStep.result.dof}</strong></span>
                                 )}
                                 {analysisState?.fit?.r_squared != null && (
-                                    <span>R² = <strong>{Number(analysisState.fit.r_squared).toFixed(5)}</strong></span>
+                                    <span>R{'\u00B2'} = <strong>{Number(analysisState.fit.r_squared).toFixed(5)}</strong></span>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    {/* ── Formula result ── */}
+                    {/* -- Formula result -- */}
                     {formulaStep && formulaStep.result && (
                         <div style={{ marginBottom: '1.5rem' }}>
                             <h4 style={{ margin: '0 0 0.6rem', color: '#333', fontSize: '1rem' }}>
-                                🧮 Formula Calculation
+                                Formula Calculation
                             </h4>
                             <div style={{
-                                padding: '0.85rem 1rem', background: '#fff8e1',
-                                borderRadius: '8px', border: '1px solid #ffe082',
+                                padding: '0.85rem 1rem', background: '#ede7f6',
+                                borderRadius: '8px', border: '1px solid #b39ddb',
                                 fontFamily: 'monospace', fontSize: '0.95rem',
                             }}>
                                 <div style={{ marginBottom: '0.4rem', color: '#555' }}>
@@ -593,7 +639,7 @@ function AutoLab() {
                                     const unc = Number(formulaStep.result!.uncertainty);
                                     const fmt = (isFinite(val) && isFinite(unc) && unc > 0)
                                         ? roundWithUncertainty(val, unc)
-                                        : { rounded: String(formulaStep.result!.formatted ?? '—'), unrounded: `${smartFormat(val)} ± ${smartFormat(unc)}` };
+                                        : { rounded: String(formulaStep.result!.formatted ?? '--'), unrounded: `${smartFormat(val)} \u00B1 ${smartFormat(unc)}` };
                                     return (
                                         <>
                                             <div>
@@ -610,11 +656,11 @@ function AutoLab() {
                         </div>
                     )}
 
-                    {/* ── N-sigma result ── */}
+                    {/* -- N-sigma result -- */}
                     {nsigmaStep && nsigmaStep.result && (
                         <div style={{ marginBottom: '1.5rem' }}>
                             <h4 style={{ margin: '0 0 0.6rem', color: '#333', fontSize: '1rem' }}>
-                                🎯 N-Sigma Comparison
+                                N-Sigma Comparison
                             </h4>
                             {(() => {
                                 const ns = Number(nsigmaStep.result!.n_sigma);
@@ -625,7 +671,7 @@ function AutoLab() {
                                 const measUnc = Number(formulaStep?.result?.uncertainty);
                                 const measFmt = (isFinite(measVal) && isFinite(measUnc) && measUnc > 0)
                                     ? roundWithUncertainty(measVal, measUnc).rounded
-                                    : String(formulaStep?.result?.formatted ?? '—');
+                                    : String(formulaStep?.result?.formatted ?? '--');
                                 return (
                                     <div style={{
                                         padding: '0.85rem 1rem', borderRadius: '8px',
@@ -633,15 +679,15 @@ function AutoLab() {
                                         background: ns <= 2 ? '#e8f5e9' : ns <= 3 ? '#fff3e0' : '#ffebee',
                                     }}>
                                         <div style={{ fontSize: '1.3rem', fontWeight: 700, color: col }}>
-                                            N-σ = {ns.toFixed(2)}
+                                            N-{'\u03C3'} = {ns.toFixed(2)}
                                             <span style={{ fontSize: '0.95rem', fontWeight: 500, marginLeft: '0.75rem', color: '#333' }}>
-                                                — {nsigmaStep.result!.verdict}
+                                                -- {nsigmaStep.result!.verdict}
                                             </span>
                                         </div>
                                         <div style={{ marginTop: '0.4rem', fontSize: '0.9rem', color: '#555' }}>
                                             Measured: <strong>{measFmt}</strong>
                                             <span style={{ margin: '0 0.75rem', color: '#bbb' }}>vs</span>
-                                            Theoretical: <strong>{tv}{tu ? ` ± ${tu}` : ''}</strong>
+                                            Theoretical: <strong>{tv}{tu ? ` \u00B1 ${tu}` : ''}</strong>
                                         </div>
                                     </div>
                                 );
@@ -649,10 +695,10 @@ function AutoLab() {
                         </div>
                     )}
 
-                    {/* ═══ FIT PLOT ═══ */}
+                    {/* === FIT PLOT === */}
                     {fitData && fitData.x_data && (
                         <div style={{ marginBottom: '1.5rem' }}>
-                            <h4 style={{ color: '#333', margin: '0 0 0.5rem', fontSize: '1rem' }}>📉 Fit Plot</h4>
+                            <h4 style={{ color: '#333', margin: '0 0 0.5rem', fontSize: '1rem' }}>Fit Plot</h4>
                             <Plot
                                 data={[
                                     {
@@ -660,14 +706,14 @@ function AutoLab() {
                                         y: fitData.y_data,
                                         error_y: fitData.y_errors ? {
                                             type: 'data' as const, array: fitData.y_errors,
-                                            visible: true, color: '#1565c0', thickness: 1.5,
+                                            visible: true, color: '#999', thickness: 1.5,
                                         } : undefined,
                                         error_x: fitData.x_errors ? {
                                             type: 'data' as const, array: fitData.x_errors,
-                                            visible: true, color: '#1565c0', thickness: 1.5,
+                                            visible: true, color: '#999', thickness: 1.5,
                                         } : undefined,
                                         type: 'scatter' as const, mode: 'markers' as const,
-                                        name: 'Data', marker: { size: 6, color: '#1565c0' },
+                                        name: 'Data', marker: { size: 7, color: '#1565c0' },
                                     },
                                     {
                                         x: fitData.x_fit, y: fitData.y_fit,
@@ -677,9 +723,9 @@ function AutoLab() {
                                     },
                                 ]}
                                 layout={{
-                                    title: { text: `AutoLab Fit — ${fitData.model_name}` },
-                                    xaxis: { title: { text: 'X' }, gridcolor: '#e0e0e0' },
-                                    yaxis: { title: { text: 'Y' }, gridcolor: '#e0e0e0' },
+                                    title: { text: `Fit -- ${fitData.model_name}` },
+                                    xaxis: { title: { text: xLabel }, gridcolor: '#e0e0e0' },
+                                    yaxis: { title: { text: yLabel }, gridcolor: '#e0e0e0' },
                                     height: 420, margin: { l: 60, r: 30, t: 55, b: 55 },
                                     legend: { x: 0, y: 1.15, orientation: 'h' as const },
                                     plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
@@ -687,32 +733,32 @@ function AutoLab() {
                                 useResizeHandler style={{ width: '100%' }} config={plotConfig}
                             />
 
-                            {/* Residuals with error bars */}
+                            {/* Residuals plot */}
                             {fitData.residuals && (
                                 <Plot
                                     data={[{
                                         x: fitData.x_data, y: fitData.residuals,
                                         error_y: fitData.y_errors ? {
                                             type: 'data' as const, array: fitData.y_errors,
-                                            visible: true, color: '#7b1fa2', thickness: 1.5,
+                                            visible: true, color: '#999', thickness: 1.5,
                                         } : undefined,
                                         error_x: fitData.x_errors ? {
                                             type: 'data' as const, array: fitData.x_errors,
-                                            visible: true, color: '#7b1fa2', thickness: 1.5,
+                                            visible: true, color: '#999', thickness: 1.5,
                                         } : undefined,
                                         type: 'scatter' as const, mode: 'markers' as const,
-                                        name: 'Residuals', marker: { size: 5, color: '#7b1fa2' },
+                                        name: 'Residuals', marker: { size: 6, color: '#1565c0' },
                                     }, {
                                         x: [Math.min(...fitData.x_data), Math.max(...fitData.x_data)],
                                         y: [0, 0],
                                         type: 'scatter' as const, mode: 'lines' as const,
-                                        line: { width: 1, color: '#999', dash: 'dash' },
+                                        line: { width: 1.5, color: '#999', dash: 'dash' },
                                         showlegend: false,
                                     }]}
                                     layout={{
-                                        title: { text: 'Residuals (data − fit)' },
-                                        xaxis: { title: { text: 'X' }, gridcolor: '#e0e0e0' },
-                                        yaxis: { title: { text: 'y − f(x)' }, gridcolor: '#e0e0e0' },
+                                        title: { text: 'Residuals (data \u2212 fit)' },
+                                        xaxis: { title: { text: xLabel }, gridcolor: '#e0e0e0' },
+                                        yaxis: { title: { text: `${yLabel} \u2212 f(${xLabel})` }, gridcolor: '#e0e0e0' },
                                         height: 280, margin: { l: 60, r: 30, t: 45, b: 45 },
                                         plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
                                     }}
@@ -720,12 +766,12 @@ function AutoLab() {
                                 />
                             )}
                             <p style={{ color: '#888', fontSize: '0.85rem', margin: '0.5rem 0 0' }}>
-                                📷 Use the camera icon on each plot to download as PNG.
+                                Use the camera icon on each plot to download as PNG.
                             </p>
                         </div>
                     )}
 
-                    {/* ═══ INLINE AI CHAT ═══ */}
+                    {/* === INLINE AI CHAT === */}
                     <div style={{
                         marginTop: '1.5rem', border: '1px solid #e0e0e0',
                         borderRadius: '12px', overflow: 'hidden',
@@ -733,12 +779,12 @@ function AutoLab() {
                         fontFamily: "'Inter', sans-serif",
                     }}>
                         <div style={{
-                            background: 'linear-gradient(135deg, #1565c0, #7b1fa2)',
+                            background: 'linear-gradient(135deg, #b71c1c, #c62828)',
                             padding: '0.85rem 1.2rem', color: 'white',
                             fontWeight: 700, fontSize: '1.05rem',
                             letterSpacing: '-0.01em',
                         }}>
-                            💬 Chat with AI about your results
+                            AI Analysis Assistant
                         </div>
 
                         {/* Message thread */}
@@ -747,25 +793,40 @@ function AutoLab() {
                             padding: '1rem 1.2rem', background: '#fafafa',
                             display: 'flex', flexDirection: 'column', gap: '0.75rem',
                         }}>
-                            {chatMessages.length === 0 && (
+                            {chatMessages.length === 0 && summaryStep ? (
+                                <div style={{ alignSelf: 'flex-start', maxWidth: '90%' }}>
+                                    <div style={{
+                                        padding: '0.6rem 0.9rem',
+                                        borderRadius: '12px 12px 12px 2px',
+                                        background: '#fff',
+                                        color: '#333',
+                                        border: '1px solid #e0e0e0',
+                                        fontSize: '0.9rem', lineHeight: 1.6,
+                                    }}
+                                        dangerouslySetInnerHTML={{
+                                            __html: renderLatex(summaryStep.message || '')
+                                        }}
+                                    />
+                                </div>
+                            ) : chatMessages.length === 0 ? (
                                 <p style={{ color: '#aaa', fontSize: '0.9rem', textAlign: 'center', margin: 'auto 0' }}>
-                                    Ask anything about your results — interpretation, further analysis, comparisons…
+                                    Ask anything about your results -- interpretation, further analysis, comparisons...
                                 </p>
-                            )}
+                            ) : null}
                             {chatMessages.map((msg, i) => (
                                 <div key={i} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
                                     <div style={{
                                         padding: '0.6rem 0.9rem',
                                         borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-                                        background: msg.role === 'user' ? '#1565c0' : '#fff',
+                                        background: msg.role === 'user' ? '#c62828' : '#fff',
                                         color: msg.role === 'user' ? 'white' : '#333',
                                         border: msg.role === 'assistant' ? '1px solid #e0e0e0' : 'none',
-                                        fontSize: '0.9rem', lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                                        fontSize: '0.9rem', lineHeight: 1.6,
                                     }}
                                         dangerouslySetInnerHTML={{
                                             __html: msg.role === 'assistant'
                                                 ? renderLatex(msg.content)
-                                                : msg.content
+                                                : escapeHtmlSimple(msg.content)
                                         }}
                                     />
                                 </div>
@@ -777,7 +838,7 @@ function AutoLab() {
                                         background: '#fff', border: '1px solid #e0e0e0',
                                         fontSize: '0.9rem', color: '#999',
                                     }}>
-                                        ⏳ Thinking…
+                                        Thinking...
                                     </div>
                                 </div>
                             )}
@@ -793,7 +854,7 @@ function AutoLab() {
                                 type="text" value={chatInput}
                                 onChange={e => setChatInput(e.target.value)}
                                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
-                                placeholder="Ask about your results — interpretation, further analysis, comparisons…"
+                                placeholder="Ask about your results -- interpretation, further analysis, comparisons..."
                                 disabled={chatLoading}
                                 style={{
                                     flex: 1, padding: '0.55rem 0.85rem',
@@ -808,7 +869,7 @@ function AutoLab() {
                                 disabled={chatLoading || !chatInput.trim()}
                                 style={{
                                     padding: '0.55rem 1.2rem',
-                                    background: (chatLoading || !chatInput.trim()) ? '#ccc' : 'linear-gradient(135deg, #1565c0, #7b1fa2)',
+                                    background: (chatLoading || !chatInput.trim()) ? '#ccc' : 'linear-gradient(135deg, #b71c1c, #c62828)',
                                     color: 'white', border: 'none', borderRadius: '8px',
                                     cursor: (chatLoading || !chatInput.trim()) ? 'default' : 'pointer',
                                     fontWeight: 600, fontSize: '0.9rem', transition: 'all 0.2s',
@@ -823,6 +884,11 @@ function AutoLab() {
             )}
         </div>
     );
+}
+
+/** Simple HTML escape for user messages */
+function escapeHtmlSimple(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 export default AutoLab;
