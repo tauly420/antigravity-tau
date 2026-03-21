@@ -31,11 +31,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Integration solver accepts the same mathematical expressions as before and produces identical numerical results
   3. Malicious input (e.g., `__import__('os').system('rm -rf /')`) is rejected with a clear error message instead of executing
   4. All existing example problems on ODE and Integration pages still work correctly
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — Safe expression evaluation module (TDD: tests + safe_eval.py with validate, ODE, integration builders)
+- [ ] 01-02-PLAN.md — Replace eval() in ODE and Integration endpoints with safe_eval functions + endpoint tests
 
 ### Phase 2: Theme Token System
 **Goal**: App has a complete CSS custom property architecture that enables dark/light theming across all components
@@ -133,7 +133,7 @@ Note: Phases 4, 5, 6 can run in parallel after Phase 3.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Hardening | 0/TBD | Not started | - |
+| 1. Security Hardening | 0/2 | Planning complete | - |
 | 2. Theme Token System | 0/TBD | Not started | - |
 | 3. Style Migration - Core Layout | 0/TBD | Not started | - |
 | 4. Style Migration - Analysis Tools | 0/TBD | Not started | - |
