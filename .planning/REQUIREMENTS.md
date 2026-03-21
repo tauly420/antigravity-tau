@@ -14,7 +14,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Theme
 
-- [ ] **THEME-01**: App has a dark science dashboard theme using CSS custom properties
+- [x] **THEME-01**: App has a dark science dashboard theme using CSS custom properties
 - [ ] **THEME-02**: All inline style declarations (~420) are migrated to CSS variable references
 - [ ] **THEME-04**: Theme toggle does not cause flash of unstyled content (FOUC)
 
@@ -70,7 +70,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | SEC-01 | Phase 1: Security Hardening | Complete |
 | SEC-02 | Phase 1: Security Hardening | Complete |
-| THEME-01 | Phase 2: Theme Token System | Pending |
+| THEME-01 | Phase 2: Theme Token System | Complete |
 | THEME-02 | Phase 3 + 4 + 5 + 6: Style Migration (split by component group) | Pending |
 | THEME-04 | Phase 7: Theme Toggle and Polish | Pending |
 

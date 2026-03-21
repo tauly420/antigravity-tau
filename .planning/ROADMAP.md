@@ -49,7 +49,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Define complete token architecture: extend :root with ~32 new tokens, add [data-theme="dark"] block with scientific instrument palette
+- [x] 02-01-PLAN.md — Define complete token architecture: extend :root with ~32 new tokens, add [data-theme="dark"] block with scientific instrument palette
 - [ ] 02-02-PLAN.md — Replace ~40 hardcoded colors in global.css with var() references, wire data-theme="dark" in App.tsx, visual verification
 
 ### Phase 3: Style Migration - Core Layout
