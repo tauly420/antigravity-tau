@@ -6,6 +6,7 @@ NEW FEATURE: 1D and multi-dimensional numerical integration
 from flask import Blueprint, request, jsonify
 import numpy as np
 from scipy import integrate
+from utils.safe_eval import safe_build_1d_func, safe_build_multi_func, safe_build_condition_func
 
 integrate_bp = Blueprint('integrate', __name__)
 
@@ -45,23 +46,11 @@ def integrate_1d():
         
         a, b = bounds
         
-        # Create function from string
-        safe_globals = {
-            'np': np,
-            'sin': np.sin,
-            'cos': np.cos,
-            'tan': np.tan,
-            'exp': np.exp,
-            'log': np.log,
-            'sqrt': np.sqrt,
-            'abs': np.abs,
-            'pi': np.pi,
-            'e': np.e
-        }
-        
-        function_code = f"lambda x: {function_str}"
+        # Create function from string using safe expression parser
         try:
-            f = eval(function_code, safe_globals)
+            f = safe_build_1d_func(function_str)
+        except ValueError as e:
+            return jsonify({"error": f"Invalid function: {str(e)}"}), 400
         except Exception as e:
             return jsonify({"error": f"Invalid function syntax: {str(e)}"}), 400
         
@@ -172,26 +161,11 @@ def integrate_multi():
         # Create variable names
         var_names = ['x', 'y', 'z', 'w', 'v', 'u'][:ndim]
         
-        safe_globals = {
-            'np': np,
-            'sin': np.sin,
-            'cos': np.cos,
-            'tan': np.tan,
-            'exp': np.exp,
-            'log': np.log,
-            'sqrt': np.sqrt,
-            'abs': np.abs,
-            'pi': np.pi,
-            'e': np.e
-        }
-        
         # For 2D or 3D, try using scipy's nquad for better accuracy
         if ndim <= 3 and not condition_str:
             try:
-                # Build function for nquad
-                var_str = ', '.join(var_names)
-                function_code = f"lambda {var_str}: {function_str}"
-                f = eval(function_code, safe_globals)
+                # Build function for nquad using safe expression parser
+                f = safe_build_multi_func(function_str, var_names)
                 
                 # nquad expects bounds in reverse order
                 result, error = integrate.nquad(f, bounds)
@@ -215,30 +189,27 @@ def integrate_multi():
             samples.append(np.random.uniform(dim_bounds[0], dim_bounds[1], num_samples))
         samples = np.array(samples).T  # Shape: (num_samples, ndim)
         
-        # Evaluate function at sample points
-        function_code = f"lambda sample: {function_str}"
-        # Replace variable names with indexed access
-        for i, var in enumerate(var_names):
-            function_code = function_code.replace(var, f"sample[{i}]")
-        
+        # Evaluate function at sample points using safe expression parser
         try:
-            f = eval(function_code, safe_globals)
+            f_multi = safe_build_multi_func(function_str, var_names)
+        except ValueError as e:
+            return jsonify({"error": f"Invalid function: {str(e)}"}), 400
         except Exception as e:
             return jsonify({"error": f"Invalid function syntax: {str(e)}"}), 400
-        
+
+        f = lambda sample: f_multi(*[sample[i] for i in range(ndim)])
+
         # Apply condition if provided
         if condition_str:
-            condition_code = f"lambda sample: {condition_str}"
-            for i, var in enumerate(var_names):
-                condition_code = condition_code.replace(var, f"sample[{i}]")
-            
             try:
-                cond = eval(condition_code, safe_globals)
+                cond_func = safe_build_condition_func(condition_str, var_names)
+            except ValueError as e:
+                return jsonify({"error": f"Invalid condition: {str(e)}"}), 400
             except Exception as e:
                 return jsonify({"error": f"Invalid condition syntax: {str(e)}"}), 400
-            
+
             # Filter samples by condition
-            mask = np.array([cond(s) for s in samples])
+            mask = np.array([cond_func(*s) for s in samples])
             valid_samples = samples[mask]
             
             if len(valid_samples) == 0:
