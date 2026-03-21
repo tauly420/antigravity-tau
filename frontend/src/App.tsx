@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import './styles/global.css';
 
@@ -19,10 +20,14 @@ import { AnalysisProvider } from './context/AnalysisContext';
 import Sidebar from './components/Sidebar';
 
 function App() {
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }, []);
+
     return (
         <AnalysisProvider>
             <Router>
-                <div className="app-container" style={{ display: 'flex' }}>
+                <div className="app-container" data-theme="dark" style={{ display: 'flex' }}>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                         <header className="header">
                             <Link to="/" style={{ textDecoration: 'none', color: 'white', display: 'flex', alignItems: 'center', gap: '1rem' }}>
