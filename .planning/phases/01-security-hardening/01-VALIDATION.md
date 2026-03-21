@@ -5,6 +5,7 @@ status: draft
 nyquist_compliant: false
 wave_0_complete: false
 created: 2026-03-21
+test_names_aligned: true
 ---
 
 # Phase 1 — Validation Strategy
@@ -38,16 +39,16 @@ created: 2026-03-21
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 01-00-01 | 00 | 0 | SEC-01, SEC-02 | setup | `pip install pytest` | ❌ W0 | ⬜ pending |
-| 01-00-02 | 00 | 0 | SEC-01 | unit | `python -m pytest tests/test_safe_eval.py::test_ode_presets -x` | ❌ W0 | ⬜ pending |
-| 01-00-03 | 00 | 0 | SEC-01 | unit | `python -m pytest tests/test_safe_eval.py::test_ode_rejects_malicious -x` | ❌ W0 | ⬜ pending |
-| 01-00-04 | 00 | 0 | SEC-01 | unit | `python -m pytest tests/test_safe_eval.py::test_ode_energy_safe -x` | ❌ W0 | ⬜ pending |
-| 01-00-05 | 00 | 0 | SEC-02 | unit | `python -m pytest tests/test_safe_eval.py::test_integration_1d -x` | ❌ W0 | ⬜ pending |
-| 01-00-06 | 00 | 0 | SEC-02 | unit | `python -m pytest tests/test_safe_eval.py::test_integration_multi -x` | ❌ W0 | ⬜ pending |
-| 01-00-07 | 00 | 0 | SEC-02 | unit | `python -m pytest tests/test_safe_eval.py::test_integration_rejects_malicious -x` | ❌ W0 | ⬜ pending |
-| 01-00-08 | 00 | 0 | SEC-02 | unit | `python -m pytest tests/test_safe_eval.py::test_integration_condition_safe -x` | ❌ W0 | ⬜ pending |
+| 01-00-01 | 00 | 0 | SEC-01, SEC-02 | setup | `pip install pytest` | -- W0 | pending |
+| 01-00-02 | 00 | 0 | SEC-01 | unit | `python -m pytest tests/test_safe_eval.py::test_simple_pendulum tests/test_safe_eval.py::test_damped_oscillator tests/test_safe_eval.py::test_lotka_volterra tests/test_safe_eval.py::test_lorenz tests/test_safe_eval.py::test_4component_orbit tests/test_safe_eval.py::test_projectile_drag tests/test_safe_eval.py::test_van_der_pol tests/test_safe_eval.py::test_double_pendulum -x` | -- W0 | pending |
+| 01-00-03 | 00 | 0 | SEC-01 | unit | `python -m pytest tests/test_safe_eval.py::test_rejects_dunder_access tests/test_safe_eval.py::test_rejects_import tests/test_safe_eval.py::test_rejects_eval tests/test_safe_eval.py::test_rejects_exec tests/test_safe_eval.py::test_rejects_open tests/test_safe_eval.py::test_rejects_os -x` | -- W0 | pending |
+| 01-00-04 | 00 | 0 | SEC-01 | unit | `python -m pytest tests/test_safe_eval.py::test_accepts_math_expr tests/test_safe_eval.py::test_accepts_array_indexing -x` | -- W0 | pending |
+| 01-00-05 | 00 | 0 | SEC-02 | unit | `python -m pytest tests/test_safe_eval.py::test_1d_polynomial tests/test_safe_eval.py::test_1d_trig tests/test_safe_eval.py::test_1d_exponential -x` | -- W0 | pending |
+| 01-00-06 | 00 | 0 | SEC-02 | unit | `python -m pytest tests/test_safe_eval.py::test_multi_2d tests/test_safe_eval.py::test_multi_3d -x` | -- W0 | pending |
+| 01-00-07 | 00 | 0 | SEC-02 | unit | `python -m pytest tests/test_safe_eval.py::test_rejects_empty tests/test_safe_eval.py::test_rejects_disallowed_chars -x` | -- W0 | pending |
+| 01-00-08 | 00 | 0 | SEC-02 | unit | `python -m pytest tests/test_safe_eval.py::test_condition_circle -x` | -- W0 | pending |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+*Status: pending / green / red / flaky*
 
 ---
 
