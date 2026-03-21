@@ -35,7 +35,7 @@ AutoLab: upload a data file, describe what you want in plain language, and get a
 - [ ] Report generation — PDF and LaTeX export from analysis results
 - [ ] AI assistance on ODE solver page (equation setup, method advice, result interpretation)
 - [ ] AI assistance on Integration page (equation setup, method advice, result interpretation)
-- [ ] Fix critical security: remove eval() on user input in ODE/Integration backends
+- ✓ Fix critical security: remove eval() on user input in ODE/Integration backends — Validated in Phase 1: Security Hardening
 - [ ] Fix critical security: disable Flask debug=True in production
 
 ### Out of Scope
@@ -52,7 +52,8 @@ AutoLab: upload a data file, describe what you want in plain language, and get a
 - **Deployment**: Railway via nixpacks (Python 3 + Node 23)
 - **AI providers**: OpenAI (GPT-4o-mini for AutoLab) and OpenAI/Gemini for sidebar chat
 - **Current state**: Fully functional but rough UX — inconsistent styling, vertical-only results layout, no report export, AI only in AutoLab + sidebar chat
-- **Codebase concerns**: AutoLab.tsx is 1,141 lines (god component), AnalysisContext uses `any` throughout, zero test coverage, eval() on user input in ODE/Integration backends, Flask debug=True leaks to production
+- **Codebase concerns**: AutoLab.tsx is 1,141 lines (god component), AnalysisContext uses `any` throughout, Flask debug=True leaks to production
+- **Phase 1 complete**: eval() removed from ODE/Integration backends — replaced with sympify+lambdify, 40 tests passing
 - **Codebase map**: Available in `.planning/codebase/` (7 documents)
 
 ## Constraints
@@ -70,7 +71,7 @@ AutoLab: upload a data file, describe what you want in plain language, and get a
 | Top tab bar navigation | User prefers horizontal tabs over sidebar/dashboard hub | — Pending |
 | Both PDF + LaTeX export | User wants ready-to-submit reports AND customizable source | — Pending |
 | Full AI on ODE/Integration | User wants equation setup, method advice, and result interpretation | — Pending |
-| Fix worst security issues only | eval() and debug=True are critical; defer XSS/rate limiting | — Pending |
+| Fix worst security issues only | eval() and debug=True are critical; defer XSS/rate limiting | eval() fixed (Phase 1); debug=True deferred |
 | Defer new analysis tools | User hasn't decided on specific new tools yet — revisit later | — Pending |
 
 ## Evolution
@@ -91,4 +92,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-20 after initialization*
+*Last updated: 2026-03-21 after Phase 1 completion*
