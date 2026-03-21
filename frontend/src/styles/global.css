@@ -1,29 +1,168 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 /* ═════════════ Design Tokens ═════════════ */
+
+/* ======= LIGHT THEME (default / fallback) ======= */
 :root {
+    /* --- Brand --- */
     --primary: #c62828;
     --primary-dark: #8e0000;
     --primary-light: #ff5f52;
     --accent: #1565c0;
     --accent-light: #5e92f3;
+
+    /* --- Semantic status --- */
     --success: #2e7d32;
     --warning: #f57c00;
     --danger: #d32f2f;
+
+    /* --- Backgrounds --- */
     --bg: #f5f5f7;
     --surface: #ffffff;
     --surface-alt: #fafafa;
+    --surface-elevated: #ffffff;
+
+    /* --- Text --- */
     --text: #1a1a2e;
     --text-secondary: #5a5a7a;
     --text-muted: #9e9e9e;
+
+    /* --- Borders --- */
     --border: #e0e0e5;
     --border-light: #f0f0f5;
+
+    /* --- Header --- */
+    --header-bg: #b71c1c;
+    --header-bg-mid: #c62828;
+    --header-bg-mid2: #d32f2f;
+    --header-bg-end: #e53935;
+    --header-shadow: rgba(183, 28, 28, 0.3);
+
+    /* --- Interactive states --- */
+    --primary-hover-bg: rgba(198, 40, 40, 0.04);
+    --primary-hover-border: rgba(198, 40, 40, 0.3);
+    --primary-focus-ring: rgba(198, 40, 40, 0.12);
+    --primary-shadow: rgba(198, 40, 40, 0.25);
+    --primary-shadow-hover: rgba(198, 40, 40, 0.35);
+    --accent-shadow: rgba(21, 101, 192, 0.25);
+    --accent-shadow-hover: rgba(21, 101, 192, 0.35);
+    --accent-shadow-strong: rgba(21, 101, 192, 0.4);
+    --accent-shadow-stronger: rgba(21, 101, 192, 0.5);
+    --resize-handle-hover: rgba(21, 101, 192, 0.25);
+    --table-row-hover: rgba(198, 40, 40, 0.02);
+
+    /* --- Status backgrounds --- */
+    --success-bg: #e8f5e9;
+    --success-bg-end: #c8e6c9;
+    --success-border: #a5d6a7;
+    --warning-bg: #fff3e0;
+    --warning-bg-end: #ffe0b2;
+    --warning-border: #ffcc80;
+    --danger-bg: #ffebee;
+    --danger-bg-end: #ffcdd2;
+    --danger-border: #ef9a9a;
+    --info-bg: #e3f2fd;
+    --info-bg-end: #bbdefb;
+    --info-text: #1a237e;
+
+    /* --- Overlays / misc --- */
+    --overlay-light: rgba(255, 255, 255, 0.6);
+    --overlay-subtle: rgba(0, 0, 0, 0.08);
+    --stepper-active-overlay: rgba(255, 255, 255, 0.25);
+    --popup-bg: #ffffff;
+    --popup-shadow: 0 8px 32px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08);
+    --close-btn-color: #999;
+    --close-btn-hover: #333;
+    --footer-text: rgba(255, 255, 255, 0.7);
+
+    /* --- Shadows --- */
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
     --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05);
+
+    /* --- Layout (theme-invariant) --- */
     --radius: 12px;
     --radius-sm: 8px;
     --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ======= DARK THEME ======= */
+[data-theme="dark"] {
+    /* --- Brand (adjusted for dark backgrounds) --- */
+    --primary: #e53935;
+    --primary-dark: #b71c1c;
+    --primary-light: #ff6f60;
+    --accent: #42a5f5;
+    --accent-light: #80d6ff;
+
+    /* --- Semantic status (brighter on dark) --- */
+    --success: #66bb6a;
+    --warning: #ffa726;
+    --danger: #ef5350;
+
+    /* --- Backgrounds (D-02 anchors) --- */
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --surface-alt: #1e2a4a;
+    --surface-elevated: #243356;
+
+    /* --- Text (D-02 anchors) --- */
+    --text: #e0e0e8;
+    --text-secondary: #a0a0b8;
+    --text-muted: #8888aa;
+
+    /* --- Borders (D-02 anchor) --- */
+    --border: #2a2a4a;
+    --border-light: #222244;
+
+    /* --- Header (D-04: darker red gradient) --- */
+    --header-bg: #7f0000;
+    --header-bg-mid: #8e0000;
+    --header-bg-mid2: #a01010;
+    --header-bg-end: #b71c1c;
+    --header-shadow: rgba(127, 0, 0, 0.4);
+
+    /* --- Interactive states (D-03: subtle glow) --- */
+    --primary-hover-bg: rgba(229, 57, 53, 0.08);
+    --primary-hover-border: rgba(229, 57, 53, 0.4);
+    --primary-focus-ring: rgba(229, 57, 53, 0.2);
+    --primary-shadow: rgba(229, 57, 53, 0.3);
+    --primary-shadow-hover: rgba(229, 57, 53, 0.45);
+    --accent-shadow: rgba(66, 165, 245, 0.3);
+    --accent-shadow-hover: rgba(66, 165, 245, 0.45);
+    --accent-shadow-strong: rgba(66, 165, 245, 0.4);
+    --accent-shadow-stronger: rgba(66, 165, 245, 0.55);
+    --resize-handle-hover: rgba(66, 165, 245, 0.3);
+    --table-row-hover: rgba(229, 57, 53, 0.04);
+
+    /* --- Status backgrounds (darkened versions) --- */
+    --success-bg: rgba(46, 125, 50, 0.15);
+    --success-bg-end: rgba(46, 125, 50, 0.1);
+    --success-border: rgba(102, 187, 106, 0.3);
+    --warning-bg: rgba(245, 124, 0, 0.15);
+    --warning-bg-end: rgba(245, 124, 0, 0.1);
+    --warning-border: rgba(255, 167, 38, 0.3);
+    --danger-bg: rgba(211, 47, 47, 0.15);
+    --danger-bg-end: rgba(211, 47, 47, 0.1);
+    --danger-border: rgba(239, 83, 80, 0.3);
+    --info-bg: rgba(21, 101, 192, 0.15);
+    --info-bg-end: rgba(21, 101, 192, 0.1);
+    --info-text: #90caf9;
+
+    /* --- Overlays / misc --- */
+    --overlay-light: rgba(255, 255, 255, 0.08);
+    --overlay-subtle: rgba(255, 255, 255, 0.06);
+    --stepper-active-overlay: rgba(255, 255, 255, 0.15);
+    --popup-bg: #1e2a4a;
+    --popup-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+    --close-btn-color: #8888aa;
+    --close-btn-hover: #e0e0e8;
+    --footer-text: rgba(224, 224, 232, 0.6);
+
+    /* --- Shadows (darker, more dramatic) --- */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.35), 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
 /* ═════════════ Base Reset ═════════════ */
