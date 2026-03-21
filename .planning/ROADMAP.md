@@ -46,11 +46,11 @@ Plans:
   2. Dark and light token sets exist via `[data-theme="dark"]` and `[data-theme="light"]` selectors
   3. The App root element applies the dark theme by default and all existing hardcoded colors in CSS files use the new tokens
   4. A documented token naming convention exists (e.g., `--color-bg-primary`, `--color-text-primary`) that subsequent phases follow
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md — Define complete token architecture: extend :root with ~32 new tokens, add [data-theme="dark"] block with scientific instrument palette
+- [ ] 02-02-PLAN.md — Replace ~40 hardcoded colors in global.css with var() references, wire data-theme="dark" in App.tsx, visual verification
 
 ### Phase 3: Style Migration - Core Layout
 **Goal**: Core layout components use CSS variables instead of inline styles, rendering correctly in dark theme
@@ -134,7 +134,7 @@ Note: Phases 4, 5, 6 can run in parallel after Phase 3.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Security Hardening | 0/2 | Planning complete | - |
-| 2. Theme Token System | 0/TBD | Not started | - |
+| 2. Theme Token System | 0/2 | Planning complete | - |
 | 3. Style Migration - Core Layout | 0/TBD | Not started | - |
 | 4. Style Migration - Analysis Tools | 0/TBD | Not started | - |
 | 5. Style Migration - Math and Science Tools | 0/TBD | Not started | - |
