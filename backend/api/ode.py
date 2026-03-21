@@ -7,29 +7,9 @@ event detection, and parametric (x-y) output.
 from flask import Blueprint, request, jsonify
 import numpy as np
 from scipy.integrate import solve_ivp
+from utils.safe_eval import safe_build_ode_func
 
 ode_bp = Blueprint('ode', __name__)
-
-# ── Safe math namespace ──
-_SAFE_NS = {
-    'np': np,
-    'sin': np.sin, 'cos': np.cos, 'tan': np.tan,
-    'asin': np.arcsin, 'acos': np.arccos, 'atan': np.arctan,
-    'atan2': np.arctan2,
-    'exp': np.exp, 'log': np.log, 'log10': np.log10,
-    'sqrt': np.sqrt, 'abs': np.abs,
-    'pi': np.pi, 'e': np.e,
-    'sinh': np.sinh, 'cosh': np.cosh, 'tanh': np.tanh,
-    'sign': np.sign, 'floor': np.floor, 'ceil': np.ceil,
-    'arctan2': np.arctan2,
-    'heaviside': lambda x, h0=0.5: np.heaviside(x, h0),
-}
-
-
-def _build_ode_func(function_str: str):
-    """Build a callable f(t, y) from user string."""
-    code = f"lambda t, y: np.array([{function_str}])"
-    return eval(code, _SAFE_NS)
 
 
 @ode_bp.route('/solve', methods=['POST'])
@@ -60,13 +40,18 @@ def solve():
         if not y0:
             return jsonify({"error": "initial_conditions are required"}), 400
 
-        # Build the ODE function
+        y0_list = y0
+        num_components = len(y0_list)
+
+        # Build the ODE function using safe expression parser
         try:
-            f = _build_ode_func(function_str)
+            f = safe_build_ode_func(function_str, num_components)
+        except ValueError as e:
+            return jsonify({"error": f"Invalid function: {str(e)}"}), 400
         except Exception as e:
             return jsonify({"error": f"Invalid function syntax: {str(e)}"}), 400
 
-        y0 = np.array(y0, dtype=float)
+        y0 = np.array(y0_list, dtype=float)
         t_eval = np.linspace(t_span[0], t_span[1], num_points)
 
         # ── Solve ──
@@ -104,11 +89,11 @@ def solve():
         # ── Energy computation ──
         if compute_energy and sol.y.shape[0] >= 2:
             if energy_expr_str.strip():
-                # Custom energy expression
+                # Custom energy expression (uses same t, y variables as ODE)
                 try:
-                    e_func = eval(f"lambda t, y: ({energy_expr_str})", _SAFE_NS)
+                    e_func = safe_build_ode_func(energy_expr_str, num_components)
                     energy_vals = np.array([
-                        e_func(sol.t[i], sol.y[:, i])
+                        e_func(sol.t[i], sol.y[:, i])[0]
                         for i in range(len(sol.t))
                     ])
                     result["energy"] = energy_vals.tolist()
