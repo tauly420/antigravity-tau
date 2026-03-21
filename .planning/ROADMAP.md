@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Safe expression evaluation module (TDD: tests + safe_eval.py with validate, ODE, integration builders)
+- [x] 01-01-PLAN.md — Safe expression evaluation module (TDD: tests + safe_eval.py with validate, ODE, integration builders)
 - [ ] 01-02-PLAN.md — Replace eval() in ODE and Integration endpoints with safe_eval functions + endpoint tests
 
 ### Phase 2: Theme Token System

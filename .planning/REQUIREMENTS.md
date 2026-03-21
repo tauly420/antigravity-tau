@@ -9,8 +9,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Security
 
-- [ ] **SEC-01**: User input in ODE solver is evaluated safely via sympify+lambdify instead of eval()
-- [ ] **SEC-02**: User input in Integration solver is evaluated safely via sympify+lambdify instead of eval()
+- [x] **SEC-01**: User input in ODE solver is evaluated safely via sympify+lambdify instead of eval()
+- [x] **SEC-02**: User input in Integration solver is evaluated safely via sympify+lambdify instead of eval()
 
 ### Theme
 
@@ -68,8 +68,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | Phase 1: Security Hardening | Pending |
-| SEC-02 | Phase 1: Security Hardening | Pending |
+| SEC-01 | Phase 1: Security Hardening | Complete |
+| SEC-02 | Phase 1: Security Hardening | Complete |
 | THEME-01 | Phase 2: Theme Token System | Pending |
 | THEME-02 | Phase 3 + 4 + 5 + 6: Style Migration (split by component group) | Pending |
 | THEME-04 | Phase 7: Theme Toggle and Polish | Pending |
