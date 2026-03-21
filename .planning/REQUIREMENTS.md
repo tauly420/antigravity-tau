@@ -1,7 +1,7 @@
 # Requirements: Tau-LY
 
 **Defined:** 2026-03-20
-**Core Value:** AutoLab — upload a data file, describe what you want in plain language, and get a complete physics analysis with minimal friction.
+**Core Value:** AutoLab -- upload a data file, describe what you want in plain language, and get a complete physics analysis with minimal friction.
 
 ## v1 Requirements
 
@@ -16,7 +16,6 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [ ] **THEME-01**: App has a dark science dashboard theme using CSS custom properties
 - [ ] **THEME-02**: All inline style declarations (~420) are migrated to CSS variable references
-- [ ] **THEME-03**: Plotly charts use a dark theme matching the app aesthetic
 - [ ] **THEME-04**: Theme toggle does not cause flash of unstyled content (FOUC)
 
 ## v2 Requirements
@@ -61,6 +60,7 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | Database / persistent storage | Analyses are ephemeral by design |
 | Component library adoption (MUI, Mantine) | Dark theme achievable with CSS custom properties; avoids heavy dependency |
 | New analysis tool types | User hasn't decided on specifics; revisit in future milestone |
+| Plotly dark theme (THEME-03) | User prefers white-background Plotly charts for readability |
 
 ## Traceability
 
@@ -68,18 +68,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | TBD | Pending |
-| SEC-02 | TBD | Pending |
-| THEME-01 | TBD | Pending |
-| THEME-02 | TBD | Pending |
-| THEME-03 | TBD | Pending |
-| THEME-04 | TBD | Pending |
+| SEC-01 | Phase 1: Security Hardening | Pending |
+| SEC-02 | Phase 1: Security Hardening | Pending |
+| THEME-01 | Phase 2: Theme Token System | Pending |
+| THEME-02 | Phase 3 + 4 + 5 + 6: Style Migration (split by component group) | Pending |
+| THEME-04 | Phase 7: Theme Toggle and Polish | Pending |
 
 **Coverage:**
-- v1 requirements: 6 total
-- Mapped to phases: 0
-- Unmapped: 6
+- v1 requirements: 5 total
+- Mapped to phases: 5
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-20*
-*Last updated: 2026-03-20 after initial definition*
+*Last updated: 2026-03-21 after roadmap revision (removed THEME-03, moved to Out of Scope)*
