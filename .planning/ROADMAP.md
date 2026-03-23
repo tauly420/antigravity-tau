@@ -83,11 +83,11 @@ Plans:
   2. An equation test suite of 10+ LaTeX expression types (fractions, Greek letters, superscripts, +/-, chi-squared, integrals, text-in-math) renders correctly in the PDF via KaTeX HTML output through WeasyPrint
   3. The PDF renders with bundled Noto Sans Hebrew font and bundled KaTeX fonts (no external CDN fetches at render time)
   4. WeasyPrint imports and generates PDFs successfully on Railway deployment (nixpacks system libraries configured correctly)
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
+- [ ] 08-01-PLAN.md -- Dependencies, fonts, rendering pipeline (pdf_renderer.py + CSS/HTML templates), Flask blueprint, test scaffold
+- [ ] 08-02-PLAN.md -- Full 12-expression equation test suite with bidi edge cases, visual verification checkpoint
 
 ### Phase 9: Report Data Contract and File Parsing
 **Goal**: AutoLab results are normalized into a guaranteed-shape contract, and users can upload lab instruction files for context extraction
@@ -164,7 +164,7 @@ Note: Phase 11 depends on both Phase 8 and Phase 10.
 | 1. Security Hardening | v1.0 | 2/2 | Complete | 2026-03-20 |
 | 2. Theme Token System | v1.0 | 2/2 | Complete | 2026-03-21 |
 | 3-7. Style Migration + Toggle | v1.0 | 0/TBD | Deferred | - |
-| 8. PDF Infrastructure Spike | v2.0 | 0/TBD | Not started | - |
+| 8. PDF Infrastructure Spike | v2.0 | 0/2 | Planning | - |
 | 9. Report Data Contract and File Parsing | v2.0 | 0/TBD | Not started | - |
 | 10. AI Content Generation Pipeline | v2.0 | 0/TBD | Not started | - |
 | 11. Preview, Editing, and PDF Assembly | v2.0 | 0/TBD | Not started | - |
