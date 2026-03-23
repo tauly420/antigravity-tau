@@ -110,26 +110,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-01 | v1.0 Phase 1: Security Hardening | Complete |
 | SEC-02 | v1.0 Phase 1: Security Hardening | Complete |
 | THEME-01 | v1.0 Phase 2: Theme Token System | Complete |
-| PDF-01 | TBD | Pending |
-| PDF-02 | TBD | Pending |
-| CTX-01 | TBD | Pending |
-| CTX-02 | TBD | Pending |
-| CTX-03 | TBD | Pending |
-| RPT-01 | TBD | Pending |
-| RPT-02 | TBD | Pending |
-| RPT-03 | TBD | Pending |
-| RPT-04 | TBD | Pending |
-| RPT-05 | TBD | Pending |
-| UI-01 | TBD | Pending |
-| UI-02 | TBD | Pending |
-| UI-03 | TBD | Pending |
-| UI-04 | TBD | Pending |
+| PDF-01 | Phase 8: PDF Infrastructure Spike | Pending |
+| PDF-02 | Phase 8: PDF Infrastructure Spike | Pending |
+| CTX-01 | Phase 9: Report Data Contract and File Parsing | Pending |
+| CTX-02 | Phase 10: AI Content Generation Pipeline | Pending |
+| CTX-03 | Phase 10: AI Content Generation Pipeline | Pending |
+| RPT-01 | Phase 10: AI Content Generation Pipeline | Pending |
+| RPT-02 | Phase 10: AI Content Generation Pipeline | Pending |
+| RPT-03 | Phase 9: Report Data Contract and File Parsing | Pending |
+| RPT-04 | Phase 10: AI Content Generation Pipeline | Pending |
+| RPT-05 | Phase 10: AI Content Generation Pipeline | Pending |
+| UI-01 | Phase 11: Preview, Editing, and PDF Assembly | Pending |
+| UI-02 | Phase 11: Preview, Editing, and PDF Assembly | Pending |
+| UI-03 | Phase 11: Preview, Editing, and PDF Assembly | Pending |
+| UI-04 | Phase 12: Integration and Polish | Pending |
 
 **Coverage:**
 - v2.0 requirements: 14 total
-- Mapped to phases: 0
-- Unmapped: 14 ⚠️
+- Mapped to phases: 14
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-20*
-*Last updated: 2026-03-23 after milestone v2.0 definition*
+*Last updated: 2026-03-23 after v2.0 roadmap creation*
