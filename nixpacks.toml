@@ -1,12 +1,18 @@
 [phases.setup]
-nixPkgs = ['python3', 'nodejs_23']
+nixPkgs = [
+    'python3', 'nodejs_23',
+    'pango', 'cairo', 'gdk-pixbuf', 'glib',
+    'gobject-introspection', 'fontconfig', 'harfbuzz',
+    'pkg-config', 'shared-mime-info', 'libffi'
+]
 
 [phases.install]
 cmds = [
     'python3 -m venv .venv',
     '.venv/bin/pip install --upgrade pip',
     '.venv/bin/pip install -r requirements.txt',
-    'cd frontend && npm install --legacy-peer-deps'
+    'cd frontend && npm install --legacy-peer-deps',
+    'npm install -g katex'
 ]
 
 [phases.build]
