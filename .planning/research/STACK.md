@@ -1,240 +1,270 @@
-# Technology Stack
+# Stack Research
 
-**Project:** Tau-LY Milestone 2 (Dark Theme + Report Generation + AI-Assisted Solvers)
-**Researched:** 2026-03-20
-**Note:** WebSearch/WebFetch were unavailable during this research pass. Versions are from training data (cutoff May 2025). Versions marked with (*) should be verified with `npm view <pkg> version` or `pip index versions <pkg>` before installing.
+**Domain:** AI-powered academic lab report generation with Hebrew RTL support
+**Researched:** 2026-03-23
+**Confidence:** MEDIUM (versions from training data cutoff May 2025; WebSearch/WebFetch unavailable -- versions marked * need verification before install)
 
-## Recommended Additions to Existing Stack
+## Scope
 
-The existing stack (React 19 + Vite 7 + Flask + SciPy/SymPy/NumPy + OpenAI) is kept as-is. Below are additions only.
+This research covers ONLY new dependencies needed for the v2.0 milestone. The existing stack (React 19, Vite 7, TypeScript, Flask, SciPy/SymPy/NumPy, OpenAI, Plotly, KaTeX, Axios, papaparse, xlsx) is kept as-is and not re-evaluated.
 
----
-
-### 1. Dark Science Theme
-
-| Technology | Version* | Purpose | Why |
-|------------|----------|---------|-----|
-| CSS Custom Properties (existing) | n/a | Theme system | Already in use (`global.css` design tokens in `:root`). Add `[data-theme="dark"]` selector with dark overrides. Zero new dependencies. |
-| `Inter` + `JetBrains Mono` fonts | n/a | Typography | Inter already loaded via Google Fonts. Add JetBrains Mono for code/numbers -- monospaced digits are essential for scientific data tables and parameter readouts. |
-| Plotly `plotly_dark` template | built-in | Dark chart theming | Plotly ships dark templates. Create a shared `getPlotLayout(isDark)` utility that returns Plotly layout overrides. No library needed. |
-
-**Rationale: No component library.**
-
-The project uses zero UI component libraries -- just vanilla CSS with design tokens (`:root` block in `global.css`). Adding a component library (Mantine, MUI, Radix) would require rewriting all 15+ existing components. The correct approach is:
-
-1. Define dark token set in `global.css` under `[data-theme="dark"]`
-2. Migrate ~420 inline `style={{}}` declarations to use CSS variables (this is the real work)
-3. Add a ThemeProvider context + toggle that sets `document.documentElement.dataset.theme`
-4. Persist preference to `localStorage`; use pre-hydration `<script>` to avoid FOUC
-5. Create `getPlotLayout(isDark)` utility for Plotly chart colors
-
-This is CSS refactoring + ~200 lines of new dark token definitions, not a library adoption.
-
-**Confidence:** HIGH -- CSS custom properties theming is a standard pattern. The codebase already uses CSS variables.
-
-#### Alternatives Considered
-
-| Option | Why Not |
-|--------|---------|
-| Mantine UI | Would require rewriting every component to use Mantine primitives. Overkill for theming an existing app with 15+ custom components. |
-| MUI / Material UI | Same migration cost. Also adds 200KB+ to bundle. Material Design aesthetic doesn't match "instrument dashboard" goal. |
-| Radix UI Themes | Lighter, but still requires wrapping all components. |
-| Tailwind CSS | Good for new projects, but migrating existing CSS classes is busywork with no structural gain. |
-| CSS-in-JS (styled-components, emotion) | Runtime overhead, and the codebase already uses plain CSS effectively. |
+The existing `jspdf` + `jspdf-autotable` in `frontend/package.json` will be **replaced** by server-side PDF generation. jsPDF cannot handle Hebrew RTL, LaTeX math rendering, or academic formatting at publication quality.
 
 ---
 
-### 2. PDF + LaTeX Report Generation
+## Recommended Stack
 
-| Technology | Version* | Purpose | Why |
-|------------|----------|---------|-----|
-| `weasyprint` | >=62.0* | HTML/CSS to PDF | Best Python HTML-to-PDF engine for publication-quality output. Supports CSS grid, flexbox, `@page` rules, embedded fonts. |
-| `jinja2` | >=3.1.0 | HTML + LaTeX templating | Already a Flask dependency (Flask depends on Jinja2). Use for both HTML report templates and .tex source generation. |
-| `matplotlib` | >=3.8.0* | Static plot images for reports | Generate publication-quality PNG figures for embedding in PDF/LaTeX. Plotly is interactive-only; matplotlib produces clean static output. |
-| `dompurify` (npm) | >=3.0.0* | Sanitize KaTeX HTML for reports | Already needed for XSS prevention; also useful for sanitizing HTML before PDF generation. |
+### Core Technologies
 
-**Architecture: Dual-path report generation.**
+| Technology | Version* | Purpose | Why Recommended |
+|------------|----------|---------|-----------------|
+| **WeasyPrint** | >=62.0 | HTML/CSS to PDF (server-side) | The only Python HTML-to-PDF engine with full CSS3 support including `direction: rtl`, `unicode-bidi`, `@page` rules, embedded fonts, and CSS grid/flexbox. Renders KaTeX HTML/CSS output directly as vector math. Pango (its text engine) has mature Hebrew/Arabic BiDi support via FriBidi. |
+| **PyMuPDF (fitz)** | >=1.24.0* | Extract text from uploaded PDF instruction files | Fastest Python PDF text extractor. Handles Hebrew text, preserves reading order, works without external binaries (C extension, not subprocess). Extracts text, tables, and images. |
+| **python-docx** | >=1.1.0* | Extract text from uploaded Word (.docx) instruction files | Standard library for reading Word documents. Extracts paragraphs, tables, and formatting. Handles Hebrew content embedded in .docx. No external binaries needed. |
+| **Jinja2** | (already installed) | HTML report templating | Already a Flask transitive dependency. Used to render the HTML template that WeasyPrint converts to PDF. Zero new install needed. |
+| **matplotlib** | >=3.8.0* | Generate static plot images for PDF reports | Produces publication-quality PNG/SVG figures. Plotly's `toImage()` is designed for screen; matplotlib produces clean print-ready output with proper DPI control. Use the OO API (not pyplot) for thread safety in Flask. |
+
+### Supporting Libraries
+
+| Library | Version* | Purpose | When to Use |
+|---------|----------|---------|-------------|
+| **Noto Sans Hebrew** (font, not pip) | latest | Hebrew font for PDF output | Bundle in `backend/templates/fonts/`. WeasyPrint needs local font files -- cannot fetch from Google Fonts at render time. Noto Sans Hebrew is Google's free font with full Hebrew character coverage and good readability. |
+| **KaTeX CSS + fonts** (bundle, not pip) | match frontend version | LaTeX math rendering in PDF | Bundle KaTeX CSS and WOFF2 fonts locally in report template. WeasyPrint renders KaTeX's HTML/CSS output directly, producing vector-quality equations in PDF. |
+| **DOMPurify** (npm) | >=3.0.0* | Sanitize AI-generated HTML before rendering | AI generates report section content that gets inserted into HTML template. Must sanitize to prevent XSS. Also useful for cleaning HTML in the in-app editor. |
+
+### Frontend: In-App Report Editor
+
+| Library | Version* | Purpose | When to Use |
+|---------|----------|---------|-------------|
+| **@tiptap/react** | >=2.6.0* | Rich text editor for report section editing | TipTap is a headless (unstyled) ProseMirror wrapper for React. Headless means it works with Tau-LY's existing custom CSS -- no component library conflict. Supports RTL via `dir` attribute on content blocks. |
+| **@tiptap/starter-kit** | >=2.6.0* | Core editor extensions (bold, italic, headings, lists) | Bundled convenience package. Includes paragraph, heading, bold, italic, bullet list, ordered list, code block, blockquote, horizontal rule. |
+| **@tiptap/extension-text-align** | >=2.6.0* | Text alignment (left, right, center) | Needed for RTL section alignment control. |
+| **@tiptap/extension-placeholder** | >=2.6.0* | Placeholder text in empty sections | "AI will generate this section..." placeholders. |
+
+---
+
+## Architecture: How These Fit Together
+
+### PDF Generation Flow (server-side)
 
 ```
-"Export PDF" button
-  -> Frontend sends analysis state to POST /api/report/pdf
-  -> Backend renders Jinja2 HTML template with data
-  -> matplotlib generates figure PNGs (base64-embedded in HTML)
-  -> KaTeX CSS + fonts bundled locally in the template
+User clicks "Generate Report" in frontend
+  -> Frontend sends report config + AutoLab results to POST /api/report/generate
+  -> Backend calls OpenAI to generate section content (theory, discussion, etc.)
+  -> Backend renders Jinja2 HTML template with:
+     - Hebrew RTL body text (dir="rtl", Noto Sans Hebrew font)
+     - English LTR equations via KaTeX HTML (bundled CSS/fonts)
+     - matplotlib-generated plot PNGs (base64 embedded)
+     - Academic formatting (@page rules, numbered sections, figure captions)
   -> WeasyPrint converts HTML to PDF
-  -> Returns PDF as binary response (Content-Type: application/pdf)
+  -> Returns PDF as binary response
 
-"Export LaTeX" button
-  -> Frontend sends analysis state to POST /api/report/latex
-  -> Backend renders Jinja2 .tex template with data
-  -> matplotlib generates figure PNGs
-  -> Returns .zip containing report.tex + figure PNGs
+User edits sections in TipTap editor, clicks "Export PDF"
+  -> Same flow but with user-edited content instead of AI-generated
 ```
 
-**The key technical challenge is math rendering in PDF.** Options analysis:
-
-| Approach | Math Rendering | Quality | Deployment Complexity |
-|----------|---------------|---------|----------------------|
-| WeasyPrint + KaTeX HTML | KaTeX renders to HTML/CSS, WeasyPrint renders that | HIGH (vector) | MEDIUM (needs system libs) |
-| Client-side html2canvas + jsPDF | Screenshots rendered DOM | LOW (raster, blurry) | LOW (no server deps) |
-| Puppeteer/Playwright headless | Full browser rendering | HIGH | HIGH (Chromium binary ~400MB) |
-| window.print() / browser PDF | Native browser print | MEDIUM | NONE |
-| reportlab | Manual layout API | MEDIUM | LOW |
-
-**Recommendation: WeasyPrint + KaTeX HTML (server-side).**
-
-WeasyPrint renders HTML/CSS to PDF with high fidelity. KaTeX output is HTML/CSS (not canvas), so WeasyPrint can render it directly. The key requirement: bundle KaTeX CSS and fonts locally in the HTML template (WeasyPrint cannot fetch from CDNs). This produces vector-quality math in the PDF.
-
-The prior research pass recommended client-side PDF generation. After analysis, server-side is better because:
-1. KaTeX HTML renders cleanly in WeasyPrint (vector, not raster screenshots)
-2. matplotlib generates better static plots than Plotly's toImage() export
-3. The backend already has all analysis data -- no need to serialize and send it from frontend
-4. Report layout can be optimized for print (different from screen layout)
-
-**WeasyPrint deployment on Railway/nixpacks:**
-```toml
-# nixpacks.toml -- add system dependencies
-[phases.setup]
-nixPkgs = ["python3", "nodejs_23", "pango", "cairo", "gdk-pixbuf", "gobject-introspection"]
-```
-
-This is the highest deployment risk. Test early by running `python -c "import weasyprint"` in the Railway environment.
-
-**Confidence:** MEDIUM -- WeasyPrint is well-established but: (a) version needs live verification, (b) nixpacks package names need testing on Railway, (c) KaTeX CSS rendering in WeasyPrint needs prototype validation.
-
-**Why WeasyPrint over alternatives:**
-
-| Alternative | Why Not |
-|-------------|---------|
-| `reportlab` | Imperative API -- draw rectangles, place text at coordinates. Tedious for complex layouts with math. |
-| `fpdf2` | Same problem as reportlab. No CSS support. |
-| `pdflatex` / `xelatex` subprocess | Requires full TeX Live (4GB+). Cannot deploy on Railway without major config. |
-| `pandoc` subprocess | Extra binary dependency. Good for markdown-to-PDF but we control the template. |
-| Client-side `jsPDF` + `html2canvas` | Produces raster screenshots. Math is blurry. Large files. |
-| Client-side `@react-pdf/renderer` | Cannot render KaTeX math. Would need to rebuild all result components in react-pdf primitives. |
-| Puppeteer/Playwright | Chromium binary is ~400MB. Hard to deploy on Railway. |
-
-**LaTeX source generation (separate from PDF):**
-
-Users want editable .tex files to paste into their lab reports. This is a first-class output, not an intermediate step. Generate from a Jinja2 `.tex` template with custom delimiters to avoid LaTeX/Jinja2 syntax conflicts:
-```python
-latex_env = Environment(
-    block_start_string='\\BLOCK{',
-    block_end_string='}',
-    variable_start_string='\\VAR{',
-    variable_end_string='}',
-    comment_start_string='\\#{',
-    comment_end_string='}',
-    loader=FileSystemLoader("templates")
-)
-```
-
----
-
-### 3. AI-Assisted ODE/Integration Solvers
-
-| Technology | Version* | Purpose | Why |
-|------------|----------|---------|-----|
-| `openai` (existing) | >=1.40.0 | AI equation setup + interpretation | Already in use for AutoLab. Reuse the same client. |
-| OpenAI `gpt-4o-mini` (existing) | current | Model for solver AI | Same model as AutoLab. Fast, cheap, good at math. No reason to use a different model. |
-
-**Architecture: Reuse ChatAgent, NOT AutoLab's function-calling orchestrator.**
-
-The ODE/Integration AI needs three things:
-1. **Equation setup** -- user describes physics problem, AI outputs the ODE/integral in SymPy syntax
-2. **Method advice** -- AI recommends solver method based on equation properties
-3. **Result interpretation** -- after solving, AI explains the solution
-
-This is **conversational assistance**, not autonomous multi-step execution. The existing `ChatAgent` (`app/chat_agent.py`) already handles this pattern:
-- Accepts arbitrary context via the `POST /api/assistant/chat` endpoint
-- Injects context into system prompt
-- Supports multi-turn conversation
-
-**What to build:**
-1. Extract a shared `AIChatPanel.tsx` component from the AutoLab post-analysis chat UI
-2. Embed it in `ODESolver.tsx` and `NumericalIntegrator.tsx`
-3. Enrich the `ChatAgent` system prompt with ODE/Integration domain knowledge (method selection heuristics, common physics ODEs, SymPy syntax guide)
-4. Send page state as context: equation, parameters, method, results summary (NOT full solution arrays -- cap at 50 data points to avoid token explosion)
-
-**No new libraries or API integrations needed.**
-
-**Critical prerequisite:** Replace `eval()` with `sympy.sympify()` + `sympy.lambdify()` in `ode.py` and `integrate.py` BEFORE adding AI. AI-generated equations + eval() = remote code execution via prompt injection.
-
-**Confidence:** HIGH -- direct extension of existing architecture using the same libraries.
-
-| Alternative | Why Not |
-|-------------|---------|
-| AutoLab-style function-calling orchestrator | Overkill for conversational help. Adds complexity, latency, and API cost. |
-| Local LLM (Ollama, llama.cpp) | Adds deployment complexity. GPT-4o-mini is cheap and already integrated. |
-| LangChain | Unnecessary abstraction. Direct OpenAI SDK is simpler and proven in AutoLab. |
-| Wolfram Alpha API | Paid, rate-limited. SymPy already does symbolic math locally. |
-| Anthropic Claude API | Would add a second AI provider. Consistency matters. |
-
----
-
-## Complete New Dependencies
-
-### Backend (add to `requirements.txt`)
+### File Upload Parsing Flow
 
 ```
-weasyprint>=62.0
-matplotlib>=3.8.0
+User uploads lab instruction file (PDF or Word)
+  -> POST /api/report/parse-instructions (multipart/form-data)
+  -> Backend detects file type:
+     - .pdf -> PyMuPDF extracts text
+     - .docx -> python-docx extracts text
+  -> Returns extracted text as JSON
+  -> Frontend displays extracted context, user can edit/supplement
+  -> Extracted text sent as context to AI for report generation
 ```
 
-(`jinja2` is already a Flask dependency. `dompurify` is frontend-only.)
+### Hebrew RTL + English Math Strategy
 
-### Frontend (add to `package.json`)
+Israeli academic lab reports use a specific bidirectional pattern:
+- Body text: Hebrew, right-to-left
+- Equations: English/math, left-to-right (inline and display)
+- Variable names in text: English, left-to-right
+- Figure captions: Hebrew
+- Section headers: Hebrew
 
-```bash
-npm install dompurify
-npm install -D @types/dompurify
+This is handled with CSS BiDi, NOT by manually switching directions:
+
+```css
+.report-body {
+    direction: rtl;
+    unicode-bidi: embed;
+    font-family: 'Noto Sans Hebrew', 'Inter', sans-serif;
+    text-align: right;
+}
+
+.katex {
+    direction: ltr;
+    unicode-bidi: isolate;
+}
+
+.report-body code, .report-body .equation-ref {
+    direction: ltr;
+    unicode-bidi: isolate;
+}
 ```
 
-DOMPurify is for XSS prevention on AI-generated HTML (security fix), also useful for sanitizing report HTML. No other new frontend packages needed -- dark theme is CSS-only, report export calls backend endpoints.
+WeasyPrint's Pango text engine uses FriBidi for bidirectional text layout, which implements the Unicode BiDi Algorithm. This means inline English within Hebrew text automatically gets correct directional treatment -- no manual span wrapping needed for most cases.
 
-### Infrastructure (update `nixpacks.toml`)
-
-```toml
-[phases.setup]
-nixPkgs = ["python3", "nodejs_23", "pango", "cairo", "gdk-pixbuf", "gobject-introspection"]
-```
-
-### New Backend Files
-
-```
-backend/api/report.py              # Report generation blueprint
-backend/templates/report.html      # Jinja2 HTML template for PDF
-backend/templates/report.tex       # Jinja2 LaTeX template
-backend/templates/report.css       # Print stylesheet (embedded)
-backend/templates/fonts/           # Bundled KaTeX + JetBrains Mono fonts
-backend/utils/plot_export.py       # matplotlib figure generation
-backend/utils/ai_tools.py          # Shared OpenAI helpers (extracted from autolab)
-```
-
-### New Frontend Files
-
-```
-frontend/src/context/ThemeContext.tsx         # Theme provider + toggle
-frontend/src/utils/plotTheme.ts              # Plotly layout config per theme
-frontend/src/components/shared/AIChatPanel.tsx  # Reusable AI chat component
-```
+**Confidence on Hebrew RTL in WeasyPrint:** MEDIUM. Pango/FriBidi support is well-documented, but the specific combination of KaTeX HTML output + RTL body text + WeasyPrint needs prototype validation. Flag this for early spike testing.
 
 ---
 
 ## Installation
 
+### Backend (add to `requirements.txt`)
+
+```
+weasyprint>=62.0
+pymupdf>=1.24.0
+python-docx>=1.1.0
+matplotlib>=3.8.0
+```
+
+### Frontend (npm install)
+
 ```bash
-# Backend additions
-pip install weasyprint>=62.0 matplotlib>=3.8.0
+cd frontend
+npm install @tiptap/react @tiptap/pm @tiptap/starter-kit @tiptap/extension-text-align @tiptap/extension-placeholder dompurify --legacy-peer-deps
+npm install -D @types/dompurify --legacy-peer-deps
+```
 
-# Frontend additions
-cd frontend && npm install dompurify && npm install -D @types/dompurify
+### Infrastructure (update `nixpacks.toml`)
 
-# Verify WeasyPrint system deps (must have pango/cairo installed)
-python -c "import weasyprint; weasyprint.HTML(string='<h1>test</h1>').write_pdf('/tmp/test.pdf')"
+```toml
+[phases.setup]
+nixPkgs = ["python3", "nodejs_23", "pango", "cairo", "gdk-pixbuf", "gobject-introspection", "harfbuzz"]
+```
 
-# Verify matplotlib
-python -c "from matplotlib.figure import Figure; print('matplotlib OK')"
+WeasyPrint requires system-level C libraries for text rendering. These are the nix package names; the exact names may differ on Railway's nixpacks -- test early.
+
+### Font Files to Bundle
+
+```
+backend/templates/fonts/
+  NotoSansHebrew-Regular.ttf
+  NotoSansHebrew-Bold.ttf
+  Inter-Regular.woff2          (already used in frontend)
+  Inter-Bold.woff2
+  KaTeX_Main-Regular.woff2     (copy from node_modules/katex/dist/fonts/)
+  KaTeX_Math-Italic.woff2
+  KaTeX_Size1-Regular.woff2
+  ... (all KaTeX .woff2 fonts)
+```
+
+---
+
+## Alternatives Considered
+
+### PDF Generation
+
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| **WeasyPrint** (server-side) | `jsPDF` (current, client-side) | jsPDF has no Hebrew RTL support, no CSS BiDi, cannot render KaTeX HTML. Current exportPdf.ts produces English-only, no-math-rendering PDFs. Fundamentally wrong tool for this job. |
+| **WeasyPrint** | `reportlab` | Imperative coordinate-based API. Drawing Hebrew RTL text character-by-character is a nightmare. No CSS support. Tedious for complex academic layouts. |
+| **WeasyPrint** | `@react-pdf/renderer` (client-side) | Cannot render KaTeX math. No BiDi support. Would need to rebuild all result components in react-pdf primitives. |
+| **WeasyPrint** | Puppeteer/Playwright (headless Chrome) | Chromium binary is ~400MB. Cannot deploy on Railway without Docker. Overkill when WeasyPrint handles the subset of CSS we need. |
+| **WeasyPrint** | `pdflatex` / `xelatex` subprocess | Requires full TeX Live installation (4GB+). Cannot deploy on Railway via nixpacks without major configuration. |
+| **WeasyPrint** | `fpdf2` | No CSS support. Manual positioning. No BiDi. Same problems as reportlab. |
+| **WeasyPrint** | `wkhtmltopdf` | Abandoned/unmaintained. Uses old WebKit. Poor CSS3 support. |
+| **WeasyPrint** | `prince` (PrinceXML) | Commercial license ($3,800). Excellent quality but not justified for this project. |
+
+### PDF Text Extraction
+
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| **PyMuPDF** | `pdfplumber` | Slower. PyMuPDF extracts text faster and handles more PDF variants. |
+| **PyMuPDF** | `PyPDF2` / `pypdf` | Lower quality text extraction, especially for complex layouts and Hebrew. |
+| **PyMuPDF** | `pdfminer.six` | Slower, more complex API. Good for layout analysis but overkill for text extraction. |
+| **PyMuPDF** | OCR (`pytesseract`) | Only needed for scanned PDFs. Most lab instructions are digital PDFs. Add OCR later if needed. |
+
+### Rich Text Editor (Frontend)
+
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| **TipTap** | `slate` | Lower-level, more boilerplate. TipTap provides better DX with extension system. |
+| **TipTap** | `Draft.js` | Facebook deprecated it. No active maintenance. |
+| **TipTap** | `Quill` | Opinionated styling conflicts with custom CSS. Not headless. Limited extensibility. |
+| **TipTap** | `CKEditor 5` | Heavy, GPL-licensed (commercial use requires paid license). |
+| **TipTap** | Plain `<textarea>` | Cannot render rich text (bold, headings, lists). Users need to see formatted preview. |
+| **TipTap** | `react-markdown` + textarea | View-only rendering. No inline editing experience. |
+| **TipTap** | `MDXEditor` | Markdown-focused. We need HTML output for WeasyPrint, not markdown. |
+
+---
+
+## What NOT to Use
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `jsPDF` for report generation | No Hebrew RTL, no KaTeX rendering, no CSS BiDi. Keep it only if needed for simple non-Hebrew exports. | WeasyPrint (server-side) |
+| `html2canvas` | Rasterizes DOM to canvas -- blurry math, huge file sizes, breaks RTL | WeasyPrint renders CSS directly |
+| Full TeX Live installation | 4GB+, cannot deploy on Railway | Generate KaTeX HTML for PDF; offer .tex download for users to compile locally |
+| Any client-side PDF library for Hebrew | No JS PDF library handles BiDi correctly | Server-side WeasyPrint with Pango/FriBidi |
+| `mammoth.js` for Word parsing | Client-side, but we need server-side processing alongside AI | `python-docx` on backend |
+| `pdfjs-dist` for PDF text extraction | Designed for rendering PDFs in browser, not text extraction. Can extract text but slower and less reliable than PyMuPDF for server-side use. | PyMuPDF on backend |
+| LangChain / LlamaIndex for AI report generation | Unnecessary abstraction layer. Direct OpenAI SDK is simpler, already proven in AutoLab, and gives more control over prompts. | Direct `openai` SDK (already installed) |
+| Zustand / Redux for report state | Report editing state is local to the report builder page. React Context or component-level useState is sufficient. | Component-local state + props |
+
+---
+
+## Stack Patterns by Variant
+
+**If Hebrew RTL is not needed (English-only reports):**
+- WeasyPrint is still the right choice (best CSS-to-PDF engine)
+- Skip Noto Sans Hebrew font bundling
+- Skip BiDi CSS rules
+- Everything else stays the same
+
+**If deployment environment cannot support WeasyPrint system deps:**
+- Fallback: Generate HTML report, let user print to PDF via browser (`window.print()` with `@media print` stylesheet)
+- Quality is lower but avoids system dependency issues
+- Hebrew RTL still works in browser print (browsers handle BiDi natively)
+- This is the escape hatch, not the primary path
+
+**If uploaded instruction files are scanned images (not digital PDFs):**
+- Add `pytesseract` + Tesseract OCR with Hebrew language pack
+- Defer this until user feedback confirms it is needed -- most university lab instructions are digital PDFs
+
+---
+
+## Version Compatibility
+
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| WeasyPrint >=62.0 | Python 3.9+ | Requires Pango >= 1.44, Cairo >= 1.15. These come from nixpkgs. |
+| PyMuPDF >=1.24.0 | Python 3.8+ | Ships its own MuPDF binary. No system deps. |
+| python-docx >=1.1.0 | Python 3.7+ | Pure Python. No system deps. |
+| matplotlib >=3.8.0 | Python 3.9+, NumPy >=1.24 | NumPy already in requirements.txt at >=1.24.0. |
+| @tiptap/react >=2.6.0 | React >=17 | Compatible with React 19. Uses ref forwarding. |
+| @tiptap/pm (ProseMirror) | Peer dep of @tiptap/react | Must be installed alongside. |
+| DOMPurify >=3.0.0 | Any browser / Node 16+ | Isomorphic. Can also be used server-side if needed. |
+
+---
+
+## New Files Created by This Stack
+
+### Backend
+
+```
+backend/api/report.py                  # Report generation blueprint
+backend/api/parse_instructions.py      # File upload parsing (PDF/Word)
+backend/templates/report_base.html     # Jinja2 base template for PDF
+backend/templates/report_rtl.css       # RTL + academic print stylesheet
+backend/templates/fonts/               # Bundled fonts (Noto Sans Hebrew, KaTeX, Inter)
+backend/utils/plot_export.py           # matplotlib figure generation for reports
+backend/utils/text_extract.py          # PyMuPDF + python-docx text extraction
+```
+
+### Frontend
+
+```
+frontend/src/components/ReportBuilder.tsx       # Main report generation page
+frontend/src/components/ReportPreview.tsx        # In-app preview with TipTap editors
+frontend/src/components/SectionEditor.tsx        # TipTap-based section editor component
+frontend/src/components/InstructionUpload.tsx    # File upload for lab instructions
+frontend/src/services/reportApi.ts               # API calls for report endpoints
 ```
 
 ---
@@ -243,23 +273,31 @@ python -c "from matplotlib.figure import Figure; print('matplotlib OK')"
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Dark theme (CSS tokens, no library) | HIGH | Standard pattern; codebase already uses CSS variables. Main work is inline style migration. |
-| WeasyPrint for PDF | MEDIUM | Library is proven but: version unverified, nixpacks config needs testing, KaTeX rendering needs prototype. |
-| Jinja2 for LaTeX templates | HIGH | Already a Flask dependency. Custom delimiters for LaTeX are well-documented. |
-| matplotlib for report figures | HIGH | De facto standard. Use OO API (not pyplot) for thread safety in Flask. |
-| AI-assisted solvers (ChatAgent reuse) | HIGH | Endpoint already supports arbitrary context. Only system prompt changes needed. |
-| eval() -> sympify migration | HIGH | Well-documented SymPy pattern. Security-critical prerequisite. |
-| DOMPurify for XSS | HIGH | Standard solution. Small package. |
+| WeasyPrint for PDF generation | MEDIUM | Library is proven, but: (a) exact version needs verification, (b) nixpacks system dep names need testing on Railway, (c) KaTeX CSS + Hebrew RTL combo needs prototype spike |
+| Hebrew RTL in WeasyPrint | MEDIUM | Pango/FriBidi BiDi support is well-documented. Specific rendering quality with mixed Hebrew/math needs hands-on testing. |
+| PyMuPDF for PDF text extraction | HIGH | Well-established, fast, no system deps. Hebrew text extraction works (uses MuPDF's text extraction which is encoding-aware). |
+| python-docx for Word parsing | HIGH | Mature, stable, widely used. Reads Hebrew text from .docx without issues (Unicode-native). |
+| TipTap for in-app editing | MEDIUM | Training data covers through v2.4. RTL content editing in TipTap works via ProseMirror's `dir` attribute support, but needs testing with Hebrew input. |
+| matplotlib for report plots | HIGH | De facto standard. Use OO API for Flask thread safety. |
+| DOMPurify for HTML sanitization | HIGH | Industry standard. Small, fast, well-maintained. |
+| Direct OpenAI SDK for AI content | HIGH | Already proven in AutoLab. Same patterns, different prompts. |
+| nixpacks WeasyPrint deployment | LOW | Highest risk area. System library names may not match. Test `python -c "import weasyprint"` in Railway environment ASAP. |
 
 ## Sources
 
-All recommendations based on training data (cutoff May 2025) and codebase analysis. WebSearch and WebFetch were unavailable during research.
+All recommendations based on training data (cutoff May 2025) and codebase analysis. WebSearch and WebFetch were unavailable during research. All versions marked * should be verified with `pip index versions <pkg>` or `npm view <pkg> version` before adding to dependency files.
 
-- WeasyPrint: https://weasyprint.org/
-- Jinja2 LaTeX templating: https://jinja.palletsprojects.com/
-- matplotlib OO API: https://matplotlib.org/stable/api/figure_api.html
-- Plotly.js templates: https://plotly.com/javascript/templates/
-- OpenAI function calling: https://platform.openai.com/docs/guides/function-calling
-- KaTeX: https://katex.org/ (already in use)
+- WeasyPrint: https://weasyprint.org/ -- CSS3 PDF engine with Pango text rendering
+- WeasyPrint RTL: Pango uses FriBidi for Unicode BiDi Algorithm implementation
+- PyMuPDF: https://pymupdf.readthedocs.io/ -- PDF text extraction
+- python-docx: https://python-docx.readthedocs.io/ -- Word document reading
+- TipTap: https://tiptap.dev/ -- Headless rich text editor for React
+- KaTeX: https://katex.org/ -- already in use for math rendering
 - DOMPurify: https://github.com/cure53/DOMPurify
-- SymPy sympify: https://docs.sympy.org/latest/modules/core.html#sympy.core.sympify.sympify
+- Noto Sans Hebrew: https://fonts.google.com/noto/specimen/Noto+Sans+Hebrew
+- matplotlib OO API: https://matplotlib.org/stable/api/figure_api.html
+- Existing codebase: `frontend/src/utils/exportPdf.ts`, `frontend/package.json`, `requirements.txt`, `nixpacks.toml`
+
+---
+*Stack research for: AI-powered academic lab report generation with Hebrew RTL*
+*Researched: 2026-03-23*
