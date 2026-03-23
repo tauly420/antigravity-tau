@@ -86,7 +86,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md -- Dependencies, fonts, rendering pipeline (pdf_renderer.py + CSS/HTML templates), Flask blueprint, test scaffold
+- [x] 08-01-PLAN.md -- Dependencies, fonts, rendering pipeline (pdf_renderer.py + CSS/HTML templates), Flask blueprint, test scaffold
 - [ ] 08-02-PLAN.md -- Full 12-expression equation test suite with bidi edge cases, visual verification checkpoint
 
 ### Phase 9: Report Data Contract and File Parsing

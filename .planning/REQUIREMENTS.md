@@ -20,8 +20,8 @@ Requirements for AI-powered academic lab report export. Each maps to roadmap pha
 
 ### PDF Infrastructure
 
-- [ ] **PDF-01**: User can download a publication-quality A4 PDF lab report with Hebrew RTL body text and English LTR math equations
-- [ ] **PDF-02**: PDF renders LaTeX equations (inline and display) correctly within Hebrew paragraphs
+- [x] **PDF-01**: User can download a publication-quality A4 PDF lab report with Hebrew RTL body text and English LTR math equations
+- [x] **PDF-02**: PDF renders LaTeX equations (inline and display) correctly within Hebrew paragraphs
 
 ### Context Collection
 
@@ -110,8 +110,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-01 | v1.0 Phase 1: Security Hardening | Complete |
 | SEC-02 | v1.0 Phase 1: Security Hardening | Complete |
 | THEME-01 | v1.0 Phase 2: Theme Token System | Complete |
-| PDF-01 | Phase 8: PDF Infrastructure Spike | Pending |
-| PDF-02 | Phase 8: PDF Infrastructure Spike | Pending |
+| PDF-01 | Phase 8: PDF Infrastructure Spike | Complete |
+| PDF-02 | Phase 8: PDF Infrastructure Spike | Complete |
 | CTX-01 | Phase 9: Report Data Contract and File Parsing | Pending |
 | CTX-02 | Phase 10: AI Content Generation Pipeline | Pending |
 | CTX-03 | Phase 10: AI Content Generation Pipeline | Pending |
