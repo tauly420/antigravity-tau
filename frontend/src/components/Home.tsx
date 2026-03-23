@@ -8,7 +8,7 @@ const tools = [
         path: '/workflow',
         icon: '/Workflow.png',
         emoji: '🔬',
-        color: '#d32f2f',
+        color: '#1565c0',
     },
     {
         title: 'Graph Fitting',
@@ -56,7 +56,7 @@ const tools = [
         path: '/integrator',
         icon: '',
         emoji: '∫',
-        color: '#c62828',
+        color: '#1976d2',
     },
     {
         title: 'Unit Converter',
@@ -72,7 +72,7 @@ const tools = [
         path: '/fourier',
         icon: '',
         emoji: '〰️',
-        color: '#e65100',
+        color: '#ef6c00',
     },
     {
         title: 'Statistics Calculator',
@@ -111,14 +111,7 @@ function Home() {
                         style={{ textDecoration: 'none', color: 'inherit' }}
                     >
                         <div className="tool-card" style={{
-                            background: '#fff',
-                            borderRadius: '12px',
-                            padding: '1.5rem',
-                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-                            transition: 'transform 0.2s, box-shadow 0.2s',
-                            cursor: 'pointer',
                             borderLeft: `4px solid ${tool.color}`,
-                            height: '100%',
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
                                 {tool.icon ? (
@@ -142,9 +135,9 @@ function Home() {
                                     borderRadius: '8px',
                                     flexShrink: 0,
                                 }}>{tool.emoji}</span>
-                                <h3 style={{ margin: 0, color: tool.color }}>{tool.title}</h3>
+                                <h3 style={{ margin: 0, color: 'var(--text)' }}>{tool.title}</h3>
                             </div>
-                            <p style={{ color: '#666', fontSize: '0.9rem', margin: 0, lineHeight: 1.5 }}>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0, lineHeight: 1.5 }}>
                                 {tool.desc}
                             </p>
                         </div>

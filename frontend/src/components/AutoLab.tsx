@@ -5,6 +5,7 @@ import { useAnalysis } from '../context/AnalysisContext';
 import * as api from '../services/api';
 import { roundWithUncertainty, smartFormat, formatPValue } from '../utils/format';
 import { renderLatex } from '../utils/latex';
+import { exportAutolabPdf } from '../utils/exportPdf';
 
 /* ===================================================================
    AutoLab -- AI-Powered Automated Analysis
@@ -216,8 +217,11 @@ function AutoLab() {
 
     const [tableCopied, setTableCopied] = useState(false);
     const [reportCopied, setReportCopied] = useState(false);
+    const [pdfExporting, setPdfExporting] = useState(false);
 
     const fileRef = useRef<HTMLInputElement>(null);
+    const fitPlotRef = useRef<HTMLDivElement>(null);
+    const residualsPlotRef = useRef<HTMLDivElement>(null);
     const { setCurrentTool, setAutolabResults } = useAnalysis();
 
     useEffect(() => { setCurrentTool('AutoLab'); }, []);
@@ -925,6 +929,7 @@ function AutoLab() {
                     {fitData && fitData.x_data && (
                         <div style={{ marginBottom: '1.5rem' }}>
                             <h4 style={{ color: '#333', margin: '0 0 0.5rem', fontSize: '1rem' }}>📈 Fit Plot</h4>
+                            <div ref={fitPlotRef}>
                             <Plot
                                 data={[
                                     {
@@ -945,7 +950,7 @@ function AutoLab() {
                                         x: fitData.x_fit, y: fitData.y_fit,
                                         type: 'scatter' as const, mode: 'lines' as const,
                                         name: `Fit (${fitData.model_name})`,
-                                        line: { width: 2.5, color: '#d32f2f' },
+                                        line: { width: 2.5, color: '#1565c0' },
                                     },
                                 ]}
                                 layout={{
@@ -958,9 +963,11 @@ function AutoLab() {
                                 }}
                                 useResizeHandler style={{ width: '100%' }} config={plotConfig}
                             />
+                            </div>
 
                             {/* Residuals plot */}
                             {fitData.residuals && (
+                                <div ref={residualsPlotRef}>
                                 <Plot
                                     data={[{
                                         x: fitData.x_data, y: fitData.residuals,
@@ -990,6 +997,7 @@ function AutoLab() {
                                     }}
                                     useResizeHandler style={{ width: '100%' }} config={plotConfig}
                                 />
+                                </div>
                             )}
                             <p style={{ color: '#888', fontSize: '0.85rem', margin: '0.5rem 0 0' }}>
                                 Use the camera icon on each plot to download as PNG.
@@ -1000,7 +1008,7 @@ function AutoLab() {
                     {/* === LAB REPORT EXPORT === */}
                     {fitStep && (
                         <div style={{
-                            marginBottom: '1.5rem', display: 'flex', justifyContent: 'center',
+                            marginBottom: '1.5rem', display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap',
                         }}>
                             <button
                                 onClick={handleExportReport}
@@ -1014,6 +1022,41 @@ function AutoLab() {
                                 }}
                             >
                                 {reportCopied ? '✅ Report Copied to Clipboard!' : '📋 Copy Results as Lab Report'}
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    setPdfExporting(true);
+                                    try {
+                                        const modelKey = (fitStep.args?.model || '').toLowerCase();
+                                        const formula = MODEL_FORMULAS[modelKey] || fitStep.args?.custom_expr || null;
+                                        await exportAutolabPdf({
+                                            summary: summaryStep?.message,
+                                            fitResult: fitStep.result as any,
+                                            fitModel: fitStep.result?.model_name || fitStep.args?.model,
+                                            fitFormula: formula,
+                                            formulaResult: formulaStep?.result as any,
+                                            nsigmaResult: nsigmaStep?.result as any,
+                                            xLabel,
+                                            yLabel,
+                                            fitPlotEl: fitPlotRef.current?.querySelector('.js-plotly-plot') as HTMLElement || null,
+                                            residualsPlotEl: residualsPlotRef.current?.querySelector('.js-plotly-plot') as HTMLElement || null,
+                                        });
+                                    } finally {
+                                        setPdfExporting(false);
+                                    }
+                                }}
+                                disabled={pdfExporting}
+                                style={{
+                                    padding: '0.6rem 1.5rem', fontSize: '0.95rem',
+                                    border: '2px solid #1565c0', borderRadius: '8px',
+                                    background: pdfExporting ? '#f5f5f5' : '#fff',
+                                    color: '#1565c0',
+                                    cursor: pdfExporting ? 'wait' : 'pointer',
+                                    fontWeight: 600, transition: 'all 0.2s',
+                                    fontFamily: "'Inter', sans-serif",
+                                }}
+                            >
+                                {pdfExporting ? '⏳ Generating PDF...' : '📄 Download PDF Report'}
                             </button>
                         </div>
                     )}

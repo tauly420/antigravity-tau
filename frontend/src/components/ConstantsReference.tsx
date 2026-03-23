@@ -343,7 +343,7 @@ function ConstantsReference() {
                             <div key={cat.category} style={{ marginBottom: 28 }}>
                                 <h3
                                     style={{
-                                        color: '#c62828',
+                                        color: 'var(--primary)',
                                         borderBottom: '2px solid #e0e0e0',
                                         paddingBottom: 6,
                                         marginBottom: 12,
@@ -371,7 +371,7 @@ function ConstantsReference() {
                                                 <span
                                                     style={{
                                                         fontSize: 18,
-                                                        color: '#1565c0',
+                                                        color: '#000',
                                                         fontWeight: 700,
                                                     }}
                                                     dangerouslySetInnerHTML={{ __html: renderKatex(f.equation) }}

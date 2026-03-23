@@ -303,29 +303,18 @@ function StatisticsCalculator() {
             </div>
 
             {/* Input mode toggle */}
-            <div style={{ display: 'flex', gap: '0', marginTop: '1rem', borderRadius: '8px', overflow: 'hidden', border: '2px solid #1565c0' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
                 <button
                     onClick={() => { setInputMode('manual'); setError(''); }}
-                    style={{
-                        flex: 1, padding: '0.6rem',
-                        backgroundColor: inputMode === 'manual' ? '#1565c0' : '#fff',
-                        color: inputMode === 'manual' ? '#fff' : '#1565c0',
-                        border: 'none', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer',
-                        transition: 'all 0.2s',
-                    }}
+                    className={inputMode === 'manual' ? '' : 'btn-secondary'}
+                    style={{ flex: 1 }}
                 >
                     {'\u270D\uFE0F'} Manual Input
                 </button>
                 <button
                     onClick={() => { setInputMode('file'); setError(''); }}
-                    style={{
-                        flex: 1, padding: '0.6rem',
-                        backgroundColor: inputMode === 'file' ? '#1565c0' : '#fff',
-                        color: inputMode === 'file' ? '#fff' : '#1565c0',
-                        border: 'none', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer',
-                        borderLeft: '2px solid #1565c0',
-                        transition: 'all 0.2s',
-                    }}
+                    className={inputMode === 'file' ? '' : 'btn-secondary'}
+                    style={{ flex: 1 }}
                 >
                     {'\uD83D\uDCC1'} Upload File
                 </button>
@@ -488,7 +477,7 @@ function StatisticsCalculator() {
                     style={{
                         flex: 1,
                         padding: '0.75rem',
-                        backgroundColor: (inputMode === 'file' && !selectedColumn) ? '#ccc' : '#c62828',
+                        backgroundColor: (inputMode === 'file' && !selectedColumn) ? '#ccc' : 'var(--primary)',
                         color: '#fff',
                         border: 'none',
                         borderRadius: '6px',
