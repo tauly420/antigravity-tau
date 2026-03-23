@@ -34,7 +34,8 @@ def create_app():
     from api.assistant import assistant_bp
     from api.fourier import fourier_bp
     from api.autolab import autolab_bp
-    
+    from api.report import report_bp
+
     app.register_blueprint(formula_bp, url_prefix='/api/formula')
     app.register_blueprint(nsigma_bp, url_prefix='/api/nsigma')
     app.register_blueprint(fitting_bp, url_prefix='/api/fitting')
@@ -45,7 +46,8 @@ def create_app():
     app.register_blueprint(assistant_bp, url_prefix='/api/assistant')
     app.register_blueprint(fourier_bp, url_prefix='/api/fourier')
     app.register_blueprint(autolab_bp, url_prefix='/api/autolab')
-    
+    app.register_blueprint(report_bp, url_prefix='/api/report')
+
     # Health check endpoint
     @app.route('/api/health')
     def health():
