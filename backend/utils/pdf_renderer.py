@@ -12,6 +12,49 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Full 12-expression equation test suite covering intro-physics-level LaTeX.
+# Matches D-04 (intro physics level) and D-05 (text-in-math attention).
+EQUATION_TEST_SUITE = [
+    # 1. Spring constant with units (text-in-math, per D-05)
+    r"k = 49.8 \pm 0.5 \text{ N/m}",
+    # 2. Period formula (fraction)
+    r"T = \frac{2\pi}{\omega}",
+    # 3. Gravitational acceleration with units
+    r"g = 9.81 \pm 0.01 \text{ m/s}^2",
+    # 4. Chi-squared per degree of freedom
+    r"\frac{\chi^2}{\text{dof}} = 1.23",
+    # 5. R-squared
+    r"R^2 = 0.9987",
+    # 6. Greek letters with sum and subscripts
+    r"\sigma_{\alpha} = \sqrt{\frac{\sum_{i=1}^{N}(x_i - \bar{x})^2}{N-1}}",
+    # 7. Simple fraction
+    r"\frac{F}{m} = a",
+    # 8. Integral
+    r"\int_0^L F(x) \, dx = W",
+    # 9. Superscripts (E=mc^2)
+    r"E = mc^2",
+    # 10. Damped oscillation (complex)
+    r"x(t) = A e^{-\gamma t} \cos(\omega t + \phi)",
+    # 11. Plus-minus with units
+    r"v = 3.42 \pm 0.08 \text{ m/s}",
+    # 12. Sinc function (optics)
+    r"I(\theta) = I_0 \left(\frac{\sin \alpha}{\alpha}\right)^2",
+]
+
+# Bidirectional text test cases: Hebrew RTL with inline LTR math
+BIDI_TEST_CASES = [
+    # Math at START of Hebrew sentence
+    r"$k = 50 \text{ N/m}$ הוא קבוע הקפיץ שנמדד בניסוי.",
+    # Math at END of Hebrew sentence
+    r"קבוע הקפיץ שנמדד בניסוי הוא $k = 50 \text{ N/m}$",
+    # Math in MIDDLE of Hebrew sentence
+    r"ערך קבוע הקפיץ $k = 49.8 \pm 0.5 \text{ N/m}$ נמצא תואם לערך התיאורטי.",
+    # Multiple math in one sentence
+    r"הפרמטרים שנמדדו הם $A = 5.2 \pm 0.3$ ו-$\omega = 2.51 \pm 0.04 \text{ rad/s}$",
+    # Complex expression in Hebrew context
+    r"לפי חוק הוק, $F = -kx$, כאשר $k = 49.8 \pm 0.5 \text{ N/m}$",
+]
+
 # Resolve paths relative to the backend/ directory
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATES_DIR = os.path.join(BACKEND_DIR, 'templates')
@@ -132,27 +175,39 @@ def generate_pdf(html_body: str) -> bytes:
 
 
 def generate_test_pdf() -> bytes:
-    """Generate a test PDF with Hebrew text and math expressions.
+    """Generate a comprehensive test PDF with Hebrew text and math expressions.
 
-    Used by the /api/report/test-pdf endpoint to validate the
-    PDF infrastructure (fonts, KaTeX rendering, RTL layout).
+    Includes all 12 expressions from EQUATION_TEST_SUITE and 5 bidirectional
+    text edge cases. Used by the /api/report/test-pdf endpoint to validate
+    the PDF infrastructure (fonts, KaTeX rendering, RTL layout).
 
     Returns:
         PDF file contents as bytes.
     """
-    test_body = """
-    <h1>דוח מעבדה - בדיקת תשתית PDF</h1>
+    sections = []
 
-    <p>קבוע הקפיץ נמצא להיות $k = 49.8 \\pm 0.5 \\text{ N/m}$, בהתאם לחוק הוק.</p>
+    # Section C: Title heading
+    sections.append('<h1>דוח מעבדה - בדיקת תשתית PDF</h1>')
 
-    <p>נוסחת המחזור היא:</p>
-    $$T = \\frac{2\\pi}{\\omega}$$
+    # Section A: Equation Tests
+    sections.append('<h2>בדיקת משוואות</h2>')
+    for i, expr in enumerate(EQUATION_TEST_SUITE, 1):
+        sections.append(f'<p>משוואה {i}:</p>')
+        sections.append(f'$${expr}$$')
 
-    <p>ערכי הפרמטרים שנמצאו: $a = 4.91 \\pm 0.03 \\text{ m/s}^2$ ו-$b = 0.12 \\pm 0.01 \\text{ m}$, כאשר $R^2 = 0.9987$.</p>
+    # Section B: Bidirectional Text Tests
+    sections.append('<h2>בדיקת טקסט דו-כיווני</h2>')
+    bidi_labels = [
+        "משוואה בתחילת משפט:",
+        "משוואה בסוף משפט:",
+        "משוואה באמצע משפט:",
+        "מספר משוואות במשפט אחד:",
+        "ביטוי מורכב בהקשר עברי:",
+    ]
+    for label, text in zip(bidi_labels, BIDI_TEST_CASES):
+        sections.append(f'<p><strong>{label}</strong></p>')
+        sections.append(f'<p>{text}</p>')
 
-    <h2>תוצאות נוספות</h2>
-    <p>חוק ניוטון השני: $F = ma$ ותאוצת הכבידה $g = 9.81 \\pm 0.01 \\text{ m/s}^2$.</p>
-    """
-
+    test_body = '\n'.join(sections)
     processed_body = process_text_with_math(test_body)
     return generate_pdf(processed_body)

@@ -95,6 +95,39 @@ def test_process_text_with_math():
 
 
 @requires_weasyprint
+def test_all_12_expressions_in_pdf():
+    """PDF-02: Test PDF contains all 12 equation types from EQUATION_TEST_SUITE."""
+    from utils.pdf_renderer import generate_test_pdf, EQUATION_TEST_SUITE
+
+    # Verify the suite has exactly 12 entries
+    assert len(EQUATION_TEST_SUITE) == 12, \
+        f"Expected 12 expressions, got {len(EQUATION_TEST_SUITE)}"
+
+    # Generate the comprehensive test PDF
+    pdf = generate_test_pdf()
+    assert isinstance(pdf, bytes), "Expected bytes output"
+    assert pdf[:4] == b'%PDF', f"Not a PDF: starts with {pdf[:10]}"
+    assert len(pdf) > 5000, \
+        f"Comprehensive PDF too small: {len(pdf)} bytes (expected > 5000)"
+
+
+@requires_weasyprint
+def test_bidi_text_processing():
+    """PDF-02: process_text_with_math handles all 5 bidi edge cases correctly."""
+    from utils.pdf_renderer import process_text_with_math, BIDI_TEST_CASES
+
+    assert len(BIDI_TEST_CASES) == 5, \
+        f"Expected 5 bidi test cases, got {len(BIDI_TEST_CASES)}"
+
+    for i, text in enumerate(BIDI_TEST_CASES):
+        result = process_text_with_math(text)
+        assert 'dir="ltr"' in result, \
+            f"Bidi case {i+1}: missing dir='ltr' wrapper for math"
+        assert 'class="math-inline"' in result, \
+            f"Bidi case {i+1}: missing math-inline class"
+
+
+@requires_weasyprint
 def test_test_pdf_endpoint(client):
     """PDF-01: GET /api/report/test-pdf returns valid PDF response."""
     response = client.get('/api/report/test-pdf')
