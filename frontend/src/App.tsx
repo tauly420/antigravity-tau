@@ -15,6 +15,7 @@ import FourierAnalysis from './components/FourierAnalysis';
 import AutoLab from './components/AutoLab';
 import StatisticsCalculator from './components/StatisticsCalculator';
 import ConstantsReference from './components/ConstantsReference';
+import ReportBeta from './components/ReportBeta';
 import { AnalysisProvider } from './context/AnalysisContext';
 import Sidebar from './components/Sidebar';
 
@@ -45,6 +46,7 @@ function App() {
                             <Link to="/fourier" className="nav-link">Fourier</Link>
                             <Link to="/statistics" className="nav-link">Statistics</Link>
                             <Link to="/constants" className="nav-link">Constants</Link>
+                            <Link to="/report" className="nav-link" style={{ background: 'linear-gradient(135deg, #1565c0, #7b1fa2)', color: 'white', borderRadius: '6px', padding: '0.35rem 0.8rem', fontWeight: 600, fontSize: '0.85rem' }}>Report <sup style={{ fontSize: '0.6rem', opacity: 0.9 }}>BETA</sup></Link>
                         </nav>
 
                         <main className="main-content">
@@ -62,6 +64,7 @@ function App() {
                                 <Route path="/fourier" element={<FourierAnalysis />} />
                                 <Route path="/statistics" element={<StatisticsCalculator />} />
                                 <Route path="/constants" element={<ConstantsReference />} />
+                                <Route path="/report" element={<ReportBeta />} />
                             </Routes>
                         </main>
 
