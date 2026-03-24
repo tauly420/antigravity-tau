@@ -98,11 +98,11 @@ Plans:
   2. User can upload a PDF lab instruction file and see the extracted text displayed in the UI for confirmation before it is sent to AI
   3. User can upload a DOCX lab instruction file and see the extracted text displayed in the UI for confirmation before it is sent to AI
   4. The Results section data is assembled from AutoLab analysis: fit parameters with uncertainties, chi-squared/R-squared/P-value, n-sigma comparison -- all formatted using existing `roundWithUncertainty()` conventions
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 09-01: TBD
-- [ ] 09-02: TBD
+- [ ] 09-01-PLAN.md -- ReportAnalysisData TypeScript interface + Python normalizer with tests (RPT-03)
+- [ ] 09-02-PLAN.md -- File parser utils, upload endpoint, upload UI on ReportBeta.tsx (CTX-01)
 
 ### Phase 10: AI Content Generation Pipeline
 **Goal**: AI generates all report sections (theory, method, discussion, conclusions) from experiment context and AutoLab results
@@ -164,8 +164,8 @@ Note: Phase 11 depends on both Phase 8 and Phase 10.
 | 1. Security Hardening | v1.0 | 2/2 | Complete | 2026-03-20 |
 | 2. Theme Token System | v1.0 | 2/2 | Complete | 2026-03-21 |
 | 3-7. Style Migration + Toggle | v1.0 | 0/TBD | Deferred | - |
-| 8. PDF Infrastructure Spike | v2.0 | 0/2 | Planning | - |
-| 9. Report Data Contract and File Parsing | v2.0 | 0/TBD | Not started | - |
+| 8. PDF Infrastructure Spike | v2.0 | 2/2 | Complete | - |
+| 9. Report Data Contract and File Parsing | v2.0 | 0/2 | Planning | - |
 | 10. AI Content Generation Pipeline | v2.0 | 0/TBD | Not started | - |
 | 11. Preview, Editing, and PDF Assembly | v2.0 | 0/TBD | Not started | - |
 | 12. Integration and Polish | v2.0 | 0/TBD | Not started | - |
