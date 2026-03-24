@@ -52,11 +52,13 @@ Exceptions: none
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 16px (1rem) | 400 | 1.6 |
-| Label | 14px (0.875rem) | 600 | 1.4 |
+| Label | 14px (0.875rem) | 400 | 1.4 |
 | Heading | 20px (1.25rem) | 600 | 1.3 |
-| Page Title | 28px (1.75rem) | 700 | 1.2 |
+| Page Title | 28px (1.75rem) | 600 | 1.2 |
 
-**Source:** Matches existing patterns in ReportBeta.tsx (`fontSize: '1.1rem'` for subheadings, `fontSize: '0.9rem'` for buttons, `fontWeight: 600` for emphasis). Normalized to 4 tiers.
+Declared weights: 400 (regular), 600 (semibold). Two weights only.
+
+**Source:** Matches existing patterns in ReportBeta.tsx (`fontSize: '1.1rem'` for subheadings, `fontWeight: 600` for emphasis). Normalized to 4 size tiers and 2 weights. All inline sizes in component specs below reference one of these 4 tiers -- no ad-hoc sizes permitted.
 
 ---
 
@@ -88,8 +90,8 @@ This phase adds two visual components to ReportBeta.tsx. All other work is data-
 **Visual spec:**
 - Container: `border: 2px dashed var(--primary)`, `border-radius: 10px`, `padding: 1.5rem`, `text-align: center`, `cursor: pointer`, `background: var(--info-bg)`
 - Matches AutoLab.tsx dropzone exactly (line 558-562 pattern)
-- Label above: "Lab Instructions (Optional)" at Label size (14px, weight 600)
-- Sub-label: "Upload your lab instruction file for AI context" at Body size, `color: var(--text-secondary)`
+- Label above: "Lab Instructions (Optional)" at Label tier (14px/0.875rem, weight 400)
+- Sub-label: "Upload your lab instruction file for AI context" at Body tier (16px/1rem), `color: var(--text-secondary)`
 
 **States:**
 
@@ -99,7 +101,7 @@ This phase adds two visual components to ReportBeta.tsx. All other work is data-
 | Drag hover | Border becomes solid (not dashed), background lightens slightly -- `var(--primary-hover-bg)` overlay |
 | File selected | Background changes to `var(--success-bg)` = `#e8f5e9`, text shows filename + size in `color: var(--success)`, weight 600 |
 | Uploading | Show inline "Extracting text..." with a simple CSS spinner (no library), background stays `var(--info-bg)` |
-| Error | Red text below dropzone: error message in `color: var(--danger)`, `fontSize: 0.85rem` (matches AutoLab error pattern) |
+| Error | Red text below dropzone: error message in `color: var(--danger)`, Label tier (14px/0.875rem) |
 
 **Interactions:**
 - Click anywhere in dropzone opens native file picker (`accept=".pdf,.docx"`)
@@ -112,11 +114,11 @@ This phase adds two visual components to ReportBeta.tsx. All other work is data-
 **Location:** Appears below the dropzone after successful text extraction.
 
 **Visual spec:**
-- Section heading: "Extracted Text" at Heading size (20px, weight 600)
+- Section heading: "Extracted Text" at Heading tier (20px/1.25rem, weight 600)
 - Textarea: `width: 100%`, `min-height: 200px`, `max-height: 400px`, `resize: vertical`
-- Textarea styling: `border: 1.5px solid var(--border)`, `border-radius: var(--radius-sm)` (8px), `padding: 1rem`, `background: var(--surface)`, `color: var(--text)`, `font-family: inherit`, `font-size: 0.9rem`, `line-height: 1.6`
+- Textarea styling: `border: 1.5px solid var(--border)`, `border-radius: var(--radius-sm)` (8px), `padding: 1rem`, `background: var(--surface)`, `color: var(--text)`, `font-family: inherit`, `font-size: 0.875rem` (Label tier, 14px), `line-height: 1.6`
 - Focus state: `border-color: var(--primary)`, `box-shadow: 0 0 0 3px var(--primary-focus-ring)` (matches existing input focus pattern)
-- Helper text below textarea: "Review and edit the extracted text. This will be sent to AI for report generation." in `color: var(--text-secondary)`, `fontSize: 0.85rem`
+- Helper text below textarea: "Review and edit the extracted text. This will be sent to AI for report generation." in `color: var(--text-secondary)`, Label tier (14px/0.875rem)
 
 **States:**
 
@@ -133,7 +135,7 @@ This phase adds two visual components to ReportBeta.tsx. All other work is data-
 
 **Visual spec:**
 - Uses existing `.alert.warning` pattern: `background: linear-gradient(135deg, var(--warning-bg) 0%, var(--warning-bg-end) 100%)`, `border-color: var(--warning-border)`, `border-radius: var(--radius)` (12px), `padding: 1rem`
-- Icon: warning emoji or text prefix
+- Icon: warning emoji prefix with `aria-hidden="true"` on the emoji `<span>` element so screen readers do not announce the emoji redundantly (the banner text is self-explanatory and the `role="alert"` on the container handles announcement)
 - Copy: see Copywriting Contract below
 
 ---
@@ -209,6 +211,7 @@ This phase adds two visual components to ReportBeta.tsx. All other work is data-
 - Dropzone responds to Enter/Space keypress (triggers file picker)
 - Textarea has associated `<label>` via `htmlFor`/`id`
 - Warning banner uses `role="alert"` for screen reader announcement
+- Warning banner emoji wrapped in `<span aria-hidden="true">` to prevent redundant screen reader announcement
 - Error messages use `aria-live="polite"` region
 - All interactive elements have visible focus indicators via existing `var(--primary-focus-ring)` pattern
 
