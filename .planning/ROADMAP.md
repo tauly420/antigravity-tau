@@ -101,8 +101,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md -- ReportAnalysisData TypeScript interface + Python normalizer with tests (RPT-03)
-- [ ] 09-02-PLAN.md -- File parser utils, upload endpoint, upload UI on ReportBeta.tsx (CTX-01)
+- [x] 09-01-PLAN.md -- ReportAnalysisData TypeScript interface + Python normalizer with tests (RPT-03)
+- [x] 09-02-PLAN.md -- File parser utils, upload endpoint, upload UI on ReportBeta.tsx (CTX-01)
 
 ### Phase 10: AI Content Generation Pipeline
 **Goal**: AI generates all report sections (theory, method, discussion, conclusions) from experiment context and AutoLab results
