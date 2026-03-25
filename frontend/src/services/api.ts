@@ -217,6 +217,20 @@ export const inverseFourier = async (data: {
     return response.data;
 };
 
+// Report API
+export const uploadInstructionFile = async (file: File): Promise<{
+    text: string;
+    warning: string | null;
+    error: string | null;
+}> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/report/upload-instructions', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+};
+
 // AutoLab Chat API
 export const autolabChat = async (data: {
     messages: { role: 'user' | 'assistant'; content: string }[];
