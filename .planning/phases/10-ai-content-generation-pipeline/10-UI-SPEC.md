@@ -33,8 +33,7 @@ Declared values (must be multiples of 4):
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline padding |
 | sm | 8px | Compact element spacing, gap between radio options, button row gaps, follow-up card button padding (vertical) |
-| sm+ | 12px | Form input vertical padding, CTA button vertical padding -- justified as the midpoint between sm (8px) and md (16px), required for comfortable touch targets on text inputs and buttons without excessive height |
-| md | 16px | Default element spacing, form field gaps, input horizontal padding |
+| md | 16px | Default element spacing, form field gaps, input padding (vertical and horizontal), CTA button vertical padding |
 | lg | 24px | Section padding inside cards, context form internal padding, button horizontal padding |
 | xl | 32px | Gap between major sections (upload zone to context form to generate button), CTA button horizontal padding |
 | 2xl | 48px | Page top/bottom padding |
@@ -112,7 +111,7 @@ A card containing four form fields, positioned below the instruction file upload
 | Label | 14px, weight 400, color var(--text), margin-bottom 4px |
 | Input border | 1.5px solid var(--border, #e0e0e0) |
 | Input border-radius | 8px |
-| Input padding | 12px 16px |
+| Input padding | 16px 16px |
 | Input background | var(--surface, #ffffff) |
 | Input font-size | 14px (0.875rem) |
 | Input focus border | var(--primary, #1565c0) |
@@ -141,7 +140,7 @@ Primary CTA for the page. This is the **focal point** of the entire page layout.
 | Color | white |
 | Font size | 16px (1rem) |
 | Font weight | 600 |
-| Padding | 12px 32px |
+| Padding | 16px 32px |
 | Border radius | 8px |
 | Box shadow | 0 2px 8px var(--primary-shadow) |
 | Hover shadow | 0 4px 12px var(--primary-shadow-hover) |
