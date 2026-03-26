@@ -30,7 +30,7 @@ AutoLab: upload a data file, describe what you want in plain language, and get a
 ### Active
 
 - [ ] AI-powered academic lab report generation from AutoLab results
-- [ ] Upload lab instruction files (PDF/Word, Hebrew or English) as context source
+- ✓ Upload lab instruction files (PDF/Word, Hebrew or English) as context source — Validated in Phase 9: Report Data Contract and File Parsing
 - [ ] Free-text context input with AI gap-filling for missing experiment info
 - [ ] AI-generated theoretical background, measurement planning, and physics discussion sections
 - [ ] Hebrew RTL body text with English math/equations in PDF output
@@ -81,6 +81,7 @@ AutoLab: upload a data file, describe what you want in plain language, and get a
 - **Existing PDF export**: Basic feature exists — needs complete revamp for academic-quality output
 - **Codebase concerns**: AutoLab.tsx is 1,141 lines (god component), AnalysisContext uses `any` throughout, Flask debug=True leaks to production
 - **Phase 1 complete**: eval() removed from ODE/Integration backends — replaced with sympify+lambdify, 40 tests passing
+- **Phase 9 complete**: ReportAnalysisData contract defined, Python normalizer built, PDF/DOCX file parser and upload endpoint added, upload UI on ReportBeta page
 - **Codebase map**: Available in `.planning/codebase/` (7 documents)
 
 ## Constraints
@@ -124,4 +125,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-23 — Milestone v2.0 started*
+*Last updated: 2026-03-26 — Phase 9 complete*
