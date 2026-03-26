@@ -32,10 +32,11 @@ Declared values (must be multiples of 4):
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline padding |
-| sm | 8px | Compact element spacing, gap between radio options |
-| md | 16px | Default element spacing, form field gaps, input padding |
-| lg | 24px | Section padding inside cards, context form internal padding |
-| xl | 32px | Gap between major sections (upload zone to context form to generate button) |
+| sm | 8px | Compact element spacing, gap between radio options, button row gaps, follow-up card button padding (vertical) |
+| sm+ | 12px | Form input vertical padding, CTA button vertical padding -- justified as the midpoint between sm (8px) and md (16px), required for comfortable touch targets on text inputs and buttons without excessive height |
+| md | 16px | Default element spacing, form field gaps, input horizontal padding |
+| lg | 24px | Section padding inside cards, context form internal padding, button horizontal padding |
+| xl | 32px | Gap between major sections (upload zone to context form to generate button), CTA button horizontal padding |
 | 2xl | 48px | Page top/bottom padding |
 
 Exceptions: none
@@ -50,6 +51,8 @@ Exceptions: none
 | Label | 14px (0.875rem) | 400 | 1.4 |
 | Heading | 20px (1.25rem) | 600 | 1.2 |
 | Section title | 16px (1rem) | 600 | 1.4 |
+
+All de-emphasized text (hints, subtexts, secondary labels) uses 14px/400 with `color: var(--text-muted)` for visual de-emphasis rather than a smaller font size.
 
 Source: Matches existing ReportBeta.tsx inline styles (0.875rem body, 1.25rem headings, font-weight 600).
 
@@ -68,6 +71,12 @@ Source: Matches existing ReportBeta.tsx inline styles (0.875rem body, 1.25rem he
 | Info | var(--info-bg) / #e3f2fd | Informational banner background (existing "Coming Soon" box) |
 
 Accent reserved for: Generate Report button background gradient, language toggle selected state, section headings in follow-up questions, loading spinner color.
+
+---
+
+## Focal Point
+
+The **Generate Report button** is the single visual anchor of this page. It is the only element using a gradient background (linear-gradient of var(--primary)), full-width layout, 600 weight text at 16px, and an elevated box-shadow. All other elements use flat backgrounds. The user's eye should travel: instruction upload -> context form -> Generate Report button.
 
 ---
 
@@ -124,7 +133,7 @@ A simple radio group between the context form and the generate button.
 
 #### 3. Generate Report Button
 
-Primary CTA for the page.
+Primary CTA for the page. This is the **focal point** of the entire page layout.
 
 | Property | Value |
 |----------|-------|
@@ -151,17 +160,17 @@ Displayed inline below the generate button after the analyze-context API call re
 | Heading | "Before we generate..." at 20px/600, color var(--primary) |
 | Subtext | "A few questions to improve your report:" at 14px/400, color var(--text-secondary) |
 | Question label | 14px/600, color var(--text) |
-| Question hint | 13px/400, color var(--text-muted), italic |
+| Question hint | 14px/400, color var(--text-muted), italic |
 | Answer input | Same styling as context form inputs |
 | Gap between questions | 16px |
-| Button row | Two buttons side by side, gap 12px |
+| Button row | Two buttons side by side, gap 8px |
 
 **Buttons within follow-up card:**
 
 | Button | Style |
 |--------|-------|
-| "Generate Report" (primary) | Same gradient as main Generate button, padding 10px 24px |
-| "Generate Anyway" (secondary) | background transparent, border 1.5px solid var(--border), color var(--text-secondary), padding 10px 24px, border-radius 8px |
+| "Generate Report" (primary) | Same gradient as main Generate button, padding 8px 24px |
+| "Generate Anyway" (secondary) | background transparent, border 1.5px solid var(--border), color var(--text-secondary), padding 8px 24px, border-radius 8px |
 
 #### 5. Loading State
 
@@ -172,7 +181,7 @@ Shown during AI generation (which may take 5-15 seconds).
 | Container | Replaces generate button area; centered text with spinner |
 | Spinner | CSS animation, 24px circle, border 3px solid var(--border), border-top-color var(--primary), spinning |
 | Text below spinner | "Generating your report..." at 14px/400, color var(--text-secondary) |
-| Subtext | "This may take 10-15 seconds" at 13px/400, color var(--text-muted) |
+| Subtext | "This may take 10-15 seconds" at 14px/400, color var(--text-muted) |
 
 #### 6. Generation Complete State
 
@@ -196,7 +205,7 @@ Shown after successful generation, before Phase 11 preview/edit is built.
 3. **Instruction file upload** -- Dropzone + extracted text textarea (existing from Phase 9)
 4. **Context form** -- Title, subject, equipment, notes fields (NEW)
 5. **Language toggle** -- Hebrew / English radio (NEW)
-6. **Generate Report button** -- Primary CTA (NEW)
+6. **Generate Report button** -- Primary CTA / focal point (NEW)
 7. **Follow-up questions** -- Inline card with 1-3 questions (NEW, appears after clicking Generate)
 8. **Loading state** -- Spinner during generation (NEW, replaces button area)
 9. **Generation complete** -- Success card showing what was generated (NEW, replaces loading)
