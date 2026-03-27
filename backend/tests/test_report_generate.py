@@ -3,8 +3,11 @@
 TDD RED phase: tests written before implementation.
 """
 
+import json
 import os
 import sys
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 # Ensure backend is on sys.path
@@ -198,3 +201,199 @@ class TestBuildFollowupSystemPrompt:
             analysis_data=SAMPLE_ANALYSIS_DATA,
         )
         assert "linear" in result.lower()
+
+
+# ---------------------------------------------------------------------------
+# Canned mock responses
+# ---------------------------------------------------------------------------
+
+MOCK_FOLLOWUP_RESPONSE = json.dumps({
+    "questions": [
+        {"id": "q1", "question": "What range of masses did you use?", "hint": "e.g., 50g to 500g"}
+    ],
+    "can_generate_without": True,
+})
+
+MOCK_GENERATE_RESPONSE = json.dumps({
+    "theory": "Hooke's Law states that $F = kx$ where $k$ is the spring constant.",
+    "method": "A spring was mounted vertically. Masses were added in increments.",
+    "discussion": "The measured spring constant was $k = 49.8 \\pm 0.5$ N/m with $\\chi^2_{red} = 1.2$.",
+    "conclusions": "The spring constant was determined to be $k = 49.8 \\pm 0.5$ N/m.",
+    "warnings": [],
+})
+
+
+def _make_openai_mock(content: str) -> MagicMock:
+    """Create a mock OpenAI client whose chat.completions.create returns content."""
+    mock_client = MagicMock()
+    mock_message = MagicMock()
+    mock_message.content = content
+    mock_choice = MagicMock()
+    mock_choice.message = mock_message
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+    mock_client.chat.completions.create.return_value = mock_response
+    return mock_client
+
+
+# ---------------------------------------------------------------------------
+# Tests for /api/report/analyze-context endpoint
+# ---------------------------------------------------------------------------
+
+
+class TestAnalyzeContextEndpoint:
+    """Tests for POST /api/report/analyze-context."""
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    @patch("api.report.OpenAI")
+    def test_analyze_context_returns_questions(self, mock_openai_cls, client):
+        mock_openai_cls.return_value = _make_openai_mock(MOCK_FOLLOWUP_RESPONSE)
+        resp = client.post(
+            "/api/report/analyze-context",
+            json={
+                "context_form": SAMPLE_CONTEXT_FORM,
+                "instruction_text": "Measure spring constant",
+                "analysis_data": SAMPLE_ANALYSIS_DATA,
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["error"] is None
+        assert isinstance(data["questions"], list)
+        assert len(data["questions"]) >= 1
+        assert "can_generate_without" in data
+
+    def test_analyze_context_missing_body(self, client):
+        resp = client.post(
+            "/api/report/analyze-context",
+            data="",
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+
+    @patch.dict(os.environ, {}, clear=False)
+    def test_analyze_context_missing_api_key(self, client):
+        # Remove OPENAI_API_KEY if present
+        os.environ.pop("OPENAI_API_KEY", None)
+        resp = client.post(
+            "/api/report/analyze-context",
+            json={
+                "context_form": SAMPLE_CONTEXT_FORM,
+                "instruction_text": "",
+                "analysis_data": SAMPLE_ANALYSIS_DATA,
+            },
+        )
+        assert resp.status_code == 500
+        data = resp.get_json()
+        assert "OPENAI_API_KEY" in data["error"]
+
+
+# ---------------------------------------------------------------------------
+# Tests for /api/report/generate endpoint
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateEndpoint:
+    """Tests for POST /api/report/generate."""
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    @patch("api.report.OpenAI")
+    def test_generate_returns_sections(self, mock_openai_cls, client):
+        mock_openai_cls.return_value = _make_openai_mock(MOCK_GENERATE_RESPONSE)
+        resp = client.post(
+            "/api/report/generate",
+            json={
+                "context_form": SAMPLE_CONTEXT_FORM,
+                "instruction_text": "Measure spring constant",
+                "analysis_data": SAMPLE_ANALYSIS_DATA,
+                "answers": [],
+                "language": "he",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["error"] is None
+        sections = data["sections"]
+        assert "theory" in sections
+        assert "method" in sections
+        assert "discussion" in sections
+        assert "conclusions" in sections
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    @patch("api.report.OpenAI")
+    def test_generate_theory_has_latex(self, mock_openai_cls, client):
+        mock_openai_cls.return_value = _make_openai_mock(MOCK_GENERATE_RESPONSE)
+        resp = client.post(
+            "/api/report/generate",
+            json={
+                "context_form": SAMPLE_CONTEXT_FORM,
+                "instruction_text": "",
+                "analysis_data": SAMPLE_ANALYSIS_DATA,
+                "answers": [],
+                "language": "he",
+            },
+        )
+        data = resp.get_json()
+        assert "$" in data["sections"]["theory"]
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    @patch("api.report.OpenAI")
+    def test_generate_discussion_has_values(self, mock_openai_cls, client):
+        mock_openai_cls.return_value = _make_openai_mock(MOCK_GENERATE_RESPONSE)
+        resp = client.post(
+            "/api/report/generate",
+            json={
+                "context_form": SAMPLE_CONTEXT_FORM,
+                "instruction_text": "",
+                "analysis_data": SAMPLE_ANALYSIS_DATA,
+                "answers": [],
+                "language": "he",
+            },
+        )
+        data = resp.get_json()
+        assert "49.8" in data["sections"]["discussion"]
+
+    def test_generate_missing_body(self, client):
+        resp = client.post(
+            "/api/report/generate",
+            data="",
+            content_type="application/json",
+        )
+        assert resp.status_code == 400
+
+    @patch.dict(os.environ, {}, clear=False)
+    def test_generate_missing_api_key(self, client):
+        os.environ.pop("OPENAI_API_KEY", None)
+        resp = client.post(
+            "/api/report/generate",
+            json={
+                "context_form": SAMPLE_CONTEXT_FORM,
+                "instruction_text": "",
+                "analysis_data": SAMPLE_ANALYSIS_DATA,
+                "answers": [],
+                "language": "he",
+            },
+        )
+        assert resp.status_code == 500
+        data = resp.get_json()
+        assert "OPENAI_API_KEY" in data["error"]
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    @patch("api.report.OpenAI")
+    def test_generate_incomplete_ai_response(self, mock_openai_cls, client):
+        """AI returns JSON missing required sections."""
+        incomplete = json.dumps({"theory": "Some theory", "warnings": []})
+        mock_openai_cls.return_value = _make_openai_mock(incomplete)
+        resp = client.post(
+            "/api/report/generate",
+            json={
+                "context_form": SAMPLE_CONTEXT_FORM,
+                "instruction_text": "",
+                "analysis_data": SAMPLE_ANALYSIS_DATA,
+                "answers": [],
+                "language": "he",
+            },
+        )
+        assert resp.status_code == 500
+        data = resp.get_json()
+        assert "Missing sections" in data["error"] or "incomplete" in data["error"].lower()
