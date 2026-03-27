@@ -26,16 +26,16 @@ Requirements for AI-powered academic lab report export. Each maps to roadmap pha
 ### Context Collection
 
 - [ ] **CTX-01**: User can upload a lab instruction file (PDF or DOCX, Hebrew or English) as context for report generation
-- [ ] **CTX-02**: User can provide experiment context via a form (title, subject, equipment, procedure notes) alongside or instead of file upload
-- [ ] **CTX-03**: AI identifies missing context from available inputs and asks 1-3 targeted follow-up questions before generating the report
+- [x] **CTX-02**: User can provide experiment context via a form (title, subject, equipment, procedure notes) alongside or instead of file upload
+- [x] **CTX-03**: AI identifies missing context from available inputs and asks 1-3 targeted follow-up questions before generating the report
 
 ### AI Report Generation
 
-- [ ] **RPT-01**: AI generates a theoretical background section with relevant physics theory and LaTeX equations based on experiment context
-- [ ] **RPT-02**: AI generates a measurement method section describing equipment and procedure based on uploaded instructions and user context
+- [x] **RPT-01**: AI generates a theoretical background section with relevant physics theory and LaTeX equations based on experiment context
+- [x] **RPT-02**: AI generates a measurement method section describing equipment and procedure based on uploaded instructions and user context
 - [ ] **RPT-03**: Results section is auto-populated from AutoLab analysis — fit parameters with uncertainties, chi-squared/R-squared/P-value, n-sigma comparison, and embedded fit + residuals plots with numbered captions
-- [ ] **RPT-04**: AI generates a discussion section interpreting the actual results, comparing to theory, and analyzing sources of error
-- [ ] **RPT-05**: AI generates a conclusions section summarizing the main findings and measured values
+- [x] **RPT-04**: AI generates a discussion section interpreting the actual results, comparing to theory, and analyzing sources of error
+- [x] **RPT-05**: AI generates a conclusions section summarizing the main findings and measured values
 
 ### Report UI
 
@@ -113,13 +113,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PDF-01 | Phase 8: PDF Infrastructure Spike | Complete |
 | PDF-02 | Phase 8: PDF Infrastructure Spike | Complete |
 | CTX-01 | Phase 9: Report Data Contract and File Parsing | Pending |
-| CTX-02 | Phase 10: AI Content Generation Pipeline | Pending |
-| CTX-03 | Phase 10: AI Content Generation Pipeline | Pending |
-| RPT-01 | Phase 10: AI Content Generation Pipeline | Pending |
-| RPT-02 | Phase 10: AI Content Generation Pipeline | Pending |
+| CTX-02 | Phase 10: AI Content Generation Pipeline | Complete |
+| CTX-03 | Phase 10: AI Content Generation Pipeline | Complete |
+| RPT-01 | Phase 10: AI Content Generation Pipeline | Complete |
+| RPT-02 | Phase 10: AI Content Generation Pipeline | Complete |
 | RPT-03 | Phase 9: Report Data Contract and File Parsing | Pending |
-| RPT-04 | Phase 10: AI Content Generation Pipeline | Pending |
-| RPT-05 | Phase 10: AI Content Generation Pipeline | Pending |
+| RPT-04 | Phase 10: AI Content Generation Pipeline | Complete |
+| RPT-05 | Phase 10: AI Content Generation Pipeline | Complete |
 | UI-01 | Phase 11: Preview, Editing, and PDF Assembly | Pending |
 | UI-02 | Phase 11: Preview, Editing, and PDF Assembly | Pending |
 | UI-03 | Phase 11: Preview, Editing, and PDF Assembly | Pending |
