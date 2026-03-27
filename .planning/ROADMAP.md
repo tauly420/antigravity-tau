@@ -114,12 +114,12 @@ Plans:
   3. AI generates a theoretical background section with relevant physics theory and LaTeX equations grounded in the actual experiment context (not generic boilerplate)
   4. AI generates measurement method, discussion (referencing actual computed values and error sources), and conclusions sections -- all returned as structured JSON with per-section content
   5. Each generated section contains LaTeX equations in KaTeX-compatible format and references actual parameter values from the AutoLab analysis
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 10-01: TBD
-- [ ] 10-02: TBD
-- [ ] 10-03: TBD
+- [ ] 10-01-PLAN.md -- Backend AI pipeline: prompt builders, /analyze-context and /generate endpoints, mocked test suite
+- [ ] 10-02-PLAN.md -- Frontend context form, language toggle, Generate Report button, API functions
+- [ ] 10-03-PLAN.md -- Wire generation flow: follow-up questions UI, loading/success/error states, visual verification
 
 ### Phase 11: Preview, Editing, and PDF Assembly
 **Goal**: User can preview, edit, and export a complete academic lab report as a publication-quality PDF
@@ -166,6 +166,6 @@ Note: Phase 11 depends on both Phase 8 and Phase 10.
 | 3-7. Style Migration + Toggle | v1.0 | 0/TBD | Deferred | - |
 | 8. PDF Infrastructure Spike | v2.0 | 2/2 | Complete | - |
 | 9. Report Data Contract and File Parsing | v2.0 | 0/2 | Planning | - |
-| 10. AI Content Generation Pipeline | v2.0 | 0/TBD | Not started | - |
+| 10. AI Content Generation Pipeline | v2.0 | 0/3 | Planned | - |
 | 11. Preview, Editing, and PDF Assembly | v2.0 | 0/TBD | Not started | - |
 | 12. Integration and Polish | v2.0 | 0/TBD | Not started | - |
