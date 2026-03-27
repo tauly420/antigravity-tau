@@ -1,5 +1,84 @@
-import { useState, useRef } from 'react';
-import { uploadInstructionFile, ContextForm } from '../services/api';
+import { useState, useRef, useEffect } from 'react';
+import { uploadInstructionFile, analyzeReportContext, generateReport, ContextForm, FollowUpQuestion, GeneratedSections } from '../services/api';
+import { useAnalysis } from '../context/AnalysisContext';
+
+/**
+ * Normalize raw AutoLab results to ReportAnalysisData shape (camelCase).
+ * The backend prompt builder reads camelCase keys. If we send snake_case,
+ * analysis context injection is empty and AI hallucates values.
+ */
+function normalizeAnalysisData(raw: Record<string, unknown>): Record<string, unknown> {
+    // If data already has camelCase keys (e.g., fit.modelName), return as-is
+    const state = (raw as Record<string, any>)?.state ?? raw;
+    const fit = state?.fit;
+    if (!fit) return raw;
+
+    // Check if already normalized (camelCase)
+    if (fit.modelName !== undefined) return raw;
+
+    // Needs normalization: snake_case -> camelCase
+    const params = fit.parameter_names ?? [];
+    const values = fit.parameters ?? [];
+    const uncertainties = fit.uncertainties ?? [];
+    const roundedArr = fit.rounded ?? [];
+    const latexArr = fit.latex_names ?? params;
+
+    const normalizedFit: Record<string, unknown> = {
+        modelName: fit.model_name ?? 'unknown',
+        parameters: params.map((name: string, i: number) => ({
+            name,
+            value: values[i] ?? 0,
+            uncertainty: uncertainties[i] ?? 0,
+            rounded: roundedArr[i] ?? `${values[i]} +/- ${uncertainties[i]}`,
+            latex: latexArr[i] ?? name,
+        })),
+        goodnessOfFit: {
+            chiSquaredReduced: fit.reduced_chi_squared ?? null,
+            rSquared: fit.r_squared ?? null,
+            pValue: fit.p_value ?? null,
+            dof: fit.dof ?? null,
+        },
+        xData: fit.x_data ?? [],
+        yData: fit.y_data ?? [],
+        xErrors: fit.x_errors ?? null,
+        yErrors: fit.y_errors ?? null,
+        xFit: fit.x_fit ?? [],
+        yFit: fit.y_fit ?? [],
+        residuals: fit.residuals ?? [],
+    };
+
+    const result: Record<string, unknown> = { ...raw, fit: normalizedFit };
+
+    // Normalize formula if present
+    const formula = state?.formula;
+    if (formula && formula.expression !== undefined) {
+        result.formula = {
+            expression: formula.expression,
+            value: formula.value ?? formula.result,
+            uncertainty: formula.uncertainty,
+            formatted: formula.formatted ?? `${formula.value} +/- ${formula.uncertainty}`,
+            latex: formula.latex ?? formula.expression,
+        };
+    }
+
+    // Normalize nsigma if present
+    const nsigma = state?.nsigma;
+    if (nsigma) {
+        result.nsigma = {
+            nSigma: nsigma.n_sigma ?? nsigma.nSigma,
+            verdict: nsigma.verdict,
+            theoreticalValue: nsigma.theoretical_value ?? nsigma.theoreticalValue,
+            theoreticalUncertainty: nsigma.theoretical_uncertainty ?? nsigma.theoreticalUncertainty,
+        };
+    }
+
+    // Copy summary if present
+    if (state?.summary) result.summary = state.summary;
+
+    return result;
+}
+
+type GenerationPhase = 'idle' | 'analyzing' | 'follow-up' | 'generating' | 'complete' | 'error';
 
 function ReportBeta() {
     const [downloading, setDownloading] = useState(false);
@@ -7,16 +86,103 @@ function ReportBeta() {
     const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
     const [uploadWarning, setUploadWarning] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const followUpRef = useRef<HTMLDivElement>(null);
+
+    const { autolabResults } = useAnalysis();
 
     const [contextForm, setContextForm] = useState<ContextForm>({
         title: '', subject: '', equipment: '', notes: ''
     });
     const [language, setLanguage] = useState<'he' | 'en'>('he');
 
+    // Generation flow states
+    const [generationPhase, setGenerationPhase] = useState<GenerationPhase>('idle');
+    const [followUpQuestions, setFollowUpQuestions] = useState<FollowUpQuestion[]>([]);
+    const [answers, setAnswers] = useState<Record<string, string>>({});
+    const [generatedSections, setGeneratedSections] = useState<GeneratedSections | null>(null);
+    const [generationError, setGenerationError] = useState<string | null>(null);
+
     // Track focus state for input border color
     const [focusedField, setFocusedField] = useState<string | null>(null);
     // Track hover state for generate button
     const [generateHovered, setGenerateHovered] = useState(false);
+
+    // Auto-focus first follow-up question input when questions appear
+    useEffect(() => {
+        if (generationPhase === 'follow-up' && followUpRef.current) {
+            const firstInput = followUpRef.current.querySelector('input');
+            if (firstInput) firstInput.focus();
+        }
+    }, [generationPhase]);
+
+    const doGenerate = async (answersList: { id: string; answer: string }[]) => {
+        setGenerationPhase('generating');
+        setGenerationError(null);
+        try {
+            const rawData = autolabResults ? (autolabResults as Record<string, unknown>) : {};
+            const analysisData = normalizeAnalysisData(rawData);
+            const result = await generateReport({
+                context_form: contextForm,
+                instruction_text: instructionText,
+                analysis_data: analysisData,
+                answers: answersList,
+                language: language,
+            });
+            if (result.error) {
+                setGenerationError(result.error);
+                setGenerationPhase('error');
+                return;
+            }
+            setGeneratedSections(result.sections);
+            setGenerationPhase('complete');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to connect. Check your internet connection and try again.';
+            setGenerationError(message);
+            setGenerationPhase('error');
+        }
+    };
+
+    const handleGenerate = async () => {
+        setGenerationError(null);
+        setGenerationPhase('analyzing');
+        try {
+            const rawData = autolabResults ? (autolabResults as Record<string, unknown>) : {};
+            const analysisData = normalizeAnalysisData(rawData);
+            const result = await analyzeReportContext({
+                context_form: contextForm,
+                instruction_text: instructionText,
+                analysis_data: analysisData,
+            });
+            if (result.error) {
+                setGenerationError(result.error);
+                setGenerationPhase('error');
+                return;
+            }
+            if (result.questions.length > 0) {
+                setFollowUpQuestions(result.questions);
+                setAnswers({});
+                setGenerationPhase('follow-up');
+            } else {
+                await doGenerate([]);
+            }
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to connect. Check your internet connection and try again.';
+            setGenerationError(message);
+            setGenerationPhase('error');
+        }
+    };
+
+    const handleGenerateWithAnswers = () => {
+        const answersList = followUpQuestions.map(q => ({
+            id: q.id,
+            answer: answers[q.id] || '',
+        }));
+        doGenerate(answersList);
+    };
+
+    const handleGenerateAnyway = () => {
+        doGenerate([]);
+    };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -314,27 +480,176 @@ function ReportBeta() {
             </div>
 
             {/* Generate Report Button — Focal Point */}
-            <button
-                onClick={() => {}}
-                disabled={!hasAnyContext}
-                onMouseEnter={() => setGenerateHovered(true)}
-                onMouseLeave={() => setGenerateHovered(false)}
-                style={{
-                    width: '100%',
-                    background: !hasAnyContext ? '#bbb' : 'linear-gradient(135deg, var(--primary, #1565c0) 0%, #1976d2 100%)',
-                    color: 'white',
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    padding: '16px 32px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    cursor: !hasAnyContext ? 'not-allowed' : 'pointer',
-                    boxShadow: !hasAnyContext ? 'none' : generateHovered ? '0 4px 12px rgba(21, 101, 192, 0.4)' : '0 2px 8px rgba(21, 101, 192, 0.3)',
+            {(generationPhase === 'idle' || generationPhase === 'error' || generationPhase === 'complete' || generationPhase === 'analyzing') && (
+                <button
+                    onClick={handleGenerate}
+                    disabled={!hasAnyContext || generationPhase === 'analyzing'}
+                    onMouseEnter={() => setGenerateHovered(true)}
+                    onMouseLeave={() => setGenerateHovered(false)}
+                    style={{
+                        width: '100%',
+                        background: (!hasAnyContext || generationPhase === 'analyzing') ? '#bbb' : 'linear-gradient(135deg, var(--primary, #1565c0) 0%, #1976d2 100%)',
+                        color: 'white',
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        padding: '16px 32px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        cursor: (!hasAnyContext || generationPhase === 'analyzing') ? 'not-allowed' : 'pointer',
+                        boxShadow: (!hasAnyContext || generationPhase === 'analyzing') ? 'none' : generateHovered ? '0 4px 12px rgba(21, 101, 192, 0.4)' : '0 2px 8px rgba(21, 101, 192, 0.3)',
+                        marginBottom: '32px',
+                    }}
+                >
+                    {generationPhase === 'analyzing' ? 'Analyzing...' : generationPhase === 'complete' ? 'Regenerate Report' : 'Generate Report'}
+                </button>
+            )}
+
+            {/* Error State */}
+            {generationError && (
+                <div aria-live="polite" style={{ marginBottom: '16px' }}>
+                    <p style={{ color: 'var(--danger, #d32f2f)', fontSize: '0.875rem', margin: '0 0 4px 0' }}>
+                        {generationError}
+                    </p>
+                    <button
+                        onClick={() => { setGenerationPhase('idle'); setGenerationError(null); }}
+                        style={{ background: 'none', border: 'none', color: 'var(--primary, #1565c0)', fontSize: '0.875rem', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                    >
+                        Try Again
+                    </button>
+                </div>
+            )}
+
+            {/* Follow-Up Questions Card */}
+            {generationPhase === 'follow-up' && (
+                <div ref={followUpRef} style={{
+                    border: '1.5px solid var(--primary, #1565c0)',
+                    borderRadius: '12px',
+                    padding: '24px',
+                    background: 'var(--info-bg, #e3f2fd)',
                     marginBottom: '32px',
-                }}
-            >
-                Generate Report
-            </button>
+                }}>
+                    <h3 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', fontWeight: 600, color: 'var(--primary, #1565c0)' }}>
+                        Before we generate...
+                    </h3>
+                    <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--text-secondary, #666)' }}>
+                        A few questions to improve your report:
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '16px' }}>
+                        {followUpQuestions.map(q => (
+                            <div key={q.id}>
+                                <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text, #1a1a2e)', display: 'block', marginBottom: '4px' }}>
+                                    {q.question}
+                                </label>
+                                {q.hint && (
+                                    <span style={{ fontSize: '0.875rem', color: 'var(--text-muted, #999)', fontStyle: 'italic', display: 'block', marginBottom: '4px' }}>
+                                        {q.hint}
+                                    </span>
+                                )}
+                                <input
+                                    type="text"
+                                    value={answers[q.id] || ''}
+                                    onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                                    style={{
+                                        border: '1.5px solid var(--border, #e0e0e0)',
+                                        borderRadius: '8px',
+                                        padding: '16px',
+                                        background: 'var(--surface, #ffffff)',
+                                        fontSize: '0.875rem',
+                                        width: '100%',
+                                        boxSizing: 'border-box' as const,
+                                    }}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                        <button
+                            onClick={handleGenerateWithAnswers}
+                            style={{
+                                background: 'linear-gradient(135deg, var(--primary, #1565c0) 0%, #1976d2 100%)',
+                                color: 'white',
+                                fontSize: '0.875rem',
+                                fontWeight: 600,
+                                padding: '8px 24px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            Generate Report
+                        </button>
+                        <button
+                            onClick={handleGenerateAnyway}
+                            style={{
+                                background: 'transparent',
+                                border: '1.5px solid var(--border, #e0e0e0)',
+                                color: 'var(--text-secondary, #666)',
+                                fontSize: '0.875rem',
+                                padding: '8px 24px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            Generate Anyway
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Loading State */}
+            {generationPhase === 'generating' && (
+                <div style={{ textAlign: 'center', padding: '32px 0', marginBottom: '32px' }} aria-live="polite" role="status">
+                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                    <div style={{
+                        width: '24px', height: '24px',
+                        border: '3px solid var(--border, #e0e0e0)',
+                        borderTopColor: 'var(--primary, #1565c0)',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        margin: '0 auto 16px',
+                    }} />
+                    <p style={{ margin: '0 0 4px 0', fontSize: '0.875rem', color: 'var(--text-secondary, #666)' }}>
+                        Generating your report...
+                    </p>
+                    <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted, #999)' }}>
+                        This may take 10-15 seconds
+                    </p>
+                </div>
+            )}
+
+            {/* Generation Complete State */}
+            {generationPhase === 'complete' && generatedSections && (
+                <div style={{
+                    border: '1px solid var(--success-border, #a5d6a7)',
+                    borderRadius: '12px',
+                    padding: '24px',
+                    background: 'var(--success-bg, #e8f5e9)',
+                    marginBottom: '32px',
+                }}>
+                    <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', fontWeight: 600, color: 'var(--success, #2e7d32)' }}>
+                        Report Generated
+                    </h3>
+                    <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--text-secondary, #666)' }}>
+                        Your report sections are ready for review.
+                    </p>
+                    <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                        {(['theory', 'method', 'discussion', 'conclusions'] as const).map(section => (
+                            <li key={section} style={{ fontSize: '0.875rem', color: 'var(--text, #1a1a2e)', padding: '4px 0' }}>
+                                &#x2713; {section.charAt(0).toUpperCase() + section.slice(1)}
+                            </li>
+                        ))}
+                    </ul>
+                    {generatedSections.warnings && generatedSections.warnings.length > 0 && (
+                        <div style={{ marginTop: '16px' }}>
+                            {generatedSections.warnings.map((w, i) => (
+                                <p key={i} style={{ margin: '4px 0', fontSize: '0.875rem', color: 'var(--warning, #f57c00)' }}>
+                                    &#x26A0; {w}
+                                </p>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Infrastructure Preview */}
             <div style={{
