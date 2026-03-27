@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { uploadInstructionFile, analyzeReportContext, generateReport, ContextForm, FollowUpQuestion, GeneratedSections } from '../services/api';
+import { uploadInstructionFile, analyzeReportContext, generateReport, type ContextForm, type FollowUpQuestion, type GeneratedSections } from '../services/api';
 import { useAnalysis } from '../context/AnalysisContext';
 
 /**

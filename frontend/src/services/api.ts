@@ -244,18 +244,6 @@ export const autolabChat = async (data: {
     return response.data;
 };
 
-// Report Instruction Upload API
-export const uploadInstructionFile = async (file: File): Promise<{
-    text: string; warning: string | null; error: string | null;
-}> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const response = await api.post('/report/upload-instructions', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
-};
-
 // Report Generation API (Phase 10)
 
 export interface ContextForm {
