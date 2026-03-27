@@ -229,3 +229,65 @@ export const autolabChat = async (data: {
     const response = await api.post('/autolab/chat', data);
     return response.data;
 };
+
+// Report Instruction Upload API
+export const uploadInstructionFile = async (file: File): Promise<{
+    text: string; warning: string | null; error: string | null;
+}> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/report/upload-instructions', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+};
+
+// Report Generation API (Phase 10)
+
+export interface ContextForm {
+    title: string;
+    subject: string;
+    equipment: string;
+    notes: string;
+}
+
+export interface FollowUpQuestion {
+    id: string;
+    question: string;
+    hint?: string;
+}
+
+export interface GeneratedSections {
+    theory: string;
+    method: string;
+    discussion: string;
+    conclusions: string;
+    warnings?: string[];
+}
+
+export const analyzeReportContext = async (data: {
+    context_form: ContextForm;
+    instruction_text: string;
+    analysis_data: Record<string, unknown>;
+}): Promise<{
+    questions: FollowUpQuestion[];
+    can_generate_without: boolean;
+    error: string | null;
+}> => {
+    const response = await api.post('/report/analyze-context', data);
+    return response.data;
+};
+
+export const generateReport = async (data: {
+    context_form: ContextForm;
+    instruction_text: string;
+    analysis_data: Record<string, unknown>;
+    answers: { id: string; answer: string }[];
+    language: 'he' | 'en';
+}): Promise<{
+    sections: GeneratedSections;
+    error: string | null;
+}> => {
+    const response = await api.post('/report/generate', data);
+    return response.data;
+};
