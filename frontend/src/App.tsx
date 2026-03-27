@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import './styles/global.css';
 
 // Feature Components
@@ -19,64 +20,106 @@ import ReportBeta from './components/ReportBeta';
 import { AnalysisProvider } from './context/AnalysisContext';
 import Sidebar from './components/Sidebar';
 
+const NAV_ITEMS = [
+    { path: '/', label: 'Home', icon: '🏠' },
+    { path: '/autolab', label: 'AutoLab', icon: '🤖', highlight: true },
+    { path: '/workflow', label: 'Workflow', icon: '⚙️' },
+    { path: '/formula', label: 'Formula', icon: '📐' },
+    { path: '/matrix', label: 'Matrix', icon: '🔢' },
+    { path: '/fitting', label: 'Graph & Fitting', icon: '📈' },
+    { path: '/ode', label: 'ODE Solver', icon: '∿' },
+    { path: '/integrator', label: 'Integrator', icon: '∫' },
+    { path: '/nsigma', label: 'N-Sigma', icon: 'σ' },
+    { path: '/units', label: 'Units', icon: '📏' },
+    { path: '/fourier', label: 'Fourier', icon: '〜' },
+    { path: '/statistics', label: 'Statistics', icon: '📊' },
+    { path: '/constants', label: 'Constants', icon: '🔬' },
+    { path: '/report', label: 'Report', icon: '📄', highlight: true, badge: 'BETA' },
+];
+
+function NavSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+    const location = useLocation();
+
+    return (
+        <nav className={`nav-sidebar ${collapsed ? 'nav-sidebar--collapsed' : ''}`}>
+            <button className="nav-sidebar__toggle" onClick={onToggle} title={collapsed ? 'Expand menu' : 'Collapse menu'}>
+                {collapsed ? '▶' : '◀'}
+            </button>
+            <div className="nav-sidebar__links">
+                {NAV_ITEMS.map(item => {
+                    const isActive = location.pathname === item.path;
+                    return (
+                        <Link
+                            key={item.path}
+                            to={item.path}
+                            className={`nav-sidebar__link ${isActive ? 'nav-sidebar__link--active' : ''} ${item.highlight ? 'nav-sidebar__link--highlight' : ''}`}
+                            title={collapsed ? item.label : undefined}
+                        >
+                            <span className="nav-sidebar__icon">{item.icon}</span>
+                            {!collapsed && (
+                                <span className="nav-sidebar__label">
+                                    {item.label}
+                                    {item.badge && <sup className="nav-sidebar__badge">{item.badge}</sup>}
+                                </span>
+                            )}
+                        </Link>
+                    );
+                })}
+            </div>
+        </nav>
+    );
+}
+
+function AppContent() {
+    const [navCollapsed, setNavCollapsed] = useState(false);
+
+    return (
+        <div className="app-container" style={{ display: 'flex' }}>
+            <NavSidebar collapsed={navCollapsed} onToggle={() => setNavCollapsed(c => !c)} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', minWidth: 0 }}>
+                <header className="header">
+                    <Link to="/" style={{ textDecoration: 'none', color: 'white', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <img src="/tau-ly-icon.png" alt="Tau-LY" className="header-icon" />
+                        <h1>Tau-LY Lab Tools</h1>
+                    </Link>
+                </header>
+
+                <main className="main-content">
+                    <Routes>
+                        <Route path="/" element={<Home />} />
+                        <Route path="/autolab" element={<AutoLab />} />
+                        <Route path="/workflow" element={<Workflow />} />
+                        <Route path="/formula" element={<FormulaCalculator />} />
+                        <Route path="/matrix" element={<MatrixCalculator />} />
+                        <Route path="/ode" element={<ODESolver />} />
+                        <Route path="/integrator" element={<NumericalIntegrator />} />
+                        <Route path="/fitting" element={<GraphFitting />} />
+                        <Route path="/nsigma" element={<NSigmaCalculator />} />
+                        <Route path="/units" element={<UnitConverter />} />
+                        <Route path="/fourier" element={<FourierAnalysis />} />
+                        <Route path="/statistics" element={<StatisticsCalculator />} />
+                        <Route path="/constants" element={<ConstantsReference />} />
+                        <Route path="/report" element={<ReportBeta />} />
+                    </Routes>
+                </main>
+
+                <footer className="footer">
+                    <p>© 2026 Tau-LY Lab Tools • All rights reserved to <a href="https://www.linkedin.com/in/uri-shulman-5690b2337" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Uri Shulman</a></p>
+                    <p style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.25rem' }}>
+                        AI-generated results may contain errors — always verify important calculations independently.
+                    </p>
+                </footer>
+            </div>
+            <Sidebar />
+        </div>
+    );
+}
+
 function App() {
     return (
         <AnalysisProvider>
             <Router>
-                <div className="app-container" style={{ display: 'flex' }}>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                        <header className="header">
-                            <Link to="/" style={{ textDecoration: 'none', color: 'white', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <img src="/tau-ly-icon.png" alt="Tau-LY" className="header-icon" />
-                                <h1>Tau-LY Lab Tools</h1>
-                            </Link>
-                        </header>
-
-                        <nav className="nav-bar">
-                            <Link to="/" className="nav-link">Home</Link>
-                            <Link to="/autolab" className="nav-link" style={{ background: 'linear-gradient(135deg, #1565c0, #7b1fa2)', color: 'white', borderRadius: '6px', padding: '0.35rem 0.8rem', fontWeight: 700 }}>🤖 AutoLab</Link>
-                            <Link to="/workflow" className="nav-link">Workflow</Link>
-                            <Link to="/formula" className="nav-link">Formula</Link>
-                            <Link to="/matrix" className="nav-link">Matrix</Link>
-                            <Link to="/fitting" className="nav-link">Graph & Fitting</Link>
-                            <Link to="/ode" className="nav-link">ODE Solver</Link>
-                            <Link to="/integrator" className="nav-link">Integrator</Link>
-                            <Link to="/nsigma" className="nav-link">N-Sigma</Link>
-                            <Link to="/units" className="nav-link">Units</Link>
-                            <Link to="/fourier" className="nav-link">Fourier</Link>
-                            <Link to="/statistics" className="nav-link">Statistics</Link>
-                            <Link to="/constants" className="nav-link">Constants</Link>
-                            <Link to="/report" className="nav-link" style={{ background: 'linear-gradient(135deg, #1565c0, #7b1fa2)', color: 'white', borderRadius: '6px', padding: '0.35rem 0.8rem', fontWeight: 600, fontSize: '0.85rem' }}>Report <sup style={{ fontSize: '0.6rem', opacity: 0.9 }}>BETA</sup></Link>
-                        </nav>
-
-                        <main className="main-content">
-                            <Routes>
-                                <Route path="/" element={<Home />} />
-                                <Route path="/autolab" element={<AutoLab />} />
-                                <Route path="/workflow" element={<Workflow />} />
-                                <Route path="/formula" element={<FormulaCalculator />} />
-                                <Route path="/matrix" element={<MatrixCalculator />} />
-                                <Route path="/ode" element={<ODESolver />} />
-                                <Route path="/integrator" element={<NumericalIntegrator />} />
-                                <Route path="/fitting" element={<GraphFitting />} />
-                                <Route path="/nsigma" element={<NSigmaCalculator />} />
-                                <Route path="/units" element={<UnitConverter />} />
-                                <Route path="/fourier" element={<FourierAnalysis />} />
-                                <Route path="/statistics" element={<StatisticsCalculator />} />
-                                <Route path="/constants" element={<ConstantsReference />} />
-                                <Route path="/report" element={<ReportBeta />} />
-                            </Routes>
-                        </main>
-
-                        <footer className="footer">
-                            <p>© 2026 Tau-LY Lab Tools • All rights reserved to <a href="https://www.linkedin.com/in/uri-shulman-5690b2337" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Uri Shulman</a></p>
-                            <p style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.25rem' }}>
-                                AI-generated results may contain errors — always verify important calculations independently.
-                            </p>
-                        </footer>
-                    </div>
-                    <Sidebar />
-                </div>
+                <AppContent />
             </Router>
         </AnalysisProvider>
     );

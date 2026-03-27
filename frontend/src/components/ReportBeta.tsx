@@ -299,22 +299,38 @@ function ReportBeta() {
                     onChange={handleFileUpload}
                     style={{ display: 'none' }}
                 />
-                <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadStatus === 'uploading'}
+                <div
+                    onClick={() => { if (uploadStatus !== 'uploading') fileInputRef.current?.click(); }}
+                    onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                    onDrop={e => {
+                        e.preventDefault();
+                        const f = e.dataTransfer.files[0];
+                        if (f) {
+                            const syntheticEvent = { target: { files: [f] } } as unknown as React.ChangeEvent<HTMLInputElement>;
+                            handleFileUpload(syntheticEvent);
+                        }
+                    }}
                     style={{
-                        background: uploadStatus === 'uploading' ? '#bbb' : 'var(--surface-alt, #f4f5f9)',
-                        color: 'var(--text, #1a1a2e)',
-                        border: '1.5px dashed var(--border, #e0e0e0)',
-                        borderRadius: '8px',
-                        padding: '16px 24px',
-                        fontSize: '0.875rem',
+                        border: '2px dashed #1565c0',
+                        borderRadius: '10px',
+                        padding: '1.5rem',
+                        textAlign: 'center' as const,
                         cursor: uploadStatus === 'uploading' ? 'not-allowed' : 'pointer',
-                        width: '100%',
+                        background: uploadStatus === 'done' ? '#e8f5e9' : '#e3f2fd',
+                        transition: 'all 0.2s',
                     }}
                 >
-                    {uploadStatus === 'uploading' ? 'Uploading...' : uploadStatus === 'done' ? 'File uploaded — click to replace' : 'Click to upload instruction file (PDF, Word)'}
-                </button>
+                    {uploadStatus === 'uploading' ? (
+                        <span style={{ color: '#1565c0' }}>Uploading...</span>
+                    ) : uploadStatus === 'done' ? (
+                        <span style={{ fontWeight: 600, color: '#2e7d32' }}>File uploaded — click or drag to replace</span>
+                    ) : (
+                        <span style={{ color: '#1565c0' }}>
+                            Click or drag & drop your instruction file<br />
+                            <small>.pdf, .doc, .docx</small>
+                        </span>
+                    )}
+                </div>
                 {uploadWarning && (
                     <p style={{ margin: '8px 0 0 0', fontSize: '0.875rem', color: uploadStatus === 'error' ? 'var(--danger, #d32f2f)' : 'var(--warning, #f57c00)' }}>
                         {uploadWarning}
