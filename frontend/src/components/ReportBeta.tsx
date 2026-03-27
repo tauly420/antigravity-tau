@@ -1,15 +1,43 @@
 import { useState, useRef } from 'react';
-import { uploadInstructionFile } from '../services/api';
+import { uploadInstructionFile, ContextForm } from '../services/api';
 
 function ReportBeta() {
     const [downloading, setDownloading] = useState(false);
-    const [instructionFile, setInstructionFile] = useState<File | null>(null);
-    const [extractedText, setExtractedText] = useState<string>('');
-    const [extractionWarning, setExtractionWarning] = useState<string | null>(null);
-    const [extractionError, setExtractionError] = useState<string | null>(null);
-    const [uploading, setUploading] = useState(false);
-    const [isDragOver, setIsDragOver] = useState(false);
+    const [instructionText, setInstructionText] = useState('');
+    const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
+    const [uploadWarning, setUploadWarning] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [contextForm, setContextForm] = useState<ContextForm>({
+        title: '', subject: '', equipment: '', notes: ''
+    });
+    const [language, setLanguage] = useState<'he' | 'en'>('he');
+
+    // Track focus state for input border color
+    const [focusedField, setFocusedField] = useState<string | null>(null);
+    // Track hover state for generate button
+    const [generateHovered, setGenerateHovered] = useState(false);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploadStatus('uploading');
+        setUploadWarning(null);
+        try {
+            const result = await uploadInstructionFile(file);
+            if (result.error) {
+                setUploadStatus('error');
+                setUploadWarning(result.error);
+            } else {
+                setInstructionText(result.text);
+                setUploadStatus('done');
+                if (result.warning) setUploadWarning(result.warning);
+            }
+        } catch {
+            setUploadStatus('error');
+            setUploadWarning('Failed to upload file. Make sure the backend is running.');
+        }
+    };
 
     const handleTestPdf = async () => {
         setDownloading(true);
@@ -27,34 +55,22 @@ function ReportBeta() {
         }
     };
 
-    const handleFileUpload = async (file: File) => {
-        const filename = file.name.toLowerCase();
-        if (!filename.endsWith('.pdf') && !filename.endsWith('.docx')) {
-            setExtractionError('Unsupported file type. Please upload a PDF or DOCX file.');
-            return;
-        }
-        if (file.size > 10 * 1024 * 1024) {
-            setExtractionError('File is too large. Please upload a file under 10 MB.');
-            return;
-        }
-        setInstructionFile(file);
-        setExtractionError(null);
-        setExtractionWarning(null);
-        setUploading(true);
-        try {
-            const result = await uploadInstructionFile(file);
-            if (result.error) {
-                setExtractionError(result.error);
-            } else {
-                setExtractedText(result.text);
-                setExtractionWarning(result.warning);
-            }
-        } catch {
-            setExtractionError('Failed to extract text. Please try again or paste the instructions manually.');
-        } finally {
-            setUploading(false);
-        }
-    };
+    const inputStyle = (fieldName: string): React.CSSProperties => ({
+        border: `1.5px solid ${focusedField === fieldName ? 'var(--primary, #1565c0)' : 'var(--border, #e0e0e0)'}`,
+        borderRadius: '8px',
+        padding: '16px',
+        background: 'var(--surface, #ffffff)',
+        fontSize: '0.875rem',
+        width: '100%',
+        boxSizing: 'border-box' as const,
+        fontFamily: 'inherit',
+    });
+
+    const hasAnyContext = instructionText.trim() !== '' ||
+        contextForm.title.trim() !== '' ||
+        contextForm.subject.trim() !== '' ||
+        contextForm.equipment.trim() !== '' ||
+        contextForm.notes.trim() !== '';
 
     return (
         <div style={{ maxWidth: 700, margin: '2rem auto', padding: '2rem' }}>
@@ -97,117 +113,230 @@ function ReportBeta() {
             </div>
 
             {/* Lab Instructions Upload Section */}
-            <div style={{ marginBottom: '1.5rem' }}>
-                <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '0.875rem', fontWeight: 400 }}>
-                    Lab Instructions (Optional)
-                </h3>
-                <p style={{ margin: '0 0 0.75rem 0', color: 'var(--text-secondary, #666)', fontSize: '0.875rem' }}>
-                    Upload your lab instruction file for AI context
+            <div style={{
+                background: 'var(--surface, #ffffff)',
+                border: '1px solid var(--border, #e0e0e0)',
+                borderRadius: '12px',
+                padding: '24px',
+                marginBottom: '32px',
+            }}>
+                <h2 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', fontWeight: 600, color: 'var(--text, #1a1a2e)' }}>
+                    Lab Instructions
+                </h2>
+                <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--text-secondary, #666)' }}>
+                    Upload your lab instruction file (PDF or Word) to provide context for report generation
                 </p>
-
-                {/* Dropzone */}
-                <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => fileInputRef.current?.click()}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
-                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                    onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
-                    onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
-                    onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFileUpload(f); }}
-                    style={{
-                        border: `2px ${isDragOver ? 'solid' : 'dashed'} var(--primary, #1565c0)`,
-                        borderRadius: '10px',
-                        padding: '1.5rem',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        background: instructionFile && !uploading
-                            ? 'var(--success-bg, #e8f5e9)'
-                            : 'var(--info-bg, #e3f2fd)',
-                        transition: 'border-style 0.15s ease',
-                    }}
-                >
-                    {uploading ? (
-                        <span style={{ color: 'var(--text-secondary, #666)' }}>Extracting text...</span>
-                    ) : instructionFile ? (
-                        <span style={{ color: 'var(--success, #2e7d32)', fontWeight: 600 }}>
-                            {instructionFile.name} ({Math.round(instructionFile.size / 1024)} KB)
-                        </span>
-                    ) : (
-                        <span style={{ color: 'var(--primary, #1565c0)' }}>
-                            Click or drag &amp; drop your instruction file<br />
-                            <small>.pdf, .docx</small>
-                        </span>
-                    )}
-                </div>
                 <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf,.docx"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleFileUpload}
                     style={{ display: 'none' }}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }}
                 />
-
-                {/* Error display */}
-                {extractionError && (
-                    <div aria-live="polite" style={{
-                        color: 'var(--danger, #d32f2f)',
+                <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadStatus === 'uploading'}
+                    style={{
+                        background: uploadStatus === 'uploading' ? '#bbb' : 'var(--surface-alt, #f4f5f9)',
+                        color: 'var(--text, #1a1a2e)',
+                        border: '1.5px dashed var(--border, #e0e0e0)',
+                        borderRadius: '8px',
+                        padding: '16px 24px',
                         fontSize: '0.875rem',
-                        marginTop: '0.5rem',
-                    }}>
-                        {extractionError}
-                    </div>
+                        cursor: uploadStatus === 'uploading' ? 'not-allowed' : 'pointer',
+                        width: '100%',
+                    }}
+                >
+                    {uploadStatus === 'uploading' ? 'Uploading...' : uploadStatus === 'done' ? 'File uploaded — click to replace' : 'Click to upload instruction file (PDF, Word)'}
+                </button>
+                {uploadWarning && (
+                    <p style={{ margin: '8px 0 0 0', fontSize: '0.875rem', color: uploadStatus === 'error' ? 'var(--danger, #d32f2f)' : 'var(--warning, #f57c00)' }}>
+                        {uploadWarning}
+                    </p>
                 )}
-
-                {/* Extracted text section */}
-                {(extractedText || extractionWarning !== null) && (
-                    <div style={{ marginTop: '1rem' }}>
-                        {extractionWarning && (
-                            <div role="alert" style={{
-                                background: 'linear-gradient(135deg, var(--warning-bg, #fff3e0) 0%, var(--warning-bg-end, #ffe0b2) 100%)',
-                                border: '1px solid var(--warning-border, #ffe0b2)',
-                                borderRadius: '12px',
-                                padding: '1rem',
-                                marginBottom: '0.75rem',
-                            }}>
-                                <span aria-hidden="true">&#x26A0;&#xFE0F; </span>
-                                {extractionWarning}
-                            </div>
-                        )}
-                        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: 600 }}>Extracted Text</h3>
-                        <textarea
-                            id="extracted-text"
-                            value={extractedText}
-                            onChange={(e) => setExtractedText(e.target.value)}
-                            placeholder="Extracted text will appear here, or type/paste your lab instructions manually..."
-                            style={{
-                                width: '100%',
-                                minHeight: '200px',
-                                maxHeight: '400px',
-                                resize: 'vertical',
-                                border: '1.5px solid var(--border, #e0e0e0)',
-                                borderRadius: '8px',
-                                padding: '1rem',
-                                background: 'var(--surface, #ffffff)',
-                                color: 'var(--text, #333)',
-                                fontFamily: 'inherit',
-                                fontSize: '0.875rem',
-                                lineHeight: 1.6,
-                                boxSizing: 'border-box',
-                            }}
-                        />
-                        <label htmlFor="extracted-text" style={{
-                            display: 'block',
-                            marginTop: '0.5rem',
-                            color: 'var(--text-secondary, #666)',
-                            fontSize: '0.875rem',
-                        }}>
-                            Review and edit the extracted text. This will be sent to AI for report generation.
+                {instructionText && (
+                    <div style={{ marginTop: '16px' }}>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--text, #1a1a2e)', marginBottom: '4px', display: 'block' }}>
+                            Extracted Text
                         </label>
+                        <textarea
+                            value={instructionText}
+                            onChange={(e) => setInstructionText(e.target.value)}
+                            rows={6}
+                            style={{
+                                ...inputStyle('instructionText'),
+                                resize: 'vertical' as const,
+                            }}
+                            onFocus={() => setFocusedField('instructionText')}
+                            onBlur={() => setFocusedField(null)}
+                        />
                     </div>
                 )}
             </div>
 
+            {/* Experiment Context Form */}
+            <div style={{
+                background: 'var(--surface, #ffffff)',
+                border: '1px solid var(--border, #e0e0e0)',
+                borderRadius: '12px',
+                padding: '24px',
+                marginBottom: '32px',
+            }}>
+                <h2 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', fontWeight: 600, color: 'var(--text, #1a1a2e)' }}>
+                    Experiment Context
+                </h2>
+                <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--text-secondary, #666)' }}>
+                    Provide details to help AI generate your report
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '16px' }}>
+                    {/* Experiment Title */}
+                    <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--text, #1a1a2e)', marginBottom: '4px', display: 'block' }}>
+                            Experiment Title
+                        </label>
+                        <input
+                            type="text"
+                            value={contextForm.title}
+                            onChange={(e) => setContextForm(prev => ({ ...prev, title: e.target.value }))}
+                            placeholder="e.g., Hooke's Law -- Measuring Spring Constant"
+                            style={inputStyle('title')}
+                            onFocus={() => setFocusedField('title')}
+                            onBlur={() => setFocusedField(null)}
+                        />
+                    </div>
+
+                    {/* Subject Area */}
+                    <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--text, #1a1a2e)', marginBottom: '4px', display: 'block' }}>
+                            Subject Area
+                        </label>
+                        <input
+                            type="text"
+                            value={contextForm.subject}
+                            onChange={(e) => setContextForm(prev => ({ ...prev, subject: e.target.value }))}
+                            placeholder="e.g., Mechanics, Optics, Thermodynamics"
+                            style={inputStyle('subject')}
+                            onFocus={() => setFocusedField('subject')}
+                            onBlur={() => setFocusedField(null)}
+                        />
+                    </div>
+
+                    {/* Equipment Used */}
+                    <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--text, #1a1a2e)', marginBottom: '4px', display: 'block' }}>
+                            Equipment Used
+                        </label>
+                        <textarea
+                            rows={3}
+                            value={contextForm.equipment}
+                            onChange={(e) => setContextForm(prev => ({ ...prev, equipment: e.target.value }))}
+                            placeholder="e.g., Spring, masses (50-500g), ruler, force sensor"
+                            style={{
+                                ...inputStyle('equipment'),
+                                resize: 'vertical' as const,
+                            }}
+                            onFocus={() => setFocusedField('equipment')}
+                            onBlur={() => setFocusedField(null)}
+                        />
+                    </div>
+
+                    {/* Additional Notes */}
+                    <div>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--text, #1a1a2e)', marginBottom: '4px', display: 'block' }}>
+                            Additional Notes
+                        </label>
+                        <textarea
+                            rows={4}
+                            value={contextForm.notes}
+                            onChange={(e) => setContextForm(prev => ({ ...prev, notes: e.target.value }))}
+                            placeholder="Any specific requirements, formulas to include, or details about your experiment..."
+                            style={{
+                                ...inputStyle('notes'),
+                                resize: 'vertical' as const,
+                            }}
+                            onFocus={() => setFocusedField('notes')}
+                            onBlur={() => setFocusedField(null)}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Language Toggle */}
+            <div style={{ marginBottom: '16px' }}>
+                <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                    <legend style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--text, #1a1a2e)', marginBottom: '8px', display: 'block', padding: 0 }}>
+                        Report Language
+                    </legend>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <label style={{
+                            background: language === 'he' ? 'var(--primary, #1565c0)' : 'var(--surface-alt, #f4f5f9)',
+                            color: language === 'he' ? 'white' : 'var(--text, #1a1a2e)',
+                            borderRadius: '8px',
+                            padding: '8px 16px',
+                            cursor: 'pointer',
+                            border: 'none',
+                            fontWeight: language === 'he' ? 500 : 400,
+                            fontSize: '0.875rem',
+                        }}>
+                            <input
+                                type="radio"
+                                name="report-language"
+                                value="he"
+                                checked={language === 'he'}
+                                onChange={() => setLanguage('he')}
+                                style={{ display: 'none' }}
+                            />
+                            Hebrew
+                        </label>
+                        <label style={{
+                            background: language === 'en' ? 'var(--primary, #1565c0)' : 'var(--surface-alt, #f4f5f9)',
+                            color: language === 'en' ? 'white' : 'var(--text, #1a1a2e)',
+                            borderRadius: '8px',
+                            padding: '8px 16px',
+                            cursor: 'pointer',
+                            border: 'none',
+                            fontWeight: language === 'en' ? 500 : 400,
+                            fontSize: '0.875rem',
+                        }}>
+                            <input
+                                type="radio"
+                                name="report-language"
+                                value="en"
+                                checked={language === 'en'}
+                                onChange={() => setLanguage('en')}
+                                style={{ display: 'none' }}
+                            />
+                            English
+                        </label>
+                    </div>
+                </fieldset>
+            </div>
+
+            {/* Generate Report Button — Focal Point */}
+            <button
+                onClick={() => {}}
+                disabled={!hasAnyContext}
+                onMouseEnter={() => setGenerateHovered(true)}
+                onMouseLeave={() => setGenerateHovered(false)}
+                style={{
+                    width: '100%',
+                    background: !hasAnyContext ? '#bbb' : 'linear-gradient(135deg, var(--primary, #1565c0) 0%, #1976d2 100%)',
+                    color: 'white',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    padding: '16px 32px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: !hasAnyContext ? 'not-allowed' : 'pointer',
+                    boxShadow: !hasAnyContext ? 'none' : generateHovered ? '0 4px 12px rgba(21, 101, 192, 0.4)' : '0 2px 8px rgba(21, 101, 192, 0.3)',
+                    marginBottom: '32px',
+                }}
+            >
+                Generate Report
+            </button>
+
+            {/* Infrastructure Preview */}
             <div style={{
                 background: '#fff3e0',
                 border: '1px solid #ffe0b2',

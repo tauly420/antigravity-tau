@@ -49,6 +49,7 @@ Plan: Not started
 *Updated after each plan completion*
 | Phase 08-pdf-infrastructure-spike P01 | 6min | 3 tasks | 28 files |
 | Phase 10 P01 | 6min | 2 tasks | 5 files |
+| Phase 10 P02 | 3min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,7 @@ Recent decisions affecting current work:
 - [Phase 08]: KaTeX subprocess fallback (npx katex) when markdown_katex fails
 - [Phase 10]: Prompt builder as pure functions returning strings for testability
 - [Phase 10]: json_object response format for structured OpenAI output
+- [Phase 10]: Added uploadInstructionFile to api.ts alongside generation functions for self-contained report API surface
 
 ### Pending Todos
 
