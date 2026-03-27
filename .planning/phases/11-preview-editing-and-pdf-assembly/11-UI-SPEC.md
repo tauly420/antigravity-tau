@@ -21,7 +21,7 @@ created: 2026-03-27
 | Preset | not applicable |
 | Component library | none (custom CSS + inline styles) |
 | Icon library | none (Unicode symbols used inline) |
-| Font (app) | Inter (Google Fonts, weights 400-700) |
+| Font (app) | Inter (Google Fonts, weights 400 + 700) |
 | Font (PDF) | Noto Sans Hebrew (bundled, weights 400 + 700) |
 
 Source: global.css line 1, report_styles.css, CLAUDE.md styling conventions.
@@ -50,11 +50,11 @@ Exceptions: none. Existing ReportBeta.tsx already uses 4/8/16/24/32 consistently
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
 | Body | 14px (0.875rem) | 400 | 1.5 | Labels, descriptions, section body text, textarea content |
-| Subheading | 20px (1.25rem) | 600 | 1.3 | Card titles ("Lab Instructions"), accordion section headers |
+| Subheading | 20px (1.25rem) | 700 | 1.3 | Card titles ("Lab Instructions"), accordion section headers |
 | Heading | 24px (1.5rem) | 700 | 1.2 | Page title ("Lab Report Export") |
-| Caption | 12px (0.75rem) | 500 | 1.4 | "AI Generated" badge text, figure caption numbers, helper text |
+| Caption | 12px (0.75rem) | 400 | 1.4 | "AI Generated" badge text, figure caption numbers, helper text |
 
-Source: Existing ReportBeta.tsx uses 0.875rem body, 1.25rem card headings, page h1. Caption size added for new badge/figure elements.
+Source: Existing ReportBeta.tsx uses 0.875rem body, 1.25rem card headings, page h1. Caption size added for new badge/figure elements. Weights collapsed to 2 distinct values: 400 (regular) and 700 (bold).
 
 ---
 
