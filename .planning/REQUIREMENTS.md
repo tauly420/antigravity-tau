@@ -26,7 +26,7 @@ Requirements for AI-powered academic lab report export. Each maps to roadmap pha
 ### Context Collection
 
 - [ ] **CTX-01**: User can upload a lab instruction file (PDF or DOCX, Hebrew or English) as context for report generation
-- [ ] **CTX-02**: User can provide experiment context via a form (title, subject, equipment, procedure notes) alongside or instead of file upload
+- [x] **CTX-02**: User can provide experiment context via a form (title, subject, equipment, procedure notes) alongside or instead of file upload
 - [ ] **CTX-03**: AI identifies missing context from available inputs and asks 1-3 targeted follow-up questions before generating the report
 
 ### AI Report Generation
@@ -113,7 +113,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PDF-01 | Phase 8: PDF Infrastructure Spike | Complete |
 | PDF-02 | Phase 8: PDF Infrastructure Spike | Complete |
 | CTX-01 | Phase 9: Report Data Contract and File Parsing | Pending |
-| CTX-02 | Phase 10: AI Content Generation Pipeline | Pending |
+| CTX-02 | Phase 10: AI Content Generation Pipeline | Complete |
 | CTX-03 | Phase 10: AI Content Generation Pipeline | Pending |
 | RPT-01 | Phase 10: AI Content Generation Pipeline | Pending |
 | RPT-02 | Phase 10: AI Content Generation Pipeline | Pending |
