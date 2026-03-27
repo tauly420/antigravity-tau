@@ -166,6 +166,6 @@ Note: Phase 11 depends on both Phase 8 and Phase 10.
 | 3-7. Style Migration + Toggle | v1.0 | 0/TBD | Deferred | - |
 | 8. PDF Infrastructure Spike | v2.0 | 2/2 | Complete | - |
 | 9. Report Data Contract and File Parsing | v2.0 | 0/2 | Planning | - |
-| 10. AI Content Generation Pipeline | v2.0 | 3/3 | Complete   | 2026-03-27 |
+| 10. AI Content Generation Pipeline | v2.0 | 3/3 | Complete    | 2026-03-27 |
 | 11. Preview, Editing, and PDF Assembly | v2.0 | 0/TBD | Not started | - |
 | 12. Integration and Polish | v2.0 | 0/TBD | Not started | - |
