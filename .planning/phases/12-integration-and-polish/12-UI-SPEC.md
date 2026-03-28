@@ -21,7 +21,7 @@ created: 2026-03-28
 | Preset | not applicable |
 | Component library | none (custom CSS with CSS custom properties) |
 | Icon library | emoji (project convention) |
-| Font | Inter (Google Fonts, weights 300-800 loaded; 400, 500, 600, 700 used) |
+| Font | Inter (Google Fonts, weights 400 and 600 used in this phase) |
 
 ---
 
@@ -33,7 +33,7 @@ Declared values (must be multiples of 4):
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline label margins |
 | sm | 8px | Compact element spacing, warning message top margin |
-| md | 16px | Default element spacing, button padding-block, section gaps |
+| md | 16px | Default element spacing, button padding-block, section gaps, warning banner padding |
 | lg | 24px | Card padding, form group spacing |
 | xl | 32px | Button padding-inline, section bottom margins |
 | 2xl | 48px | Major section breaks, page top padding |
@@ -50,15 +50,15 @@ Exceptions: none
 | Body | 14px (0.875rem) | 400 | 1.5 |
 | Label / Button | 16px (1rem) | 600 | 1.4 |
 | Section Heading | 20px (1.25rem) | 600 | 1.2 |
-| Page Heading | 24px (1.5rem) | 700 | 1.2 |
+| Page Heading | 24px (1.5rem) | 600 | 1.2 |
 
-Source: Existing global.css patterns. Body at 0.875rem is the project standard for form text and descriptions. Buttons use 1rem/600.
+Source: Existing global.css patterns. Body at 0.875rem is the project standard for form text and descriptions. Buttons use 1rem/600. Page heading uses size (24px vs 20px) to differentiate from section headings -- a third weight is unnecessary.
 
 ---
 
 ## Color
 
-All colors reference existing CSS custom properties from global.css. No new tokens needed.
+All colors reference existing CSS custom properties from global.css.
 
 | Role | Token | Hex (light) | Usage |
 |------|-------|-------------|-------|
@@ -67,7 +67,11 @@ All colors reference existing CSS custom properties from global.css. No new toke
 | Accent (10%) | `--primary` | #1565c0 | See reserved list below |
 | Destructive | `--danger` | #d32f2f | Error messages only |
 | Success | `--success` | #2e7d32 | Success state of analysis completion |
-| Warning | `--warning` | #f57c00 | Partial analysis warnings |
+| Warning | `--warning` | #f57c00 | Partial analysis warning text emphasis |
+| Warning background | `--warning-bg` | #fff3e0 | Partial analysis warning banner background |
+| Warning border | `--warning-border` | #ffcc80 | Partial analysis warning banner border |
+
+All tokens above already exist in global.css (including `--warning-bg` and `--warning-border` which are defined in both light and dark theme variants).
 
 Accent (`--primary`) reserved for:
 - "Generate Report" button in AutoLab results (gradient background)
@@ -143,7 +147,7 @@ Accent (`--primary`) reserved for:
 - Background: `var(--warning-bg)` (#fff3e0)
 - Border: 1px solid `var(--warning-border)` (#ffcc80)
 - Border radius: 8px
-- Padding: 12px 16px
+- Padding: 16px
 - Icon: warning emoji
 - Text: 14px (0.875rem), weight 400, color `var(--text)`
 - Copy pattern: "[Section] not available -- will be skipped in the report."
