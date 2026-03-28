@@ -131,12 +131,12 @@ Plans:
   3. User can edit any AI-generated section text in a textarea and see a live KaTeX preview of changes, with an "AI Generated -- Please Review" badge that clears on edit
   4. Exported PDF has academic formatting: numbered sections with Hebrew headers, embedded fit and residuals plots with numbered figure captions, parameter table, A4 layout with proper margins
   5. Fit and residuals plots from AutoLab analysis are embedded in the PDF as publication-quality images with figure captions
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 11-01: TBD
-- [ ] 11-02: TBD
-- [ ] 11-03: TBD
+- [ ] 11-01-PLAN.md -- Frontend section editor: SectionAccordion, SectionEditor, TitlePageForm, PlotThumbnail components + ReportBeta integration
+- [ ] 11-02-PLAN.md -- Backend PDF export: assemble_report_html(), /export-pdf endpoint, 3 template CSS variants, test suite
+- [ ] 11-03-PLAN.md -- Wire frontend export to backend, plot capture via Plotly.toImage, visual verification checkpoint
 
 ### Phase 12: Integration and Polish
 **Goal**: Users can generate a report directly from completed AutoLab results in one click
@@ -167,5 +167,5 @@ Note: Phase 11 depends on both Phase 8 and Phase 10.
 | 8. PDF Infrastructure Spike | v2.0 | 2/2 | Complete | - |
 | 9. Report Data Contract and File Parsing | v2.0 | 0/2 | Planning | - |
 | 10. AI Content Generation Pipeline | v2.0 | 3/3 | Complete    | 2026-03-27 |
-| 11. Preview, Editing, and PDF Assembly | v2.0 | 0/TBD | Not started | - |
+| 11. Preview, Editing, and PDF Assembly | v2.0 | 0/3 | Planning | - |
 | 12. Integration and Polish | v2.0 | 0/TBD | Not started | - |
