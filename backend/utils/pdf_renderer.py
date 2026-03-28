@@ -137,7 +137,7 @@ def process_text_with_math(text: str) -> str:
     return text
 
 
-def generate_pdf(html_body: str) -> bytes:
+def generate_pdf(html_body: str, direction: str = 'rtl', lang: str = 'he') -> bytes:
     """Generate a PDF from an HTML body string.
 
     Reads the CSS and HTML templates, injects the body content,
@@ -145,6 +145,8 @@ def generate_pdf(html_body: str) -> bytes:
 
     Args:
         html_body: HTML content to place inside <body>.
+        direction: Text direction ('rtl' or 'ltr').
+        lang: Language code ('he' or 'en').
 
     Returns:
         PDF file contents as bytes.
@@ -165,6 +167,8 @@ def generate_pdf(html_body: str) -> bytes:
     # Simple Jinja2-style substitution (avoiding Jinja2 dependency)
     full_html = template.replace('{{ css_content }}', css_content)
     full_html = full_html.replace('{{ body_content }}', html_body)
+    full_html = full_html.replace('{{ direction }}', direction)
+    full_html = full_html.replace('{{ lang }}', lang)
 
     # Generate PDF
     font_config = FontConfiguration()
@@ -172,6 +176,211 @@ def generate_pdf(html_body: str) -> bytes:
     pdf_bytes = html_doc.write_pdf(font_config=font_config)
 
     return pdf_bytes
+
+
+def _cleanup_temp_images():
+    """Remove temporary plot image files from templates directory."""
+    import glob
+    for f in glob.glob(os.path.join(TEMPLATES_DIR, 'tmp*.png')):
+        try:
+            os.unlink(f)
+        except OSError:
+            pass
+
+
+def assemble_report_html(sections, title_page, plots, analysis_data, template='israeli', language='he'):
+    """Build full report HTML from structured data.
+
+    Args:
+        sections: dict with keys: theory, method, discussion, conclusions (raw text with LaTeX $/$$ delimiters)
+        title_page: dict with keys: studentName, studentId, labPartner, courseName, experimentTitle, date
+        plots: dict with keys: fit (base64 str or None), residuals (base64 str or None)
+        analysis_data: dict with normalized fit data (camelCase keys)
+        template: 'israeli' | 'minimal' | 'academic'
+        language: 'he' | 'en'
+
+    Returns:
+        HTML string for the full report body (before math processing).
+    """
+    import base64
+    import tempfile
+
+    html_parts = []
+
+    # Template class on wrapper div
+    html_parts.append(f'<div class="template-{template}">')
+
+    # Section headers per language
+    headers = {
+        'he': {
+            'theory': '1. רקע תיאורטי',
+            'method': '2. שיטת מדידה',
+            'results': '3. תוצאות',
+            'discussion': '4. דיון',
+            'conclusions': '5. מסקנות',
+        },
+        'en': {
+            'theory': '1. Theoretical Background',
+            'method': '2. Measurement Method',
+            'results': '3. Results',
+            'discussion': '4. Discussion',
+            'conclusions': '5. Conclusions',
+        },
+    }
+    h = headers.get(language, headers['he'])
+
+    # --- Title Page ---
+    name = title_page.get('studentName', '')
+    student_id = title_page.get('studentId', '')
+    partner = title_page.get('labPartner', '')
+    course = title_page.get('courseName', '')
+    exp_title = title_page.get('experimentTitle', '')
+    date_str = title_page.get('date', '')
+
+    if template == 'minimal':
+        # Minimal: title as first-page header, no separate title page
+        html_parts.append(f'<h1 class="report-title">{exp_title}</h1>')
+        details = []
+        if name:
+            details.append(name)
+        if student_id:
+            details.append(student_id)
+        if partner:
+            lbl = 'שותף/ה: ' if language == 'he' else 'Partner: '
+            details.append(f'{lbl}{partner}')
+        if course:
+            details.append(course)
+        if date_str:
+            details.append(date_str)
+        if details:
+            html_parts.append(f'<p class="title-details">{" | ".join(details)}</p>')
+    else:
+        # Israeli and Academic: full title page
+        html_parts.append('<div class="title-page">')
+        html_parts.append(f'<h1 class="report-title">{exp_title}</h1>')
+        # Student details table
+        name_lbl = 'שם' if language == 'he' else 'Name'
+        id_lbl = 'ת.ז.' if language == 'he' else 'ID'
+        partner_lbl = 'שותף/ה למעבדה' if language == 'he' else 'Lab Partner'
+        course_lbl = 'קורס' if language == 'he' else 'Course'
+        date_lbl = 'תאריך' if language == 'he' else 'Date'
+
+        html_parts.append('<table class="title-table">')
+        if name:
+            html_parts.append(f'<tr><td class="label">{name_lbl}</td><td>{name}</td></tr>')
+        if student_id:
+            html_parts.append(f'<tr><td class="label">{id_lbl}</td><td>{student_id}</td></tr>')
+        if partner:
+            html_parts.append(f'<tr><td class="label">{partner_lbl}</td><td>{partner}</td></tr>')
+        if course:
+            html_parts.append(f'<tr><td class="label">{course_lbl}</td><td>{course}</td></tr>')
+        if date_str:
+            html_parts.append(f'<tr><td class="label">{date_lbl}</td><td>{date_str}</td></tr>')
+        html_parts.append('</table>')
+        html_parts.append('</div>')
+
+    # --- Content Sections ---
+    for section_key in ['theory', 'method']:
+        content = sections.get(section_key, '')
+        if content.strip():
+            html_parts.append(f'<h2>{h[section_key]}</h2>')
+            # Wrap paragraphs
+            for para in content.split('\n\n'):
+                para = para.strip()
+                if para:
+                    html_parts.append(f'<p>{para}</p>')
+
+    # --- Results Section ---
+    html_parts.append(f'<h2>{h["results"]}</h2>')
+
+    # Parameter table from analysis_data
+    fit = analysis_data.get('fit', None) if analysis_data else None
+    if fit and isinstance(fit, dict):
+        params = fit.get('parameters', [])
+        gof = fit.get('goodnessOfFit', {})
+        model = fit.get('modelName', '')
+
+        if model:
+            model_lbl = 'מודל התאמה' if language == 'he' else 'Fit Model'
+            html_parts.append(f'<p><strong>{model_lbl}:</strong> {model}</p>')
+
+        if params:
+            param_lbl = 'פרמטר' if language == 'he' else 'Parameter'
+            value_lbl = 'ערך' if language == 'he' else 'Value'
+            html_parts.append('<table class="param-table">')
+            html_parts.append(f'<thead><tr><th>{param_lbl}</th><th>{value_lbl}</th></tr></thead>')
+            html_parts.append('<tbody>')
+            for p in params:
+                pname = p.get('name', '')
+                rounded = p.get('rounded', f"{p.get('value', '')} +/- {p.get('uncertainty', '')}")
+                html_parts.append(f'<tr><td>{pname}</td><td>{rounded}</td></tr>')
+            html_parts.append('</tbody></table>')
+
+        # Goodness-of-fit stats
+        gof_parts = []
+        if gof.get('chiSquaredReduced') is not None:
+            gof_parts.append(f"$\\chi^2/\\text{{dof}} = {gof['chiSquaredReduced']:.4f}$")
+        if gof.get('rSquared') is not None:
+            gof_parts.append(f"$R^2 = {gof['rSquared']:.6f}$")
+        if gof.get('pValue') is not None:
+            gof_parts.append(f"$P = {gof['pValue']:.4f}$")
+        if gof_parts:
+            html_parts.append(f'<p>{", ".join(gof_parts)}</p>')
+
+    # Formula result
+    formula = analysis_data.get('formula') if analysis_data else None
+    if formula and isinstance(formula, dict):
+        expr = formula.get('expression', '')
+        formatted = formula.get('formatted', '')
+        if expr and formatted:
+            formula_lbl = 'חישוב נוסחה' if language == 'he' else 'Formula Calculation'
+            html_parts.append(f'<p><strong>{formula_lbl}:</strong> ${expr} = {formatted}$</p>')
+
+    # N-sigma comparison
+    nsigma = analysis_data.get('nsigma') if analysis_data else None
+    if nsigma and isinstance(nsigma, dict):
+        ns = nsigma.get('nSigma', '')
+        verdict = nsigma.get('verdict', '')
+        if ns != '' and verdict:
+            nsigma_lbl = 'השוואת N-sigma' if language == 'he' else 'N-sigma Comparison'
+            html_parts.append(f'<p><strong>{nsigma_lbl}:</strong> $N_\\sigma = {ns}$ ({verdict})</p>')
+
+    # Plot images
+    fig_num = 1
+    for plot_key, caption_he, caption_en in [
+        ('fit', 'גרף התאמה', 'Fit Plot'),
+        ('residuals', 'שאריות', 'Residuals'),
+    ]:
+        img_data = plots.get(plot_key) if plots else None
+        if img_data and isinstance(img_data, str) and img_data.startswith('data:image'):
+            # Write to temp file for WeasyPrint compatibility (per Research pitfall 6)
+            b64_str = img_data.split(',', 1)[1] if ',' in img_data else img_data
+            img_bytes = base64.b64decode(b64_str)
+            tmp = tempfile.NamedTemporaryFile(suffix='.png', delete=False, dir=TEMPLATES_DIR)
+            tmp.write(img_bytes)
+            tmp.close()
+            fig_path = os.path.basename(tmp.name)
+            caption_text = caption_he if language == 'he' else caption_en
+            fig_label = 'איור' if language == 'he' else 'Figure'
+            html_parts.append(f'<div class="figure">')
+            html_parts.append(f'<img src="{fig_path}" class="plot-image" />')
+            html_parts.append(f'<p class="figure-caption">{fig_label} {fig_num}: {caption_text}</p>')
+            html_parts.append(f'</div>')
+            fig_num += 1
+
+    # --- Discussion and Conclusions ---
+    for section_key in ['discussion', 'conclusions']:
+        content = sections.get(section_key, '')
+        if content.strip():
+            html_parts.append(f'<h2>{h[section_key]}</h2>')
+            for para in content.split('\n\n'):
+                para = para.strip()
+                if para:
+                    html_parts.append(f'<p>{para}</p>')
+
+    html_parts.append('</div>')  # Close template wrapper
+
+    return '\n'.join(html_parts)
 
 
 def generate_test_pdf() -> bytes:
