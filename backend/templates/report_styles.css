@@ -1234,6 +1234,11 @@ body {
 @page {
     size: A4;
     margin: 2.5cm 2cm 2.5cm 2cm;
+    @bottom-center {
+        content: counter(page);
+        font-size: 10pt;
+        font-family: 'Noto Sans Hebrew', sans-serif;
+    }
 }
 body {
     font-family: 'Noto Sans Hebrew', sans-serif;
@@ -1256,4 +1261,151 @@ h2 { font-size: 14pt; }
     display: block;
     text-align: center;
     margin: 1em 0;
+}
+
+/* --- Report Structure --- */
+.title-page {
+    text-align: center;
+    padding: 60px 0 40px;
+    page-break-after: always;
+}
+
+.report-title {
+    font-size: 22pt;
+    font-weight: 700;
+    margin: 0 0 30px 0;
+    line-height: 1.3;
+}
+
+.title-table {
+    margin: 20px auto;
+    border-collapse: collapse;
+    font-size: 12pt;
+}
+
+.title-table td {
+    padding: 6px 16px;
+    text-align: right;
+}
+
+.title-table td.label {
+    font-weight: 700;
+}
+
+.title-details {
+    text-align: center;
+    color: #555;
+    font-size: 10pt;
+    margin: 0 0 20px 0;
+}
+
+h2 {
+    font-size: 14pt;
+    font-weight: 700;
+    margin: 24px 0 12px 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #ccc;
+}
+
+p {
+    font-size: 12pt;
+    line-height: 1.6;
+    margin: 0 0 8px 0;
+    text-align: justify;
+}
+
+/* Parameter table */
+.param-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 11pt;
+}
+
+.param-table th,
+.param-table td {
+    border: 1px solid #ccc;
+    padding: 6px 12px;
+    text-align: right;
+}
+
+.param-table thead th {
+    background: #f5f5f5;
+    font-weight: 700;
+}
+
+/* Figures */
+.figure {
+    text-align: center;
+    margin: 16px 0;
+}
+
+.plot-image {
+    max-width: 100%;
+    height: auto;
+}
+
+.figure-caption {
+    font-size: 10pt;
+    color: #555;
+    margin: 4px 0 16px 0;
+    font-weight: 400;
+    text-align: center;
+}
+
+/* --- Template: Israeli Lab Report (default) --- */
+.template-israeli .title-page {
+    padding-top: 80px;
+}
+
+.template-israeli h2 {
+    border-bottom-color: #333;
+}
+
+/* --- Template: Minimal Clean --- */
+.template-minimal .report-title {
+    font-size: 18pt;
+    text-align: right;
+    border-bottom: 0.5px solid #999;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+}
+
+.template-minimal h2 {
+    font-size: 13pt;
+    border-bottom: 0.5px solid #ddd;
+}
+
+.template-minimal .param-table th,
+.template-minimal .param-table td {
+    border-color: #ddd;
+}
+
+/* --- Template: LaTeX-Inspired Academic --- */
+.template-academic body {
+    font-family: 'KaTeX_Main', 'Noto Sans Hebrew', serif;
+}
+
+.template-academic .title-page {
+    padding-top: 100px;
+}
+
+.template-academic .report-title {
+    font-size: 20pt;
+    font-family: 'KaTeX_Main', 'Noto Sans Hebrew', serif;
+}
+
+.template-academic h2 {
+    font-family: 'KaTeX_Main', 'Noto Sans Hebrew', serif;
+    border-bottom: none;
+    font-size: 14pt;
+}
+
+.template-academic p {
+    text-align: justify;
+    text-indent: 1.5em;
+}
+
+.template-academic .figure-caption {
+    font-style: italic;
 }
