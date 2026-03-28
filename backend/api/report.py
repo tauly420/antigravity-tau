@@ -5,6 +5,7 @@ Provides:
 - /test-pdf: Infrastructure validation endpoint (Phase 8)
 - /analyze-context: AI follow-up question generation (Phase 10)
 - /generate: AI report section generation (Phase 10)
+- /export-pdf: Full report PDF export (Phase 11)
 """
 
 import json
@@ -12,6 +13,7 @@ import os
 import traceback
 
 from flask import Blueprint, Response, request, jsonify
+from utils.pdf_renderer import assemble_report_html, generate_pdf, process_text_with_math, _cleanup_temp_images
 from openai import OpenAI
 from utils.file_parser import extract_pdf_text, extract_docx_text
 
@@ -192,3 +194,75 @@ def generate():
         return jsonify({"error": str(e)}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@report_bp.route('/export-pdf', methods=['POST'])
+def export_pdf():
+    """Generate and return a PDF lab report.
+
+    Accepts JSON with:
+        sections: {theory, method, discussion, conclusions} - raw text with LaTeX
+        title_page: {studentName, studentId, labPartner, courseName, experimentTitle, date}
+        plots: {fit: "data:image/png;base64,...", residuals: "data:image/png;base64,..."}
+        template: 'israeli' | 'minimal' | 'academic' (default: 'israeli')
+        language: 'he' | 'en' (default: 'he')
+        analysis_data: {fit: {...}, formula: {...}, nsigma: {...}} - normalized report data
+
+    Returns: PDF bytes with Content-Disposition attachment header.
+    """
+    try:
+        body = request.get_json(silent=True)
+        if not body:
+            return jsonify({"error": "Request body is required"}), 400
+
+        sections = body.get('sections', {})
+        title_page = body.get('title_page', {})
+        plots = body.get('plots', {})
+        template = body.get('template', 'israeli')
+        language = body.get('language', 'he')
+        analysis_data = body.get('analysis_data', {})
+
+        # Validate template
+        if template not in ('israeli', 'minimal', 'academic'):
+            template = 'israeli'
+
+        # Validate required title page fields
+        if not title_page.get('studentName', '').strip():
+            return jsonify({"error": "Student name is required"}), 400
+        if not title_page.get('experimentTitle', '').strip():
+            return jsonify({"error": "Experiment title is required"}), 400
+
+        # Assemble HTML
+        html_body = assemble_report_html(
+            sections=sections,
+            title_page=title_page,
+            plots=plots,
+            analysis_data=analysis_data,
+            template=template,
+            language=language,
+        )
+
+        # Process LaTeX math delimiters to KaTeX HTML
+        processed = process_text_with_math(html_body)
+
+        # Set direction based on language
+        direction = 'rtl' if language == 'he' else 'ltr'
+
+        # Generate PDF
+        pdf_bytes = generate_pdf(processed, direction=direction, lang=language)
+
+        # Cleanup temp plot images
+        _cleanup_temp_images()
+
+        return Response(
+            pdf_bytes,
+            mimetype='application/pdf',
+            headers={
+                'Content-Disposition': 'attachment; filename="lab-report.pdf"',
+                'Content-Type': 'application/pdf',
+            }
+        )
+
+    except Exception as e:
+        _cleanup_temp_images()
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
