@@ -81,6 +81,8 @@ Accent (`--primary`) reserved for:
 - Active nav item indicator
 - Focus rings on form inputs
 
+**Focal point:** The "Generate Report" button is the primary visual anchor on both the AutoLab results view and the report page. Its accent gradient background, full-width placement, and elevated shadow make it the dominant interactive element the user's eye should land on.
+
 ---
 
 ## Component Contracts
@@ -137,7 +139,7 @@ Accent (`--primary`) reserved for:
 - Experiment title: from AutoLab instructions or filename
 - Data context: auto-filled from analysis parameters summary
 
-**Visual indicator:** Pre-filled fields show a subtle info note: "Pre-filled from AutoLab analysis" in `var(--text-muted)` at 12px, below the input. Disappears on user edit.
+**Visual indicator:** Pre-filled fields show a subtle info note: "Pre-filled from AutoLab analysis" in `var(--text-muted)` at 14px (0.875rem), below the input. The muted color provides sufficient visual de-emphasis without requiring a size reduction below the declared body size. Disappears on user edit.
 
 ### 4. Partial Analysis Warning Banner
 
