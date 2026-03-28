@@ -136,9 +136,9 @@ export default function SectionAccordion({
       {/* Preview pane */}
       {mode === 'preview' && (
         <div
+          dir={language === 'he' ? 'rtl' : 'ltr'}
           style={{
             padding: '16px 24px',
-            dir: language === 'he' ? 'rtl' : 'ltr',
           }}
           dangerouslySetInnerHTML={{ __html: renderLatex(content) }}
         />

@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { uploadInstructionFile, analyzeReportContext, generateReport, type ContextForm, type FollowUpQuestion, type GeneratedSections } from '../services/api';
 import { useAnalysis } from '../context/AnalysisContext';
+import SectionAccordion from './report/SectionAccordion';
+import TitlePageForm, { type TitlePageData } from './report/TitlePageForm';
+import PlotThumbnail from './report/PlotThumbnail';
 
 /**
  * Normalize raw AutoLab results to ReportAnalysisData shape (camelCase).
@@ -78,10 +81,17 @@ function normalizeAnalysisData(raw: Record<string, unknown>): Record<string, unk
     return result;
 }
 
+const SECTION_ORDER = [
+    { key: 'theory', en: '1. Theoretical Background', he: '1. \u05E8\u05E7\u05E2 \u05EA\u05D9\u05D0\u05D5\u05E8\u05D8\u05D9' },
+    { key: 'method', en: '2. Measurement Method', he: '2. \u05E9\u05D9\u05D8\u05EA \u05DE\u05D3\u05D9\u05D3\u05D4' },
+    { key: 'results', en: '3. Results', he: '3. \u05EA\u05D5\u05E6\u05D0\u05D5\u05EA' },
+    { key: 'discussion', en: '4. Discussion', he: '4. \u05D3\u05D9\u05D5\u05DF' },
+    { key: 'conclusions', en: '5. Conclusions', he: '5. \u05DE\u05E1\u05E7\u05E0\u05D5\u05EA' },
+];
+
 type GenerationPhase = 'idle' | 'analyzing' | 'follow-up' | 'generating' | 'complete' | 'error';
 
 function ReportBeta() {
-    const [downloading, setDownloading] = useState(false);
     const [instructionText, setInstructionText] = useState('');
     const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
     const [uploadWarning, setUploadWarning] = useState<string | null>(null);
@@ -107,6 +117,28 @@ function ReportBeta() {
     // Track hover state for generate button
     const [generateHovered, setGenerateHovered] = useState(false);
 
+    // Title page data
+    const [titlePageData, setTitlePageData] = useState<TitlePageData>({
+        studentName: '', studentId: '', labPartner: '', courseName: '',
+        experimentTitle: '', date: new Date().toISOString().split('T')[0],
+    });
+
+    // Section editing state: track which sections have been user-edited (badge clearing per D-03)
+    const [editedSections, setEditedSections] = useState<Set<string>>(new Set());
+
+    // Editable section content (initialized from generatedSections, user edits update this)
+    const [editableSections, setEditableSections] = useState<Record<string, string>>({});
+
+    // Template selection (per D-05)
+    const [selectedTemplate, setSelectedTemplate] = useState<'israeli' | 'minimal' | 'academic'>('israeli');
+
+    // Export state
+    const [exportStatus, setExportStatus] = useState<'idle' | 'exporting' | 'error'>('idle');
+    const [exportError, setExportError] = useState<string | null>(null);
+
+    // Plot images (base64) -- will be populated by Plan 03
+    const [plotImages] = useState<{ fit: string | null; residuals: string | null }>({ fit: null, residuals: null });
+
     // Auto-focus first follow-up question input when questions appear
     useEffect(() => {
         if (generationPhase === 'follow-up' && followUpRef.current) {
@@ -114,6 +146,24 @@ function ReportBeta() {
             if (firstInput) firstInput.focus();
         }
     }, [generationPhase]);
+
+    // Initialize editableSections when generatedSections arrives
+    useEffect(() => {
+        if (generatedSections) {
+            setEditableSections({
+                theory: generatedSections.theory,
+                method: generatedSections.method,
+                discussion: generatedSections.discussion,
+                conclusions: generatedSections.conclusions,
+            });
+            setEditedSections(new Set()); // Reset badges on new generation
+        }
+    }, [generatedSections]);
+
+    const handleSectionChange = (key: string, newContent: string) => {
+        setEditableSections(prev => ({ ...prev, [key]: newContent }));
+        setEditedSections(prev => new Set(prev).add(key));
+    };
 
     const doGenerate = async (answersList: { id: string; answer: string }[]) => {
         setGenerationPhase('generating');
@@ -205,19 +255,17 @@ function ReportBeta() {
         }
     };
 
-    const handleTestPdf = async () => {
-        setDownloading(true);
+    const handleExportPdf = async () => {
+        setExportStatus('exporting');
+        setExportError(null);
         try {
-            const response = await fetch('/api/report/test-pdf');
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            window.open(url, '_blank');
-        } catch (err) {
-            alert('Failed to generate test PDF. Make sure the backend is running.');
-            console.error(err);
-        } finally {
-            setDownloading(false);
+            // Will be implemented in Plan 03 -- calls POST /api/report/export-pdf
+            alert('PDF export will be wired in the next plan');
+            setExportStatus('idle');
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'PDF generation failed';
+            setExportError(msg);
+            setExportStatus('error');
         }
     };
 
@@ -238,6 +286,15 @@ function ReportBeta() {
         contextForm.equipment.trim() !== '' ||
         contextForm.notes.trim() !== '';
 
+    // Extract normalized fit data for Results section parameter table
+    const getNormalizedFit = (): { parameters: Array<{ name: string; rounded: string }>; modelName: string } | null => {
+        if (!autolabResults) return null;
+        const normalized = normalizeAnalysisData(autolabResults as Record<string, unknown>);
+        const fit = (normalized as Record<string, any>).fit;
+        if (!fit || !fit.parameters) return null;
+        return { parameters: fit.parameters, modelName: fit.modelName ?? 'unknown' };
+    };
+
     return (
         <div style={{ maxWidth: 700, margin: '2rem auto', padding: '2rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
@@ -252,30 +309,6 @@ function ReportBeta() {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                 }}>Beta</span>
-            </div>
-
-            <div style={{
-                background: '#f0f4ff',
-                border: '1px solid #c5cae9',
-                borderRadius: '12px',
-                padding: '1.5rem',
-                marginBottom: '1.5rem',
-            }}>
-                <h2 style={{ margin: '0 0 0.75rem 0', fontSize: '1.1rem', color: '#1565c0' }}>
-                    Coming Soon
-                </h2>
-                <p style={{ margin: '0 0 1rem 0', color: '#444', lineHeight: 1.6 }}>
-                    Generate professional academic lab reports from your AutoLab analysis —
-                    complete with Hebrew RTL support, LaTeX equations, fitted plots, and
-                    uncertainty tables. Upload your data, let AI write the report, review and
-                    edit each section, then export as PDF.
-                </p>
-                <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#555', lineHeight: 1.8 }}>
-                    <li>AI-generated report sections from your analysis results</li>
-                    <li>Hebrew right-to-left layout with inline math equations</li>
-                    <li>Section-by-section editing with live LaTeX preview</li>
-                    <li>Professional A4 PDF export with bundled fonts</li>
-                </ul>
             </div>
 
             {/* Lab Instructions Upload Section */}
@@ -495,7 +528,7 @@ function ReportBeta() {
                 </fieldset>
             </div>
 
-            {/* Generate Report Button — Focal Point */}
+            {/* Generate Report Button -- Focal Point */}
             {(generationPhase === 'idle' || generationPhase === 'error' || generationPhase === 'complete' || generationPhase === 'analyzing') && (
                 <button
                     onClick={handleGenerate}
@@ -635,69 +668,191 @@ function ReportBeta() {
 
             {/* Generation Complete State */}
             {generationPhase === 'complete' && generatedSections && (
-                <div style={{
-                    border: '1px solid var(--success-border, #a5d6a7)',
-                    borderRadius: '12px',
-                    padding: '24px',
-                    background: 'var(--success-bg, #e8f5e9)',
-                    marginBottom: '32px',
-                }}>
-                    <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', fontWeight: 600, color: 'var(--success, #2e7d32)' }}>
-                        Report Generated
-                    </h3>
-                    <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--text-secondary, #666)' }}>
-                        Your report sections are ready for review.
-                    </p>
-                    <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                        {(['theory', 'method', 'discussion', 'conclusions'] as const).map(section => (
-                            <li key={section} style={{ fontSize: '0.875rem', color: 'var(--text, #1a1a2e)', padding: '4px 0' }}>
-                                &#x2713; {section.charAt(0).toUpperCase() + section.slice(1)}
-                            </li>
-                        ))}
-                    </ul>
-                    {generatedSections.warnings && generatedSections.warnings.length > 0 && (
-                        <div style={{ marginTop: '16px' }}>
-                            {generatedSections.warnings.map((w, i) => (
-                                <p key={i} style={{ margin: '4px 0', fontSize: '0.875rem', color: 'var(--warning, #f57c00)' }}>
-                                    &#x26A0; {w}
-                                </p>
+                <>
+                    {/* Brief success confirmation */}
+                    <div style={{
+                        border: '1px solid var(--success-border, #a5d6a7)',
+                        borderRadius: '12px',
+                        padding: '24px',
+                        background: 'var(--success-bg, #e8f5e9)',
+                        marginBottom: '32px',
+                    }}>
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', fontWeight: 600, color: 'var(--success, #2e7d32)' }}>
+                            Report Generated
+                        </h3>
+                        <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--text-secondary, #666)' }}>
+                            Your report sections are ready for review.
+                        </p>
+                        <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                            {(['theory', 'method', 'discussion', 'conclusions'] as const).map(section => (
+                                <li key={section} style={{ fontSize: '0.875rem', color: 'var(--text, #1a1a2e)', padding: '4px 0' }}>
+                                    &#x2713; {section.charAt(0).toUpperCase() + section.slice(1)}
+                                </li>
                             ))}
-                        </div>
-                    )}
-                </div>
-            )}
+                        </ul>
+                        {generatedSections.warnings && generatedSections.warnings.length > 0 && (
+                            <div style={{ marginTop: '16px' }}>
+                                {generatedSections.warnings.map((w, i) => (
+                                    <p key={i} style={{ margin: '4px 0', fontSize: '0.875rem', color: 'var(--warning, #f57c00)' }}>
+                                        &#x26A0; {w}
+                                    </p>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
-            {/* Infrastructure Preview */}
-            <div style={{
-                background: '#fff3e0',
-                border: '1px solid #ffe0b2',
-                borderRadius: '12px',
-                padding: '1.5rem',
-            }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#e65100' }}>
-                    Infrastructure Preview
-                </h3>
-                <p style={{ margin: '0 0 1rem 0', color: '#555', lineHeight: 1.6 }}>
-                    The PDF rendering engine is ready. Generate a test PDF with Hebrew text
-                    and 12 physics equations to see the rendering quality.
-                </p>
-                <button
-                    onClick={handleTestPdf}
-                    disabled={downloading}
-                    style={{
-                        background: downloading ? '#bbb' : '#e65100',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '0.6rem 1.2rem',
-                        fontSize: '0.9rem',
-                        fontWeight: 600,
-                        cursor: downloading ? 'not-allowed' : 'pointer',
-                    }}
-                >
-                    {downloading ? 'Generating...' : 'View Test PDF'}
-                </button>
-            </div>
+                    {/* Title Page Form */}
+                    <TitlePageForm
+                        data={titlePageData}
+                        onChange={setTitlePageData}
+                        language={language}
+                        experimentTitleFromContext={contextForm.title}
+                    />
+
+                    {/* Section Accordions */}
+                    {SECTION_ORDER.map(({ key, en, he }) => {
+                        if (key === 'results') {
+                            // Results section is data-driven, not AI-generated
+                            const fitData = getNormalizedFit();
+                            return (
+                                <div
+                                    key={key}
+                                    style={{
+                                        border: '1px solid var(--border, #e0e0e0)',
+                                        borderRadius: '12px',
+                                        marginBottom: '16px',
+                                        overflow: 'hidden',
+                                    }}
+                                >
+                                    <details>
+                                        <summary
+                                            style={{
+                                                background: 'var(--surface-alt, #f4f5f9)',
+                                                padding: '16px 24px',
+                                                cursor: 'pointer',
+                                                fontWeight: 600,
+                                                fontSize: '1rem',
+                                                color: 'var(--text, #1a1a2e)',
+                                                listStyle: 'none',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                            }}
+                                        >
+                                            <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary, #666)' }}>&#x25B6;</span>
+                                            {language === 'he' ? he : en}
+                                        </summary>
+                                        <div style={{ padding: '16px 24px' }}>
+                                            <PlotThumbnail
+                                                imageBase64={plotImages.fit}
+                                                caption={language === 'he' ? '\u05D0\u05D9\u05D5\u05E8 1: \u05D2\u05E8\u05E3 \u05D4\u05EA\u05D0\u05DE\u05D4' : 'Figure 1: Fit Plot'}
+                                                missingText={language === 'he' ? '\u05D0\u05D9\u05DF \u05D2\u05E8\u05E3 \u05D6\u05DE\u05D9\u05DF -- \u05D4\u05E8\u05E5 \u05E0\u05D9\u05EA\u05D5\u05D7 AutoLab \u05E7\u05D5\u05D3\u05DD' : 'No plot available -- run AutoLab analysis first'}
+                                            />
+                                            <PlotThumbnail
+                                                imageBase64={plotImages.residuals}
+                                                caption={language === 'he' ? '\u05D0\u05D9\u05D5\u05E8 2: \u05E9\u05D0\u05E8\u05D9\u05D5\u05EA' : 'Figure 2: Residuals'}
+                                                missingText={language === 'he' ? '\u05D0\u05D9\u05DF \u05D2\u05E8\u05E3 \u05D6\u05DE\u05D9\u05DF -- \u05D4\u05E8\u05E5 \u05E0\u05D9\u05EA\u05D5\u05D7 AutoLab \u05E7\u05D5\u05D3\u05DD' : 'No plot available -- run AutoLab analysis first'}
+                                            />
+                                            {fitData ? (
+                                                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '16px' }}>
+                                                    <thead>
+                                                        <tr>
+                                                            <th style={{ border: '1px solid var(--border, #e0e0e0)', padding: '8px', fontWeight: 700, textAlign: 'left' }}>
+                                                                {language === 'he' ? '\u05E4\u05E8\u05DE\u05D8\u05E8' : 'Parameter'}
+                                                            </th>
+                                                            <th style={{ border: '1px solid var(--border, #e0e0e0)', padding: '8px', fontWeight: 700, textAlign: 'left' }}>
+                                                                {language === 'he' ? '\u05E2\u05E8\u05DA' : 'Value'}
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {fitData.parameters.map((p: { name: string; rounded: string }, idx: number) => (
+                                                            <tr key={idx}>
+                                                                <td style={{ border: '1px solid var(--border, #e0e0e0)', padding: '8px' }}>{p.name}</td>
+                                                                <td style={{ border: '1px solid var(--border, #e0e0e0)', padding: '8px' }}>{p.rounded}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            ) : (
+                                                <p style={{ color: 'var(--text-muted, #9e9e9e)', fontSize: '0.875rem', textAlign: 'center' }}>
+                                                    {language === 'he' ? '\u05D0\u05D9\u05DF \u05E0\u05EA\u05D5\u05E0\u05D9 \u05E0\u05D9\u05EA\u05D5\u05D7 \u05D6\u05DE\u05D9\u05E0\u05D9\u05DD' : 'No analysis data available'}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </details>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <SectionAccordion
+                                key={key}
+                                sectionKey={key}
+                                title={language === 'he' ? he : en}
+                                content={editableSections[key] ?? ''}
+                                isAiGenerated={!editedSections.has(key)}
+                                onContentChange={(c) => handleSectionChange(key, c)}
+                                language={language}
+                            />
+                        );
+                    })}
+
+                    {/* Template Selector + Export PDF Button */}
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginTop: '32px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <label style={{ fontSize: '0.875rem', color: 'var(--text, #1a1a2e)' }}>
+                                {language === 'he' ? '\u05EA\u05D1\u05E0\u05D9\u05EA' : 'Template'}
+                            </label>
+                            <select
+                                value={selectedTemplate}
+                                onChange={(e) => setSelectedTemplate(e.target.value as 'israeli' | 'minimal' | 'academic')}
+                                style={{
+                                    border: '1.5px solid var(--border, #e0e0e0)',
+                                    borderRadius: '8px',
+                                    padding: '8px 12px',
+                                    background: 'var(--surface, #ffffff)',
+                                    fontSize: '0.875rem',
+                                    fontFamily: 'inherit',
+                                }}
+                            >
+                                <option value="israeli">{language === 'he' ? '\u05D3\u05D5\u05D7 \u05DE\u05E2\u05D1\u05D3\u05D4 \u05D9\u05E9\u05E8\u05D0\u05DC\u05D9' : 'Israeli Lab Report'}</option>
+                                <option value="minimal">{language === 'he' ? '\u05DE\u05D9\u05E0\u05D9\u05DE\u05DC\u05D9 \u05E0\u05E7\u05D9' : 'Minimal Clean'}</option>
+                                <option value="academic">{language === 'he' ? '\u05D0\u05E7\u05D3\u05DE\u05D9 \u05D1\u05E1\u05D2\u05E0\u05D5\u05DF LaTeX' : 'LaTeX-Inspired Academic'}</option>
+                            </select>
+                        </div>
+                        <button
+                            disabled={exportStatus === 'exporting' || !titlePageData.studentName.trim() || !titlePageData.experimentTitle.trim()}
+                            onClick={handleExportPdf}
+                            style={{
+                                flex: 1,
+                                background: (exportStatus === 'exporting' || !titlePageData.studentName.trim() || !titlePageData.experimentTitle.trim())
+                                    ? '#bbb'
+                                    : 'linear-gradient(135deg, var(--primary, #1565c0) 0%, #1976d2 100%)',
+                                color: 'white',
+                                fontSize: '1rem',
+                                fontWeight: 600,
+                                padding: '16px 32px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                cursor: (exportStatus === 'exporting' || !titlePageData.studentName.trim() || !titlePageData.experimentTitle.trim())
+                                    ? 'not-allowed' : 'pointer',
+                            }}
+                        >
+                            {exportStatus === 'exporting'
+                                ? (language === 'he' ? '\u05DE\u05D9\u05D9\u05E6\u05E8 PDF...' : 'Generating PDF...')
+                                : (language === 'he' ? '\u05D9\u05D9\u05E6\u05D5\u05D0 \u05DB-PDF' : 'Export as PDF')}
+                        </button>
+                    </div>
+
+                    {/* Export error display */}
+                    {exportError && (
+                        <p style={{ color: 'var(--danger, #d32f2f)', fontSize: '0.875rem', marginTop: '8px' }}>
+                            {language === 'he' ? '\u05D9\u05E6\u05D9\u05E8\u05EA \u05D4-PDF \u05E0\u05DB\u05E9\u05DC\u05D4. \u05D5\u05D3\u05D0 \u05E9\u05DB\u05DC \u05D4\u05E9\u05D3\u05D5\u05EA \u05D4\u05E0\u05D3\u05E8\u05E9\u05D9\u05DD \u05DE\u05DC\u05D0\u05D9\u05DD \u05D5\u05E0\u05E1\u05D4 \u05E9\u05D5\u05D1.' : exportError}
+                        </p>
+                    )}
+                </>
+            )}
         </div>
     );
 }

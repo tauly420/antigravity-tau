@@ -9,7 +9,7 @@ interface SectionEditorProps {
 
 export default function SectionEditor({ content, onChange, language }: SectionEditorProps) {
   const [previewHtml, setPreviewHtml] = useState(() => renderLatex(content));
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
