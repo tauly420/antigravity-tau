@@ -210,6 +210,9 @@ function MatrixCalculator() {
     return (
         <div className="card">
             <h2>Matrix Calculator</h2>
+            <p style={{ color: 'var(--text-secondary, #666)', fontSize: '0.95rem', margin: '0 0 1.5rem 0', lineHeight: 1.5 }}>
+                Perform matrix operations: add, multiply, transpose, inverse, determinant, LU decomposition, eigenvalues & eigenvectors, or solve Ax = b.
+            </p>
 
             <div className="form-group">
                 <label>Operation</label>

@@ -153,6 +153,11 @@ function FormulaCalculator({ prefilled, onResult, embedded }: FormulaCalculatorP
     return (
         <div className={embedded ? '' : 'card'}>
             {!embedded && <h2>Formula Calculator</h2>}
+            {!embedded && (
+                <p style={{ color: 'var(--text-secondary, #666)', fontSize: '0.95rem', margin: '0 0 1rem 0', lineHeight: 1.5 }}>
+                    Enter any mathematical expression with variables. Each variable can have a value ± uncertainty, and the calculator computes the propagated error automatically.
+                </p>
+            )}
 
             <div className="instructions">
                 <p><strong>Enter any expression</strong> — variables are detected automatically.</p>

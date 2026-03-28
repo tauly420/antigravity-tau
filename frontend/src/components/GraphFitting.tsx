@@ -194,6 +194,9 @@ function GraphFitting() {
                 <img src="/graph.png" alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} onError={e => (e.target as HTMLImageElement).style.display = 'none'} />
                 Graph & Curve Fitting
             </h2>
+            <p style={{ color: 'var(--text-secondary, #666)', fontSize: '0.95rem', margin: '0 0 1.5rem 0', lineHeight: 1.5 }}>
+                Upload your data (Excel/CSV) and fit it with various models. Choose the right model, interpret R², χ²/dof, and P-values, or write a custom fit expression.
+            </p>
 
             {/* ─── Data Source ─── */}
             <div style={{ marginBottom: '1.5rem' }}>

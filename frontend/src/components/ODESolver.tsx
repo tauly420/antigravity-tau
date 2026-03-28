@@ -205,6 +205,9 @@ function ODESolver() {
     return (
         <div className="card">
             <h2>ODE Solver</h2>
+            <p style={{ color: 'var(--text-secondary, #666)', fontSize: '0.95rem', margin: '0 0 1rem 0', lineHeight: 1.5 }}>
+                Solve ordinary differential equations numerically. Convert your 2nd-order ODE to a first-order system using y[0], y[1] notation. Try the pendulum or damped oscillator examples!
+            </p>
 
             <div className="instructions">
                 <p><strong>How to use:</strong> Enter a system of first-order ODEs.</p>

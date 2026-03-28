@@ -123,6 +123,9 @@ function NumericalIntegrator() {
     return (
         <div className="card">
             <h2>Numerical Integrator</h2>
+            <p style={{ color: 'var(--text-secondary, #666)', fontSize: '0.95rem', margin: '0 0 1rem 0', lineHeight: 1.5 }}>
+                Compute definite integrals in 1D–6D. For 1D, you'll see the function plot with the shaded area. Multi-dimensional integrals use Monte Carlo.
+            </p>
 
             <div className="instructions">
                 <p><strong>1D Integration:</strong> Enter f(x) and bounds [a, b]. The area under the curve will be shown.</p>

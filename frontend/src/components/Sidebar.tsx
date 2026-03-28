@@ -4,8 +4,8 @@ import * as api from '../services/api';
 import { useAnalysis } from '../context/AnalysisContext';
 import { renderLatex } from '../utils/latex';
 
-/* ─── Page-specific welcome messages ─── */
-const PAGE_TIPS: Record<string, { title: string; tip: string }> = {
+/* ─── Page-specific welcome messages (exported for inline use on feature pages) ─── */
+export const PAGE_TIPS: Record<string, { title: string; tip: string }> = {
     '/': { title: 'Home', tip: '' },
     '/workflow': {
         title: 'Lab Workflow',
@@ -58,9 +58,6 @@ function Sidebar() {
     const [attachedFile, setAttachedFile] = useState<{ name: string; content: string; size: number } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [showPopup, setShowPopup] = useState(false);
-    const [popupMsg, setPopupMsg] = useState('');
-    const [lastPage, setLastPage] = useState('');
     const popupTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Resizable sidebar
@@ -88,33 +85,8 @@ function Sidebar() {
         }
     }, [open]);
 
-    // Page-change welcome popup
-    useEffect(() => {
-        const path = location.pathname;
-        if (path === lastPage || path === '/') {
-            setLastPage(path);
-            return;
-        }
-        setLastPage(path);
-        const page = PAGE_TIPS[path];
-        if (page && page.tip) {
-            // Show popup
-            setPopupMsg(`📍 **${page.title}**\n${page.tip}`);
-            setShowPopup(true);
-            // Auto-dismiss after 8 seconds
-            if (popupTimeout.current) clearTimeout(popupTimeout.current);
-            popupTimeout.current = setTimeout(() => setShowPopup(false), 8000);
-        }
-    }, [location.pathname]);
-
     const dismissPopup = () => {
-        setShowPopup(false);
         if (popupTimeout.current) clearTimeout(popupTimeout.current);
-    };
-
-    const openFromPopup = () => {
-        dismissPopup();
-        setOpen(true);
     };
 
     // Resize handlers
@@ -232,21 +204,6 @@ function Sidebar() {
 
     return (
         <>
-            {/* Welcome popup on page change */}
-            {showPopup && !open && (
-                <div className="ai-popup">
-                    <div className="ai-popup-content">
-                        <button className="ai-popup-close" onClick={dismissPopup}>✕</button>
-                        <div style={{ whiteSpace: 'pre-line', fontSize: '0.88rem', lineHeight: 1.5 }}>
-                            {popupMsg.replace(/\*\*(.*?)\*\*/g, '$1')}
-                        </div>
-                        <button className="btn-primary" onClick={openFromPopup} style={{ marginTop: '0.75rem', fontSize: '0.85rem', padding: '0.4rem 1rem' }}>
-                            💬 Chat about this
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {/* Toggle button */}
             <button
                 onClick={() => { setOpen(o => !o); dismissPopup(); }}

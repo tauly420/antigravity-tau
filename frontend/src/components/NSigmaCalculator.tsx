@@ -62,6 +62,9 @@ function NSigmaCalculator({ prefilled1, onResult }: NSigmaCalculatorProps) {
     return (
         <div className="card">
             <h2>N-Sigma Calculator</h2>
+            <p style={{ color: 'var(--text-secondary, #666)', fontSize: '0.95rem', margin: '0 0 1rem 0', lineHeight: 1.5 }}>
+                Compare two measurements and determine how many standard deviations apart they are. Great for checking if your experimental result agrees with theory!
+            </p>
 
             <div className="instructions">
                 <p><strong>Instructions:</strong></p>

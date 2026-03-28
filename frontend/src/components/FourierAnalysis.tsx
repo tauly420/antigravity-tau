@@ -187,6 +187,9 @@ function FourierAnalysis() {
     return (
         <div className="card">
             <h2>Fourier Analysis & PSD</h2>
+            <p style={{ color: 'var(--text-secondary, #666)', fontSize: '0.95rem', margin: '0 0 1rem 0', lineHeight: 1.5 }}>
+                Compute the DFT and Power Spectral Density of your signal. The 5 most dominant frequencies are highlighted. You can also reconstruct the signal with frequency filtering (lowpass, highpass, bandpass).
+            </p>
 
             <div className="instructions">
                 <p>Compute the <strong>Discrete Fourier Transform</strong> and <strong>Power Spectral Density</strong> of your data.</p>

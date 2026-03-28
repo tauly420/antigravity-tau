@@ -85,6 +85,9 @@ function UnitConverter() {
     return (
         <div className="card">
             <h2>Unit Converter</h2>
+            <p style={{ color: 'var(--text-secondary, #666)', fontSize: '0.95rem', margin: '0 0 1.5rem 0', lineHeight: 1.5 }}>
+                Convert between 15+ categories: SI, CGS (dyne, erg, gauss), imperial, and more. Covers length, mass, force, energy, pressure, magnetic field, and more.
+            </p>
 
             <div className="form-group">
                 <label>Category</label>
