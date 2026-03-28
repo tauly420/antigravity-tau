@@ -373,7 +373,7 @@ function ReportBeta() {
                     Lab Instructions
                 </h2>
                 <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--text-secondary, #666)' }}>
-                    Upload your lab instruction file (PDF or Word) to provide context for report generation
+                    Upload a lab instruction file (PDF or Word), or type/paste the instructions directly
                 </p>
                 <input
                     ref={fileInputRef}
@@ -419,24 +419,23 @@ function ReportBeta() {
                         {uploadWarning}
                     </p>
                 )}
-                {instructionText && (
-                    <div style={{ marginTop: '16px' }}>
-                        <label style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--text, #1a1a2e)', marginBottom: '4px', display: 'block' }}>
-                            Extracted Text
-                        </label>
-                        <textarea
-                            value={instructionText}
-                            onChange={(e) => setInstructionText(e.target.value)}
-                            rows={6}
-                            style={{
-                                ...inputStyle('instructionText'),
-                                resize: 'vertical' as const,
-                            }}
-                            onFocus={() => setFocusedField('instructionText')}
-                            onBlur={() => setFocusedField(null)}
-                        />
-                    </div>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '16px 0 8px 0' }}>
+                    <div style={{ flex: 1, height: '1px', background: 'var(--border, #e0e0e0)' }} />
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #666)', fontWeight: 500 }}>or type instructions below</span>
+                    <div style={{ flex: 1, height: '1px', background: 'var(--border, #e0e0e0)' }} />
+                </div>
+                <textarea
+                    value={instructionText}
+                    onChange={(e) => setInstructionText(e.target.value)}
+                    placeholder={language === 'he' ? 'הדבק או הקלד את הוראות המעבדה כאן...' : 'Paste or type your lab instructions here...'}
+                    rows={6}
+                    style={{
+                        ...inputStyle('instructionText'),
+                        resize: 'vertical' as const,
+                    }}
+                    onFocus={() => setFocusedField('instructionText')}
+                    onBlur={() => setFocusedField(null)}
+                />
             </div>
 
             {/* Experiment Context Form */}
