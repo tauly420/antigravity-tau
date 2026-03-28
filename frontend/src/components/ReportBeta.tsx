@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { uploadInstructionFile, analyzeReportContext, generateReport, type ContextForm, type FollowUpQuestion, type GeneratedSections } from '../services/api';
+import { uploadInstructionFile, analyzeReportContext, generateReport, exportReportPdf, type ContextForm, type FollowUpQuestion, type GeneratedSections } from '../services/api';
+// @ts-ignore - plotly.js-dist-min has no types
+import Plotly from 'plotly.js-dist-min';
 import { useAnalysis } from '../context/AnalysisContext';
 import SectionAccordion from './report/SectionAccordion';
 import TitlePageForm, { type TitlePageData } from './report/TitlePageForm';
@@ -98,7 +100,7 @@ function ReportBeta() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const followUpRef = useRef<HTMLDivElement>(null);
 
-    const { autolabResults } = useAnalysis();
+    const { autolabResults, plotImages, setPlotImages } = useAnalysis();
 
     const [contextForm, setContextForm] = useState<ContextForm>({
         title: '', subject: '', equipment: '', notes: ''
@@ -136,8 +138,26 @@ function ReportBeta() {
     const [exportStatus, setExportStatus] = useState<'idle' | 'exporting' | 'error'>('idle');
     const [exportError, setExportError] = useState<string | null>(null);
 
-    // Plot images (base64) -- will be populated by Plan 03
-    const [plotImages] = useState<{ fit: string | null; residuals: string | null }>({ fit: null, residuals: null });
+    // Plot capture: attempt to grab Plotly charts from DOM when autolab results arrive
+    useEffect(() => {
+        const capturePlots = async () => {
+            try {
+                const plotDivs = document.querySelectorAll('.js-plotly-plot');
+                if (plotDivs.length >= 1) {
+                    const fitImg = await Plotly.toImage(plotDivs[0] as HTMLElement, { format: 'png', width: 700, height: 400, scale: 2 });
+                    const residualsImg = plotDivs.length >= 2
+                        ? await Plotly.toImage(plotDivs[1] as HTMLElement, { format: 'png', width: 700, height: 300, scale: 2 })
+                        : null;
+                    setPlotImages({ fit: fitImg, residuals: residualsImg });
+                }
+            } catch (e) {
+                console.warn('Could not capture plot images:', e);
+            }
+        };
+        if (autolabResults && !plotImages.fit) {
+            capturePlots();
+        }
+    }, [autolabResults, plotImages.fit, setPlotImages]);
 
     // Auto-focus first follow-up question input when questions appear
     useEffect(() => {
@@ -259,11 +279,41 @@ function ReportBeta() {
         setExportStatus('exporting');
         setExportError(null);
         try {
-            // Will be implemented in Plan 03 -- calls POST /api/report/export-pdf
-            alert('PDF export will be wired in the next plan');
+            const rawData = autolabResults ? (autolabResults as Record<string, unknown>) : {};
+            const analysisData = normalizeAnalysisData(rawData);
+
+            const blob = await exportReportPdf({
+                sections: editableSections,
+                title_page: {
+                    studentName: titlePageData.studentName,
+                    studentId: titlePageData.studentId,
+                    labPartner: titlePageData.labPartner,
+                    courseName: titlePageData.courseName,
+                    experimentTitle: titlePageData.experimentTitle,
+                    date: titlePageData.date,
+                },
+                plots: {
+                    fit: plotImages.fit,
+                    residuals: plotImages.residuals,
+                },
+                template: selectedTemplate,
+                language: language,
+                analysis_data: analysisData,
+            });
+
+            // Trigger browser download
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'lab-report.pdf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
             setExportStatus('idle');
         } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : 'PDF generation failed';
+            const msg = err instanceof Error ? err.message : 'PDF generation failed. Check that all required fields are filled and try again.';
             setExportError(msg);
             setExportStatus('error');
         }
