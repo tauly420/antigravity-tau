@@ -4,6 +4,7 @@ export interface TitlePageData {
   studentName: string;
   studentId: string;
   labPartner: string;
+  labPartnerId: string;
   courseName: string;
   experimentTitle: string;
   date: string;
@@ -27,34 +28,26 @@ const INPUT_STYLE: React.CSSProperties = {
   fontFamily: 'inherit',
 };
 
+// UI labels are always in English — language setting only affects the generated report content
 const LABELS = {
-  he: {
-    heading: 'פרטי עמוד השער',
-    studentName: 'שם הסטודנט',
-    studentId: 'מספר תעודת זהות',
-    labPartner: 'שותף/ה למעבדה',
-    courseName: 'שם הקורס',
-    experimentTitle: 'שם הניסוי',
-    date: 'תאריך',
-  },
-  en: {
-    heading: 'Title Page Information',
-    studentName: 'Student Name',
-    studentId: 'Student ID',
-    labPartner: 'Lab Partner',
-    courseName: 'Course Name',
-    experimentTitle: 'Experiment Title',
-    date: 'Date',
-  },
+  heading: 'Title Page Information',
+  studentName: 'Student Name',
+  studentId: 'Student ID',
+  labPartner: 'Lab Partner Name',
+  labPartnerId: 'Lab Partner ID',
+  courseName: 'Course Name',
+  experimentTitle: 'Experiment Title',
+  date: 'Date',
 } as const;
 
 export default function TitlePageForm({
   data,
   onChange,
-  language,
+  language: _language,
   experimentTitleFromContext,
 }: TitlePageFormProps) {
-  const labels = LABELS[language];
+  const labels = LABELS;
+  void _language; // language only affects generated report, not UI labels
 
   // Pre-fill experiment title from context if field is empty
   useEffect(() => {
@@ -114,12 +107,13 @@ export default function TitlePageForm({
             type="text"
             value={data.studentId}
             onChange={(e) => update('studentId', e.target.value)}
+            placeholder="Optional"
             style={INPUT_STYLE}
           />
         </div>
       </div>
 
-      {/* Row 2: Lab Partner + Course Name */}
+      {/* Row 2: Lab Partner + Lab Partner ID */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>{labels.labPartner}</label>
@@ -131,6 +125,20 @@ export default function TitlePageForm({
           />
         </div>
         <div style={{ flex: 1 }}>
+          <label style={labelStyle}>{labels.labPartnerId}</label>
+          <input
+            type="text"
+            value={data.labPartnerId}
+            onChange={(e) => update('labPartnerId', e.target.value)}
+            placeholder="Optional"
+            style={INPUT_STYLE}
+          />
+        </div>
+      </div>
+
+      {/* Row 3: Course Name + Date */}
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+        <div style={{ flex: 1 }}>
           <label style={labelStyle}>{labels.courseName}</label>
           <input
             type="text"
@@ -139,26 +147,24 @@ export default function TitlePageForm({
             style={INPUT_STYLE}
           />
         </div>
+        <div style={{ flex: 1 }}>
+          <label style={labelStyle}>{labels.date}</label>
+          <input
+            type="date"
+            value={data.date}
+            onChange={(e) => update('date', e.target.value)}
+            style={INPUT_STYLE}
+          />
+        </div>
       </div>
 
-      {/* Row 3: Experiment Title (full-width) */}
-      <div style={{ marginBottom: '16px' }}>
+      {/* Row 4: Experiment Title (full-width) */}
+      <div>
         <label style={labelStyle}>{labels.experimentTitle}</label>
         <input
           type="text"
           value={data.experimentTitle}
           onChange={(e) => update('experimentTitle', e.target.value)}
-          style={INPUT_STYLE}
-        />
-      </div>
-
-      {/* Row 4: Date (half-width) */}
-      <div style={{ maxWidth: '50%' }}>
-        <label style={labelStyle}>{labels.date}</label>
-        <input
-          type="date"
-          value={data.date}
-          onChange={(e) => update('date', e.target.value)}
           style={INPUT_STYLE}
         />
       </div>

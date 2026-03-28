@@ -233,6 +233,7 @@ def assemble_report_html(sections, title_page, plots, analysis_data, template='i
     name = title_page.get('studentName', '')
     student_id = title_page.get('studentId', '')
     partner = title_page.get('labPartner', '')
+    partner_id = title_page.get('labPartnerId', '')
     course = title_page.get('courseName', '')
     exp_title = title_page.get('experimentTitle', '')
     date_str = title_page.get('date', '')
@@ -247,7 +248,10 @@ def assemble_report_html(sections, title_page, plots, analysis_data, template='i
             details.append(student_id)
         if partner:
             lbl = 'שותף/ה: ' if language == 'he' else 'Partner: '
-            details.append(f'{lbl}{partner}')
+            partner_str = partner
+            if partner_id:
+                partner_str += f' ({partner_id})'
+            details.append(f'{lbl}{partner_str}')
         if course:
             details.append(course)
         if date_str:
@@ -271,7 +275,11 @@ def assemble_report_html(sections, title_page, plots, analysis_data, template='i
         if student_id:
             html_parts.append(f'<tr><td class="label">{id_lbl}</td><td>{student_id}</td></tr>')
         if partner:
-            html_parts.append(f'<tr><td class="label">{partner_lbl}</td><td>{partner}</td></tr>')
+            partner_display = partner
+            if partner_id:
+                partner_id_lbl = 'ת.ז.' if language == 'he' else 'ID'
+                partner_display += f' ({partner_id_lbl}: {partner_id})'
+            html_parts.append(f'<tr><td class="label">{partner_lbl}</td><td>{partner_display}</td></tr>')
         if course:
             html_parts.append(f'<tr><td class="label">{course_lbl}</td><td>{course}</td></tr>')
         if date_str:

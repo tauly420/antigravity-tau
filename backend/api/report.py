@@ -226,9 +226,7 @@ def export_pdf():
         if template not in ('israeli', 'minimal', 'academic'):
             template = 'israeli'
 
-        # Validate required title page fields
-        if not title_page.get('studentName', '').strip():
-            return jsonify({"error": "Student name is required"}), 400
+        # Validate required title page fields (only experiment title is required)
         if not title_page.get('experimentTitle', '').strip():
             return jsonify({"error": "Experiment title is required"}), 400
 

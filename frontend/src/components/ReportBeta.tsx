@@ -1,11 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
-import { uploadInstructionFile, analyzeReportContext, generateReport, exportReportPdf, type ContextForm, type FollowUpQuestion, type GeneratedSections } from '../services/api';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { uploadInstructionFile, analyzeReportContext, generateReport, exportReportPdf, parseFileData, type ContextForm, type FollowUpQuestion, type GeneratedSections } from '../services/api';
 // @ts-ignore - plotly.js-dist-min has no types
 import Plotly from 'plotly.js-dist-min';
+import Plot from './PlotWrapper';
 import { useAnalysis } from '../context/AnalysisContext';
 import SectionAccordion from './report/SectionAccordion';
 import TitlePageForm, { type TitlePageData } from './report/TitlePageForm';
 import PlotThumbnail from './report/PlotThumbnail';
+import { roundWithUncertainty } from '../utils/format';
 
 /**
  * Normalize raw AutoLab results to ReportAnalysisData shape (camelCase).
@@ -83,12 +85,13 @@ function normalizeAnalysisData(raw: Record<string, unknown>): Record<string, unk
     return result;
 }
 
+// UI section titles are always English — language setting only affects generated report content
 const SECTION_ORDER = [
-    { key: 'theory', en: '1. Theoretical Background', he: '1. \u05E8\u05E7\u05E2 \u05EA\u05D9\u05D0\u05D5\u05E8\u05D8\u05D9' },
-    { key: 'method', en: '2. Measurement Method', he: '2. \u05E9\u05D9\u05D8\u05EA \u05DE\u05D3\u05D9\u05D3\u05D4' },
-    { key: 'results', en: '3. Results', he: '3. \u05EA\u05D5\u05E6\u05D0\u05D5\u05EA' },
-    { key: 'discussion', en: '4. Discussion', he: '4. \u05D3\u05D9\u05D5\u05DF' },
-    { key: 'conclusions', en: '5. Conclusions', he: '5. \u05DE\u05E1\u05E7\u05E0\u05D5\u05EA' },
+    { key: 'theory', label: '1. Theoretical Background' },
+    { key: 'method', label: '2. Measurement Method' },
+    { key: 'results', label: '3. Results' },
+    { key: 'discussion', label: '4. Discussion' },
+    { key: 'conclusions', label: '5. Conclusions' },
 ];
 
 type GenerationPhase = 'idle' | 'analyzing' | 'follow-up' | 'generating' | 'complete' | 'error';
@@ -100,7 +103,7 @@ function ReportBeta() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const followUpRef = useRef<HTMLDivElement>(null);
 
-    const { autolabResults, plotImages, setPlotImages } = useAnalysis();
+    const { autolabResults, setAutolabResults, plotImages, setPlotImages } = useAnalysis();
 
     const [contextForm, setContextForm] = useState<ContextForm>({
         title: '', subject: '', equipment: '', notes: ''
@@ -121,7 +124,7 @@ function ReportBeta() {
 
     // Title page data
     const [titlePageData, setTitlePageData] = useState<TitlePageData>({
-        studentName: '', studentId: '', labPartner: '', courseName: '',
+        studentName: '', studentId: '', labPartner: '', labPartnerId: '', courseName: '',
         experimentTitle: '', date: new Date().toISOString().split('T')[0],
     });
 
@@ -137,6 +140,20 @@ function ReportBeta() {
     // Export state
     const [exportStatus, setExportStatus] = useState<'idle' | 'exporting' | 'error'>('idle');
     const [exportError, setExportError] = useState<string | null>(null);
+
+    // === Embedded AutoLab analysis state ===
+    const [dataFile, setDataFile] = useState<File | null>(null);
+    const [dataPreview, setDataPreview] = useState<{ columns: string[]; rows: Record<string, unknown>[] } | null>(null);
+    const [analysisInstructions, setAnalysisInstructions] = useState('');
+    const [theoVal, setTheoVal] = useState('');
+    const [theoUnc, setTheoUnc] = useState('');
+    const [analysisRunning, setAnalysisRunning] = useState(false);
+    const [analysisError, setAnalysisError] = useState<string | null>(null);
+    const [analysisState, setAnalysisState] = useState<Record<string, unknown> | null>(null);
+    const [fitData, setFitData] = useState<Record<string, unknown> | null>(null);
+    const dataFileRef = useRef<HTMLInputElement>(null);
+    const fitPlotRef = useRef<HTMLDivElement>(null);
+    const residualsPlotRef = useRef<HTMLDivElement>(null);
 
     // Plot capture: attempt to grab Plotly charts from DOM when autolab results arrive
     useEffect(() => {
@@ -288,6 +305,7 @@ function ReportBeta() {
                     studentName: titlePageData.studentName,
                     studentId: titlePageData.studentId,
                     labPartner: titlePageData.labPartner,
+                    labPartnerId: titlePageData.labPartnerId,
                     courseName: titlePageData.courseName,
                     experimentTitle: titlePageData.experimentTitle,
                     date: titlePageData.date,
@@ -318,6 +336,102 @@ function ReportBeta() {
             setExportStatus('error');
         }
     };
+
+    // === Embedded analysis handlers ===
+    const handleDataFileChange = async (f: File) => {
+        setDataFile(f);
+        setDataPreview(null);
+        setAnalysisError(null);
+        try {
+            const data = await parseFileData(f);
+            if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows)) {
+                setDataPreview({ columns: data.columns.map(String), rows: data.rows });
+            }
+        } catch {
+            // Preview failed but analysis may still work
+        }
+    };
+
+    const handleRunAnalysis = async () => {
+        if (!dataFile || !analysisInstructions.trim()) return;
+        setAnalysisRunning(true);
+        setAnalysisError(null);
+        setAnalysisState(null);
+        setFitData(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', dataFile);
+            formData.append('instructions', analysisInstructions);
+            if (theoVal) formData.append('theoretical_value', theoVal);
+            if (theoUnc) formData.append('theoretical_uncertainty', theoUnc);
+
+            const resp = await fetch('/api/autolab/run', { method: 'POST', body: formData });
+            if (!resp.ok) {
+                const errData = await resp.json().catch(() => ({}));
+                throw new Error(errData.error || `Server error ${resp.status}`);
+            }
+            const data = await resp.json();
+
+            if (data.error && !data.steps?.length) {
+                setAnalysisError(data.error);
+            } else {
+                setFitData(data.fit_data || null);
+                setAnalysisState(data.state || null);
+                // Store in shared context for report generation
+                if (data.state) {
+                    setAutolabResults({
+                        state: data.state,
+                        fit: data.state.fit ? {
+                            model_name: data.state.fit.model_name,
+                            parameter_names: data.state.fit.parameter_names,
+                            parameters: data.state.fit.parameters,
+                            uncertainties: data.state.fit.uncertainties,
+                            reduced_chi_squared: data.state.fit.reduced_chi_squared,
+                            p_value: data.state.fit.p_value,
+                            r_squared: data.state.fit.r_squared,
+                        } : undefined,
+                        formula: data.state.formula,
+                        nsigma: data.state.nsigma,
+                        instructions: analysisInstructions,
+                        filename: dataFile?.name,
+                    });
+                }
+            }
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Analysis failed';
+            setAnalysisError(msg);
+        } finally {
+            setAnalysisRunning(false);
+        }
+    };
+
+    // Capture plots from embedded Plotly charts for PDF export
+    const capturePlotsFromRefs = useCallback(async () => {
+        try {
+            if (fitPlotRef.current) {
+                const plotEl = fitPlotRef.current.querySelector('.js-plotly-plot') as HTMLElement | null;
+                if (plotEl) {
+                    const fitImg = await Plotly.toImage(plotEl, { format: 'png', width: 700, height: 400, scale: 2 });
+                    const residualsEl = residualsPlotRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+                    const residualsImg = residualsEl
+                        ? await Plotly.toImage(residualsEl, { format: 'png', width: 700, height: 300, scale: 2 })
+                        : null;
+                    setPlotImages({ fit: fitImg, residuals: residualsImg });
+                }
+            }
+        } catch (e) {
+            console.warn('Could not capture inline plot images:', e);
+        }
+    }, [setPlotImages]);
+
+    // Capture plots after analysis completes and charts render
+    useEffect(() => {
+        if (fitData && !plotImages.fit) {
+            const timer = setTimeout(capturePlotsFromRefs, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [fitData, plotImages.fit, capturePlotsFromRefs]);
 
     const inputStyle = (fieldName: string): React.CSSProperties => ({
         border: `1.5px solid ${focusedField === fieldName ? 'var(--primary, #1565c0)' : 'var(--border, #e0e0e0)'}`,
@@ -359,6 +473,258 @@ function ReportBeta() {
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                 }}>Beta</span>
+            </div>
+
+            {/* ============ Embedded Data Analysis Section ============ */}
+            <div style={{
+                background: 'var(--surface, #ffffff)',
+                border: '1px solid var(--border, #e0e0e0)',
+                borderRadius: '12px',
+                padding: '24px',
+                marginBottom: '32px',
+            }}>
+                <h2 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', fontWeight: 600, color: 'var(--text, #1a1a2e)' }}>
+                    Data Analysis
+                </h2>
+                <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--text-secondary, #666)' }}>
+                    Upload your data file and describe the analysis. Results feed directly into the report.
+                </p>
+
+                {/* Data file upload */}
+                <input
+                    ref={dataFileRef}
+                    type="file"
+                    accept=".csv,.tsv,.xlsx,.xls,.ods,.dat"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleDataFileChange(f); }}
+                    style={{ display: 'none' }}
+                />
+                <div
+                    onClick={() => { if (!analysisRunning) dataFileRef.current?.click(); }}
+                    onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                    onDrop={e => {
+                        e.preventDefault();
+                        const f = e.dataTransfer.files[0];
+                        if (f) handleDataFileChange(f);
+                    }}
+                    style={{
+                        border: `2px dashed ${dataFile ? '#2e7d32' : '#1565c0'}`,
+                        borderRadius: '10px',
+                        padding: '1rem',
+                        textAlign: 'center',
+                        cursor: analysisRunning ? 'not-allowed' : 'pointer',
+                        background: dataFile ? '#e8f5e9' : '#e3f2fd',
+                        marginBottom: '16px',
+                    }}
+                >
+                    {dataFile ? (
+                        <span style={{ fontWeight: 600, color: '#2e7d32' }}>{dataFile.name} -- click to replace</span>
+                    ) : (
+                        <span style={{ color: '#1565c0' }}>
+                            Click or drag & drop your data file<br />
+                            <small>.csv, .xlsx, .xls, .ods, .tsv, .dat</small>
+                        </span>
+                    )}
+                </div>
+
+                {/* Data preview */}
+                {dataPreview && (
+                    <div style={{ marginBottom: '16px', maxHeight: '150px', overflow: 'auto', border: '1px solid var(--border, #e0e0e0)', borderRadius: '8px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                            <thead>
+                                <tr>
+                                    {dataPreview.columns.map(col => (
+                                        <th key={col} style={{ border: '1px solid var(--border, #e0e0e0)', padding: '4px 8px', background: 'var(--surface-alt, #f4f5f9)', position: 'sticky', top: 0 }}>{col}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {dataPreview.rows.slice(0, 5).map((row, i) => (
+                                    <tr key={i}>
+                                        {dataPreview.columns.map(col => (
+                                            <td key={col} style={{ border: '1px solid var(--border, #e0e0e0)', padding: '4px 8px' }}>{String(row[col] ?? '')}</td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {/* Analysis instructions */}
+                <textarea
+                    value={analysisInstructions}
+                    onChange={(e) => setAnalysisInstructions(e.target.value)}
+                    placeholder='Describe the analysis: which columns to use, fit model, formulas to calculate... e.g., "Column A is x, Column B is y, Column C is y error. Fit linear. Calculate slope."'
+                    rows={3}
+                    style={{
+                        ...inputStyle('analysisInstructions'),
+                        resize: 'vertical' as const,
+                        marginBottom: '12px',
+                    }}
+                    onFocus={() => setFocusedField('analysisInstructions')}
+                    onBlur={() => setFocusedField(null)}
+                />
+
+                {/* Theoretical value (optional) */}
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #666)', display: 'block', marginBottom: '4px' }}>
+                            Theoretical value (optional)
+                        </label>
+                        <input
+                            type="text"
+                            value={theoVal}
+                            onChange={(e) => setTheoVal(e.target.value)}
+                            placeholder="e.g., 9.81"
+                            style={{ ...inputStyle('theoVal'), padding: '10px 16px' }}
+                            onFocus={() => setFocusedField('theoVal')}
+                            onBlur={() => setFocusedField(null)}
+                        />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #666)', display: 'block', marginBottom: '4px' }}>
+                            Theoretical uncertainty (optional)
+                        </label>
+                        <input
+                            type="text"
+                            value={theoUnc}
+                            onChange={(e) => setTheoUnc(e.target.value)}
+                            placeholder="e.g., 0.01"
+                            style={{ ...inputStyle('theoUnc'), padding: '10px 16px' }}
+                            onFocus={() => setFocusedField('theoUnc')}
+                            onBlur={() => setFocusedField(null)}
+                        />
+                    </div>
+                </div>
+
+                {/* Run Analysis button */}
+                <button
+                    onClick={handleRunAnalysis}
+                    disabled={!dataFile || !analysisInstructions.trim() || analysisRunning}
+                    style={{
+                        width: '100%',
+                        background: (!dataFile || !analysisInstructions.trim() || analysisRunning) ? '#bbb' : 'linear-gradient(135deg, #1565c0 0%, #1976d2 100%)',
+                        color: 'white',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        padding: '12px 24px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        cursor: (!dataFile || !analysisInstructions.trim() || analysisRunning) ? 'not-allowed' : 'pointer',
+                    }}
+                >
+                    {analysisRunning ? 'Running Analysis...' : analysisState ? 'Re-run Analysis' : 'Run Analysis'}
+                </button>
+
+                {analysisError && (
+                    <p style={{ color: 'var(--danger, #d32f2f)', fontSize: '0.875rem', margin: '8px 0 0 0' }}>{analysisError}</p>
+                )}
+
+                {/* Inline analysis results: plots + parameter summary */}
+                {fitData && analysisState && (
+                    <div style={{ marginTop: '24px', borderTop: '1px solid var(--border, #e0e0e0)', paddingTop: '16px' }}>
+                        <h3 style={{ margin: '0 0 12px 0', fontSize: '1rem', fontWeight: 600, color: 'var(--text, #1a1a2e)' }}>
+                            Analysis Results
+                        </h3>
+
+                        {/* Fit plot */}
+                        <div ref={fitPlotRef}>
+                            {!!(fitData as any).x_fit && (
+                                <Plot
+                                    data={[
+                                        {
+                                            x: (fitData as any).x_data,
+                                            y: (fitData as any).y_data,
+                                            error_y: (fitData as any).y_errors ? { type: 'data', array: (fitData as any).y_errors, visible: true } : undefined,
+                                            error_x: (fitData as any).x_errors ? { type: 'data', array: (fitData as any).x_errors, visible: true } : undefined,
+                                            mode: 'markers',
+                                            type: 'scatter',
+                                            name: 'Data',
+                                            marker: { color: '#1565c0', size: 6 },
+                                        },
+                                        {
+                                            x: (fitData as any).x_fit,
+                                            y: (fitData as any).y_fit,
+                                            mode: 'lines',
+                                            type: 'scatter',
+                                            name: `Fit (${(fitData as any).model_name || 'model'})`,
+                                            line: { color: '#e53935', width: 2 },
+                                        },
+                                    ]}
+                                    layout={{
+                                        height: 320,
+                                        margin: { t: 30, b: 40, l: 50, r: 20 },
+                                        showlegend: true,
+                                        legend: { x: 0.02, y: 0.98 },
+                                    }}
+                                    config={{ responsive: true, displayModeBar: false }}
+                                    style={{ width: '100%' }}
+                                />
+                            )}
+                        </div>
+
+                        {/* Residuals plot */}
+                        <div ref={residualsPlotRef}>
+                            {(fitData as any).residuals && (
+                                <Plot
+                                    data={[
+                                        {
+                                            x: (fitData as any).x_data,
+                                            y: (fitData as any).residuals,
+                                            error_y: (fitData as any).y_errors ? { type: 'data', array: (fitData as any).y_errors, visible: true } : undefined,
+                                            mode: 'markers',
+                                            type: 'scatter',
+                                            name: 'Residuals',
+                                            marker: { color: '#1565c0', size: 5 },
+                                        },
+                                    ]}
+                                    layout={{
+                                        height: 200,
+                                        margin: { t: 20, b: 40, l: 50, r: 20 },
+                                        showlegend: false,
+                                        shapes: [{ type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 0, y1: 0, line: { color: '#999', dash: 'dash' } }],
+                                    }}
+                                    config={{ responsive: true, displayModeBar: false }}
+                                    style={{ width: '100%' }}
+                                />
+                            )}
+                        </div>
+
+                        {/* Quick parameter table */}
+                        {(() => {
+                            const state = analysisState as Record<string, any>;
+                            const fit = state?.fit;
+                            if (!fit?.parameter_names) return null;
+                            return (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '8px', fontSize: '0.85rem' }}>
+                                    <thead>
+                                        <tr>
+                                            <th style={{ border: '1px solid var(--border, #e0e0e0)', padding: '6px 10px', textAlign: 'left', background: 'var(--surface-alt, #f4f5f9)' }}>Parameter</th>
+                                            <th style={{ border: '1px solid var(--border, #e0e0e0)', padding: '6px 10px', textAlign: 'left', background: 'var(--surface-alt, #f4f5f9)' }}>Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {fit.parameter_names.map((name: string, i: number) => {
+                                            const val = fit.parameters?.[i];
+                                            const unc = fit.uncertainties?.[i];
+                                            const { rounded } = roundWithUncertainty(val, unc);
+                                            return (
+                                                <tr key={i}>
+                                                    <td style={{ border: '1px solid var(--border, #e0e0e0)', padding: '6px 10px' }}>{name}</td>
+                                                    <td style={{ border: '1px solid var(--border, #e0e0e0)', padding: '6px 10px' }}>{rounded}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            );
+                        })()}
+
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted, #9e9e9e)', marginTop: '8px' }}>
+                            These results will be included in your generated report.
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* Lab Instructions Upload Section */}
@@ -427,7 +793,7 @@ function ReportBeta() {
                 <textarea
                     value={instructionText}
                     onChange={(e) => setInstructionText(e.target.value)}
-                    placeholder={language === 'he' ? 'הדבק או הקלד את הוראות המעבדה כאן...' : 'Paste or type your lab instructions here...'}
+                    placeholder="Paste or type your lab instructions here..."
                     rows={6}
                     style={{
                         ...inputStyle('instructionText'),
@@ -718,37 +1084,16 @@ function ReportBeta() {
             {/* Generation Complete State */}
             {generationPhase === 'complete' && generatedSections && (
                 <>
-                    {/* Brief success confirmation */}
-                    <div style={{
-                        border: '1px solid var(--success-border, #a5d6a7)',
-                        borderRadius: '12px',
-                        padding: '24px',
-                        background: 'var(--success-bg, #e8f5e9)',
-                        marginBottom: '32px',
-                    }}>
-                        <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', fontWeight: 600, color: 'var(--success, #2e7d32)' }}>
-                            Report Generated
-                        </h3>
-                        <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--text-secondary, #666)' }}>
-                            Your report sections are ready for review.
-                        </p>
-                        <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                            {(['theory', 'method', 'discussion', 'conclusions'] as const).map(section => (
-                                <li key={section} style={{ fontSize: '0.875rem', color: 'var(--text, #1a1a2e)', padding: '4px 0' }}>
-                                    &#x2713; {section.charAt(0).toUpperCase() + section.slice(1)}
-                                </li>
+                    {/* Warnings only (no big banner) */}
+                    {generatedSections.warnings && generatedSections.warnings.length > 0 && (
+                        <div style={{ marginBottom: '16px' }}>
+                            {generatedSections.warnings.map((w, i) => (
+                                <p key={i} style={{ margin: '4px 0', fontSize: '0.875rem', color: 'var(--warning, #f57c00)' }}>
+                                    &#x26A0; {w}
+                                </p>
                             ))}
-                        </ul>
-                        {generatedSections.warnings && generatedSections.warnings.length > 0 && (
-                            <div style={{ marginTop: '16px' }}>
-                                {generatedSections.warnings.map((w, i) => (
-                                    <p key={i} style={{ margin: '4px 0', fontSize: '0.875rem', color: 'var(--warning, #f57c00)' }}>
-                                        &#x26A0; {w}
-                                    </p>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
                     {/* Title Page Form */}
                     <TitlePageForm
@@ -759,7 +1104,7 @@ function ReportBeta() {
                     />
 
                     {/* Section Accordions */}
-                    {SECTION_ORDER.map(({ key, en, he }) => {
+                    {SECTION_ORDER.map(({ key, label }) => {
                         if (key === 'results') {
                             // Results section is data-driven, not AI-generated
                             const fitData = getNormalizedFit();
@@ -789,28 +1134,28 @@ function ReportBeta() {
                                             }}
                                         >
                                             <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary, #666)' }}>&#x25B6;</span>
-                                            {language === 'he' ? he : en}
+                                            {label}
                                         </summary>
                                         <div style={{ padding: '16px 24px' }}>
                                             <PlotThumbnail
                                                 imageBase64={plotImages.fit}
-                                                caption={language === 'he' ? '\u05D0\u05D9\u05D5\u05E8 1: \u05D2\u05E8\u05E3 \u05D4\u05EA\u05D0\u05DE\u05D4' : 'Figure 1: Fit Plot'}
-                                                missingText={language === 'he' ? '\u05D0\u05D9\u05DF \u05D2\u05E8\u05E3 \u05D6\u05DE\u05D9\u05DF -- \u05D4\u05E8\u05E5 \u05E0\u05D9\u05EA\u05D5\u05D7 AutoLab \u05E7\u05D5\u05D3\u05DD' : 'No plot available -- run AutoLab analysis first'}
+                                                caption="Figure 1: Fit Plot"
+                                                missingText="No plot available -- run analysis first"
                                             />
                                             <PlotThumbnail
                                                 imageBase64={plotImages.residuals}
-                                                caption={language === 'he' ? '\u05D0\u05D9\u05D5\u05E8 2: \u05E9\u05D0\u05E8\u05D9\u05D5\u05EA' : 'Figure 2: Residuals'}
-                                                missingText={language === 'he' ? '\u05D0\u05D9\u05DF \u05D2\u05E8\u05E3 \u05D6\u05DE\u05D9\u05DF -- \u05D4\u05E8\u05E5 \u05E0\u05D9\u05EA\u05D5\u05D7 AutoLab \u05E7\u05D5\u05D3\u05DD' : 'No plot available -- run AutoLab analysis first'}
+                                                caption="Figure 2: Residuals"
+                                                missingText="No plot available -- run analysis first"
                                             />
                                             {fitData ? (
                                                 <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '16px' }}>
                                                     <thead>
                                                         <tr>
                                                             <th style={{ border: '1px solid var(--border, #e0e0e0)', padding: '8px', fontWeight: 700, textAlign: 'left' }}>
-                                                                {language === 'he' ? '\u05E4\u05E8\u05DE\u05D8\u05E8' : 'Parameter'}
+                                                                Parameter
                                                             </th>
                                                             <th style={{ border: '1px solid var(--border, #e0e0e0)', padding: '8px', fontWeight: 700, textAlign: 'left' }}>
-                                                                {language === 'he' ? '\u05E2\u05E8\u05DA' : 'Value'}
+                                                                Value
                                                             </th>
                                                         </tr>
                                                     </thead>
@@ -825,7 +1170,7 @@ function ReportBeta() {
                                                 </table>
                                             ) : (
                                                 <p style={{ color: 'var(--text-muted, #9e9e9e)', fontSize: '0.875rem', textAlign: 'center' }}>
-                                                    {language === 'he' ? '\u05D0\u05D9\u05DF \u05E0\u05EA\u05D5\u05E0\u05D9 \u05E0\u05D9\u05EA\u05D5\u05D7 \u05D6\u05DE\u05D9\u05E0\u05D9\u05DD' : 'No analysis data available'}
+                                                    No analysis data available
                                                 </p>
                                             )}
                                         </div>
@@ -838,7 +1183,7 @@ function ReportBeta() {
                             <SectionAccordion
                                 key={key}
                                 sectionKey={key}
-                                title={language === 'he' ? he : en}
+                                title={label}
                                 content={editableSections[key] ?? ''}
                                 isAiGenerated={!editedSections.has(key)}
                                 onContentChange={(c) => handleSectionChange(key, c)}
@@ -851,7 +1196,7 @@ function ReportBeta() {
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginTop: '32px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <label style={{ fontSize: '0.875rem', color: 'var(--text, #1a1a2e)' }}>
-                                {language === 'he' ? '\u05EA\u05D1\u05E0\u05D9\u05EA' : 'Template'}
+                                Template
                             </label>
                             <select
                                 value={selectedTemplate}
@@ -865,17 +1210,17 @@ function ReportBeta() {
                                     fontFamily: 'inherit',
                                 }}
                             >
-                                <option value="israeli">{language === 'he' ? '\u05D3\u05D5\u05D7 \u05DE\u05E2\u05D1\u05D3\u05D4 \u05D9\u05E9\u05E8\u05D0\u05DC\u05D9' : 'Israeli Lab Report'}</option>
-                                <option value="minimal">{language === 'he' ? '\u05DE\u05D9\u05E0\u05D9\u05DE\u05DC\u05D9 \u05E0\u05E7\u05D9' : 'Minimal Clean'}</option>
-                                <option value="academic">{language === 'he' ? '\u05D0\u05E7\u05D3\u05DE\u05D9 \u05D1\u05E1\u05D2\u05E0\u05D5\u05DF LaTeX' : 'LaTeX-Inspired Academic'}</option>
+                                <option value="israeli">Israeli Lab Report</option>
+                                <option value="minimal">Minimal Clean</option>
+                                <option value="academic">LaTeX-Inspired Academic</option>
                             </select>
                         </div>
                         <button
-                            disabled={exportStatus === 'exporting' || !titlePageData.studentName.trim() || !titlePageData.experimentTitle.trim()}
+                            disabled={exportStatus === 'exporting' || !titlePageData.experimentTitle.trim()}
                             onClick={handleExportPdf}
                             style={{
                                 flex: 1,
-                                background: (exportStatus === 'exporting' || !titlePageData.studentName.trim() || !titlePageData.experimentTitle.trim())
+                                background: (exportStatus === 'exporting' || !titlePageData.experimentTitle.trim())
                                     ? '#bbb'
                                     : 'linear-gradient(135deg, var(--primary, #1565c0) 0%, #1976d2 100%)',
                                 color: 'white',
@@ -884,20 +1229,18 @@ function ReportBeta() {
                                 padding: '16px 32px',
                                 borderRadius: '8px',
                                 border: 'none',
-                                cursor: (exportStatus === 'exporting' || !titlePageData.studentName.trim() || !titlePageData.experimentTitle.trim())
+                                cursor: (exportStatus === 'exporting' || !titlePageData.experimentTitle.trim())
                                     ? 'not-allowed' : 'pointer',
                             }}
                         >
-                            {exportStatus === 'exporting'
-                                ? (language === 'he' ? '\u05DE\u05D9\u05D9\u05E6\u05E8 PDF...' : 'Generating PDF...')
-                                : (language === 'he' ? '\u05D9\u05D9\u05E6\u05D5\u05D0 \u05DB-PDF' : 'Export as PDF')}
+                            {exportStatus === 'exporting' ? 'Generating PDF...' : 'Export as PDF'}
                         </button>
                     </div>
 
                     {/* Export error display */}
                     {exportError && (
                         <p style={{ color: 'var(--danger, #d32f2f)', fontSize: '0.875rem', marginTop: '8px' }}>
-                            {language === 'he' ? '\u05D9\u05E6\u05D9\u05E8\u05EA \u05D4-PDF \u05E0\u05DB\u05E9\u05DC\u05D4. \u05D5\u05D3\u05D0 \u05E9\u05DB\u05DC \u05D4\u05E9\u05D3\u05D5\u05EA \u05D4\u05E0\u05D3\u05E8\u05E9\u05D9\u05DD \u05DE\u05DC\u05D0\u05D9\u05DD \u05D5\u05E0\u05E1\u05D4 \u05E9\u05D5\u05D1.' : exportError}
+                            {exportError}
                         </p>
                     )}
                 </>

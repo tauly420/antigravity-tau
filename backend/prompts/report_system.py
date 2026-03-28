@@ -102,6 +102,16 @@ def build_report_system_prompt(
         "Use $...$ for inline math and $$...$$ for display math.",
         "KaTeX rules: Use aligned/gathered/cases environments only. Do NOT use align, equation, or split environments. Use \\cdot not \\times. Use \\text{} for text in math mode.",
         "",
+        "=== CRITICAL: DATA INTEGRITY RULES ===",
+        "1. NEVER fabricate, invent, or assume numerical results. Only reference values explicitly provided in the ANALYSIS RESULTS section below.",
+        "2. If no analysis data is provided, the discussion and conclusions sections MUST state that no experimental data was available and cannot discuss specific results.",
+        "3. Your physics knowledge should ONLY be used for: theoretical background, explaining physical laws, interpreting provided results, and identifying potential error sources.",
+        "4. Do NOT invent example measurements, parameter values, chi-squared values, or n-sigma comparisons. If a value is not in the data below, do not mention it as if it were measured.",
+        "5. For the 'theory' section: use your physics knowledge freely to explain relevant laws and derive formulas.",
+        "6. For the 'method' section: describe procedure based ONLY on the provided instructions and equipment context. Do not invent steps.",
+        "7. For the 'discussion' section: ONLY discuss results that appear in ANALYSIS RESULTS below. If no results exist, say so explicitly.",
+        "8. For the 'conclusions' section: summarize ONLY what was actually measured/found. Do not fabricate findings.",
+        "",
     ]
 
     # --- Experiment context ---
@@ -138,10 +148,12 @@ def build_report_system_prompt(
 
     # --- Analysis results ---
     lines.append("=== ANALYSIS RESULTS ===")
-    if analysis_data:
+    if analysis_data and (analysis_data.get("fit") or analysis_data.get("formula") or analysis_data.get("nsigma")):
         _inject_analysis_context(lines, analysis_data)
     else:
-        lines.append("No analysis data available.")
+        lines.append("No analysis data available. The user has not yet run an analysis.")
+        lines.append("DO NOT invent any numerical results. The discussion must state that no data analysis was performed yet.")
+        lines.append("The conclusions must note that experimental results are pending.")
     lines.append("")
 
     # --- Follow-up answers ---
