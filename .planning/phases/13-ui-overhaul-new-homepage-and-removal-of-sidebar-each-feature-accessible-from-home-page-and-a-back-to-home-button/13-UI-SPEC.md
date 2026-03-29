@@ -21,7 +21,7 @@ created: 2026-03-29
 | Preset | not applicable |
 | Component library | none (custom CSS + design tokens) |
 | Icon library | Emoji (existing pattern from Home.tsx `tools` array) |
-| Font | Inter (300, 400, 500, 600, 700, 800) via Google Fonts — already loaded in global.css |
+| Font | Inter (400, 700) via Google Fonts — already loaded in global.css |
 
 ---
 
@@ -48,11 +48,13 @@ Exceptions: Header uses `1rem 2rem` (16px 32px) padding — existing pattern, ke
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
 | Body | 15px (0.9375rem) | 400 | 1.65 | Tool card descriptions, intro paragraph body |
-| Label | 14px (0.875rem) | 500 | 1.4 | Back button text, hero CTA text, footer text |
-| Heading | 20px (1.25rem) | 600 | 1.3 | Tool card titles (h3), section subheadings |
+| Label | 14px (0.875rem) | 400 | 1.4 | Back button text, hero CTA text, footer text |
+| Heading | 20px (1.25rem) | 700 | 1.3 | Tool card titles (h3), section subheadings |
 | Display | 26px (1.6rem) | 700 | 1.2 | Header h1 ("Tau-LY Lab Tools"), hero card title |
 
 Font family: `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif` (existing, no change).
+
+Two weights only: 400 carries body and label roles (size difference provides hierarchy); 700 carries heading and display roles (size difference provides hierarchy).
 
 Source: Existing `global.css` body `line-height: 1.65`, header h1 `font-size: 1.6rem; font-weight: 700`.
 
@@ -69,6 +71,8 @@ All values reference existing dark theme tokens from `[data-theme="dark"]` in `g
 | Accent (10%) | `--primary: #4dd0e1` (teal) | See reserved list below |
 | Secondary accent | `--accent: #42a5f5` (blue) | Tool card border-left colors, header gradient |
 | Destructive | `--danger: #ef5350` | Not used in Phase 13 (no destructive actions) |
+
+**Accent separation rule:** Teal (`--primary`) = interactive elements only. Blue (`--accent`) = structural decoration only — never on interactive elements.
 
 ### Accent reserved for (teal `#4dd0e1`):
 - Hero AutoLab CTA arrow and hover glow
@@ -93,6 +97,12 @@ All values reference existing dark theme tokens from `[data-theme="dark"]` in `g
 3. `--text-muted: #a8a8c0` — footer text, disabled states
 
 Source: Existing `[data-theme="dark"]` tokens in global.css lines 91-168.
+
+---
+
+## Focal Point
+
+The `.home-hero-card` element is the primary visual anchor of the homepage — it must be the largest, most elevated card and the first element that draws the user's eye after the intro heading.
 
 ---
 
@@ -133,10 +143,10 @@ Use the existing `tools` array in `Home.tsx` for title, desc, and emoji. No copy
 | `.home-hero-icon` | Emoji/icon area | `font-size: 2.5rem`, `margin-bottom: 16px` |
 | `.home-hero-content h2` | Hero title | Display size (26px/700), `color: var(--text)` |
 | `.home-hero-content p` | Hero desc | Body size (15px/400), `color: var(--text-secondary)`, `margin: 8px 0 16px` |
-| `.home-hero-cta` | CTA text | Label size (14px/500), `color: var(--primary)` (teal), `display: inline-flex`, `align-items: center`, `gap: 8px` |
-| `.header-back-btn` | Back link | Label size (14px/500), `color: var(--primary)` (teal), `text-decoration: none`, hover: `text-decoration: underline` |
-| `.header-separator` | Pipe char | `color: rgba(255,255,255,0.3)`, `margin: 0 12px`, `font-weight: 300` |
-| `.home-tools-heading` | "More Tools" label above grid | Label size (14px/500), `color: var(--text-muted)`, `text-transform: uppercase`, `letter-spacing: 0.05em`, `margin: 48px 0 16px`, `padding: 0 16px` |
+| `.home-hero-cta` | CTA text | Label size (14px/400), `color: var(--primary)` (teal), `display: inline-flex`, `align-items: center`, `gap: 8px` |
+| `.header-back-btn` | Back link | Label size (14px/400), `color: var(--primary)` (teal), `text-decoration: none`, hover: `text-decoration: underline` |
+| `.header-separator` | Pipe char | `color: rgba(255,255,255,0.3)`, `margin: 0 12px`, `font-weight: 400` |
+| `.home-tools-heading` | "More Tools" label above grid | Label size (14px/400), `color: var(--text-muted)`, `text-transform: uppercase`, `letter-spacing: 0.05em`, `margin: 48px 0 16px`, `padding: 0 16px` |
 
 ### CSS Classes to Remove
 
