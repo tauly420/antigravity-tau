@@ -59,7 +59,6 @@ function NavSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () 
                             {!collapsed && (
                                 <span className="nav-sidebar__label">
                                     {item.label}
-                                    {item.badge && <sup className="nav-sidebar__badge">{item.badge}</sup>}
                                 </span>
                             )}
                         </Link>

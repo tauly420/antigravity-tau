@@ -200,7 +200,6 @@ function ReportBeta() {
     }, [generatedSections]);
 
     // Determine entry mode: from AutoLab (data pre-loaded) vs standalone (no data)
-    const hasPreloadedData = !!autolabResults && !analysisState;
     const hasAnyAnalysis = !!autolabResults || !!analysisState;
 
     // Pre-fill context form when arriving from AutoLab (per D-02)
