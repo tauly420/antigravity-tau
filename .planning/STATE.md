@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: AI-Powered Academic Lab Report Export
-status: Executing Phase 11
-stopped_at: Phase 12 context gathered
-last_updated: "2026-03-28T19:51:21.090Z"
+status: Executing Phase 12
+stopped_at: Phase 14 context gathered
+last_updated: "2026-03-29T13:07:33.877Z"
 progress:
-  total_phases: 5
+  total_phases: 7
   completed_phases: 4
-  total_plans: 10
+  total_plans: 12
   completed_plans: 10
 ---
 
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** AutoLab -- upload a data file, describe what you want in plain language, and get a complete physics analysis with minimal friction.
-**Current focus:** Phase 11 — preview-editing-and-pdf-assembly
+**Current focus:** Phase 12 — integration-and-polish
 
 ## Current Position
 
-Phase: 11 (preview-editing-and-pdf-assembly) — EXECUTING
-Plan: 1 of 3
+Phase: 12 (integration-and-polish) — EXECUTING
+Plan: 1 of 2
 
 ## Performance Metrics
 
@@ -72,6 +72,11 @@ Recent decisions affecting current work:
 - [Phase 10]: Added uploadInstructionFile to api.ts alongside generation functions for self-contained report API surface
 - [Phase 10]: normalizeAnalysisData helper in ReportBeta.tsx converts snake_case AutoLab results to camelCase before API calls
 
+### Roadmap Evolution
+
+- Phase 13 added: UI overhaul — new homepage, sidebar removal, feature cards on home page with back-to-home navigation
+- Phase 14 added: Report and AutoLab merge — unified page for full report or analysis-only mode, plus fix PDF export
+
 ### Pending Todos
 
 None yet.
@@ -84,6 +89,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-28T19:51:21.087Z
-Stopped at: Phase 12 context gathered
-Resume file: .planning/phases/12-integration-and-polish/12-CONTEXT.md
+Last session: 2026-03-29T13:07:33.872Z
+Stopped at: Phase 14 context gathered
+Resume file: .planning/phases/14-report-and-autolab-merge-unified-page-for-full-report-or-analysis-only-mode-plus-fix-pdf-export/14-CONTEXT.md
