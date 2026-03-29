@@ -147,11 +147,11 @@ Plans:
   2. Clicking the button navigates to the report builder with all AutoLab analysis data pre-loaded (no re-entering data)
   3. The full workflow (AutoLab analysis -> Generate Report -> context form -> AI generation -> preview/edit -> PDF download) works end-to-end without errors
   4. Graceful handling of edge cases: partial analyses (missing fit or n-sigma), scanned PDFs that yield no text, oversized uploads, and AI generation failures show clear error messages
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 12-01: TBD
-- [ ] 12-02: TBD
+- [ ] 12-01-PLAN.md -- Add "Generate Report" button to AutoLab results page, remove BETA badge from nav
+- [ ] 12-02-PLAN.md -- Report page conditional entry modes, pre-fill from AutoLab, partial analysis warnings, silent AI retry
 
 ## Progress
 
@@ -168,4 +168,4 @@ Note: Phase 11 depends on both Phase 8 and Phase 10.
 | 9. Report Data Contract and File Parsing | v2.0 | 0/2 | Planning | - |
 | 10. AI Content Generation Pipeline | v2.0 | 3/3 | Complete    | 2026-03-27 |
 | 11. Preview, Editing, and PDF Assembly | v2.0 | 3/3 | Complete   | 2026-03-28 |
-| 12. Integration and Polish | v2.0 | 0/TBD | Not started | - |
+| 12. Integration and Polish | v2.0 | 0/2 | Planning | - |
