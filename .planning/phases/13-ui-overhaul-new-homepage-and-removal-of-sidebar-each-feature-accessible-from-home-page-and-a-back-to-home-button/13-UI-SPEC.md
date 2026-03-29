@@ -1,7 +1,8 @@
 ---
 phase: 13
 slug: ui-overhaul-homepage-sidebar-removal-dark-theme
-status: draft
+status: approved
+reviewed_at: 2026-03-29
 shadcn_initialized: false
 preset: none
 created: 2026-03-29
