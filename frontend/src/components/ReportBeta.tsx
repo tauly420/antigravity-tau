@@ -117,6 +117,8 @@ function ReportBeta() {
     const [generatedSections, setGeneratedSections] = useState<GeneratedSections | null>(null);
     const [generationError, setGenerationError] = useState<string | null>(null);
 
+    const [contextFormTouched, setContextFormTouched] = useState(false);
+
     // Track focus state for input border color
     const [focusedField, setFocusedField] = useState<string | null>(null);
     // Track hover state for generate button
@@ -197,6 +199,40 @@ function ReportBeta() {
         }
     }, [generatedSections]);
 
+    // Determine entry mode: from AutoLab (data pre-loaded) vs standalone (no data)
+    const hasPreloadedData = !!autolabResults && !analysisState;
+    const hasAnyAnalysis = !!autolabResults || !!analysisState;
+
+    // Pre-fill context form when arriving from AutoLab (per D-02)
+    useEffect(() => {
+        if (autolabResults && !contextFormTouched) {
+            const instructions = (autolabResults as Record<string, any>)?.instructions || '';
+            const filename = (autolabResults as Record<string, any>)?.filename || '';
+            const derivedTitle = filename.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ');
+            setContextForm(prev => ({
+                ...prev,
+                title: prev.title || derivedTitle,
+                notes: prev.notes || instructions,
+            }));
+        }
+    }, [autolabResults, contextFormTouched]);
+
+    // Detect partial analysis for warning banners (per D-07)
+    const getPartialAnalysisWarnings = (): string[] => {
+        const data = autolabResults || analysisState;
+        if (!data) return [];
+        const state = (data as Record<string, any>)?.state ?? data;
+        const warnings: string[] = [];
+        if (!state?.fit) warnings.push('Fit analysis incomplete \u2014 parameter table and fit plots will not appear in the report.');
+        if (!state?.nsigma) warnings.push('N-sigma comparison not available \u2014 this section will be skipped in the report.');
+        return warnings;
+    };
+
+    const updateContextField = (field: keyof ContextForm, value: string) => {
+        setContextForm(prev => ({ ...prev, [field]: value }));
+        setContextFormTouched(true);
+    };
+
     const handleSectionChange = (key: string, newContent: string) => {
         setEditableSections(prev => ({ ...prev, [key]: newContent }));
         setEditedSections(prev => new Set(prev).add(key));
@@ -205,27 +241,38 @@ function ReportBeta() {
     const doGenerate = async (answersList: { id: string; answer: string }[]) => {
         setGenerationPhase('generating');
         setGenerationError(null);
+
+        const rawData = autolabResults ? (autolabResults as Record<string, unknown>) : {};
+        const analysisData = normalizeAnalysisData(rawData);
+        const payload = {
+            context_form: contextForm,
+            instruction_text: instructionText,
+            analysis_data: analysisData,
+            answers: answersList,
+            language: language,
+        };
+
+        // First attempt
         try {
-            const rawData = autolabResults ? (autolabResults as Record<string, unknown>) : {};
-            const analysisData = normalizeAnalysisData(rawData);
-            const result = await generateReport({
-                context_form: contextForm,
-                instruction_text: instructionText,
-                analysis_data: analysisData,
-                answers: answersList,
-                language: language,
-            });
-            if (result.error) {
-                setGenerationError(result.error);
-                setGenerationPhase('error');
-                return;
-            }
+            const result = await generateReport(payload);
+            if (result.error) throw new Error(result.error);
             setGeneratedSections(result.sections);
             setGenerationPhase('complete');
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : 'Failed to connect. Check your internet connection and try again.';
-            setGenerationError(message);
-            setGenerationPhase('error');
+            return;
+        } catch (_firstErr) {
+            // Silent retry once (per D-08)
+            try {
+                const result = await generateReport(payload);
+                if (result.error) throw new Error(result.error);
+                setGeneratedSections(result.sections);
+                setGenerationPhase('complete');
+            } catch (retryErr: unknown) {
+                const message = retryErr instanceof Error
+                    ? retryErr.message
+                    : 'Report generation failed. Please try again.';
+                setGenerationError(message);
+                setGenerationPhase('error');
+            }
         }
     };
 
@@ -463,19 +510,10 @@ function ReportBeta() {
         <div style={{ maxWidth: 700, margin: '2rem auto', padding: '2rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
                 <h1 style={{ margin: 0 }}>Lab Report Export</h1>
-                <span style={{
-                    background: 'linear-gradient(135deg, #1565c0, #7b1fa2)',
-                    color: 'white',
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    padding: '0.2rem 0.6rem',
-                    borderRadius: '12px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                }}>Beta</span>
             </div>
 
             {/* ============ Embedded Data Analysis Section ============ */}
+            {!hasAnyAnalysis && (
             <div style={{
                 background: 'var(--surface, #ffffff)',
                 border: '1px solid var(--border, #e0e0e0)',
@@ -484,10 +522,10 @@ function ReportBeta() {
                 marginBottom: '32px',
             }}>
                 <h2 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', fontWeight: 600, color: 'var(--text, #1a1a2e)' }}>
-                    Data Analysis
+                    Start with your data
                 </h2>
                 <p style={{ margin: '0 0 16px 0', fontSize: '0.875rem', color: 'var(--text-secondary, #666)' }}>
-                    Upload your data file and describe the analysis. Results feed directly into the report.
+                    Upload your experiment data file and provide instructions to run an analysis, or navigate here from AutoLab after completing an analysis.
                 </p>
 
                 {/* Data file upload */}
@@ -726,6 +764,45 @@ function ReportBeta() {
                     </div>
                 )}
             </div>
+            )}
+
+            {/* Analysis data loaded confirmation (AutoLab flow) */}
+            {hasAnyAnalysis && (
+                <div style={{
+                    background: '#e8f5e9',
+                    border: '1px solid #a5d6a7',
+                    borderRadius: '12px',
+                    padding: '16px 24px',
+                    marginBottom: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                }}>
+                    <span style={{ fontSize: '1.2rem' }}>&#x2705;</span>
+                    <span style={{ fontWeight: 600, color: '#2e7d32', fontSize: '0.875rem' }}>
+                        Analysis data loaded
+                    </span>
+                </div>
+            )}
+
+            {/* Partial analysis warning banners */}
+            {hasAnyAnalysis && getPartialAnalysisWarnings().map((warning, i) => (
+                <div key={i} style={{
+                    background: 'var(--warning-bg, #fff3e0)',
+                    border: '1px solid var(--warning-border, #ffcc80)',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    marginBottom: '12px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '8px',
+                    fontSize: '0.875rem',
+                    color: 'var(--text, #333)',
+                }}>
+                    <span>&#x26A0;&#xFE0F;</span>
+                    <span>{warning}</span>
+                </div>
+            ))}
 
             {/* Lab Instructions Upload Section */}
             <div style={{
@@ -828,12 +905,17 @@ function ReportBeta() {
                         <input
                             type="text"
                             value={contextForm.title}
-                            onChange={(e) => setContextForm(prev => ({ ...prev, title: e.target.value }))}
+                            onChange={(e) => updateContextField('title', e.target.value)}
                             placeholder="e.g., Hooke's Law -- Measuring Spring Constant"
                             style={inputStyle('title')}
                             onFocus={() => setFocusedField('title')}
                             onBlur={() => setFocusedField(null)}
                         />
+                        {autolabResults && !contextFormTouched && contextForm.title && (
+                            <p style={{ margin: '4px 0 0 0', fontSize: '0.875rem', color: 'var(--text-muted, #999)' }}>
+                                Pre-filled from AutoLab analysis
+                            </p>
+                        )}
                     </div>
 
                     {/* Subject Area */}
@@ -844,7 +926,7 @@ function ReportBeta() {
                         <input
                             type="text"
                             value={contextForm.subject}
-                            onChange={(e) => setContextForm(prev => ({ ...prev, subject: e.target.value }))}
+                            onChange={(e) => updateContextField('subject', e.target.value)}
                             placeholder="e.g., Mechanics, Optics, Thermodynamics"
                             style={inputStyle('subject')}
                             onFocus={() => setFocusedField('subject')}
@@ -860,7 +942,7 @@ function ReportBeta() {
                         <textarea
                             rows={3}
                             value={contextForm.equipment}
-                            onChange={(e) => setContextForm(prev => ({ ...prev, equipment: e.target.value }))}
+                            onChange={(e) => updateContextField('equipment', e.target.value)}
                             placeholder="e.g., Spring, masses (50-500g), ruler, force sensor"
                             style={{
                                 ...inputStyle('equipment'),
@@ -879,7 +961,7 @@ function ReportBeta() {
                         <textarea
                             rows={4}
                             value={contextForm.notes}
-                            onChange={(e) => setContextForm(prev => ({ ...prev, notes: e.target.value }))}
+                            onChange={(e) => updateContextField('notes', e.target.value)}
                             placeholder="Any specific requirements, formulas to include, or details about your experiment..."
                             style={{
                                 ...inputStyle('notes'),
@@ -888,6 +970,11 @@ function ReportBeta() {
                             onFocus={() => setFocusedField('notes')}
                             onBlur={() => setFocusedField(null)}
                         />
+                        {autolabResults && !contextFormTouched && contextForm.notes && (
+                            <p style={{ margin: '4px 0 0 0', fontSize: '0.875rem', color: 'var(--text-muted, #999)' }}>
+                                Pre-filled from AutoLab analysis
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>
