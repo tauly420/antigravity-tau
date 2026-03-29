@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Plot from './PlotWrapper';
 import DataPreview from './DataPreview';
 import { useAnalysis } from '../context/AnalysisContext';
@@ -189,6 +190,7 @@ function buildHtmlTable(names: string[], params: number[], uncs: number[], round
 }
 
 function AutoLab() {
+    const navigate = useNavigate();
     const [file, setFile] = useState<File | null>(null);
     const [instructions, setInstructions] = useState('');
     const [theoVal, setTheoVal] = useState('');
@@ -1171,6 +1173,35 @@ function AutoLab() {
                         </div>
                     </div>
                 </div>
+
+                {/* Generate Report CTA -- per D-01 */}
+                <button
+                    onClick={() => navigate('/report')}
+                    style={{
+                        width: '100%',
+                        marginTop: '24px',
+                        background: 'linear-gradient(135deg, var(--primary, #1565c0) 0%, #1976d2 100%)',
+                        color: 'white',
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        padding: '16px 32px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(21, 101, 192, 0.3)',
+                        transition: 'box-shadow 0.2s, filter 0.2s',
+                    }}
+                    onMouseEnter={e => {
+                        (e.target as HTMLButtonElement).style.boxShadow = '0 4px 12px rgba(21, 101, 192, 0.4)';
+                        (e.target as HTMLButtonElement).style.filter = 'brightness(1.05)';
+                    }}
+                    onMouseLeave={e => {
+                        (e.target as HTMLButtonElement).style.boxShadow = '0 2px 8px rgba(21, 101, 192, 0.3)';
+                        (e.target as HTMLButtonElement).style.filter = 'none';
+                    }}
+                >
+                    Generate Report
+                </button>
             )}
         </div>
     );

@@ -34,7 +34,7 @@ const NAV_ITEMS = [
     { path: '/fourier', label: 'Fourier', icon: '〜' },
     { path: '/statistics', label: 'Statistics', icon: '📊' },
     { path: '/constants', label: 'Constants', icon: '🔬' },
-    { path: '/report', label: 'Report', icon: '📄', highlight: true, badge: 'BETA' },
+    { path: '/report', label: 'Report', icon: '📄', highlight: true },
 ];
 
 function NavSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
