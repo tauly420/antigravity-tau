@@ -97,12 +97,41 @@ function Home() {
 
     return (
         <div className="home-container">
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: '1.5rem',
-                padding: '0 1rem',
-            }}>
+            {/* Section 1: Intro */}
+            <section className="home-intro">
+                <h2>Your Physics Lab, Automated</h2>
+                <p>
+                    Tau-LY gives physics and engineering students a complete toolkit
+                    for lab work &mdash; from curve fitting and uncertainty propagation
+                    to AI-driven analysis that turns raw data into publication-ready results.
+                </p>
+            </section>
+
+            {/* Section 2: AutoLab Hero Card */}
+            <Link
+                to="/autolab"
+                onClick={() => setCurrentTool('AutoLab')}
+                className="home-hero-link"
+            >
+                <div className="home-hero-card">
+                    <div className="home-hero-icon">🤖</div>
+                    <div className="home-hero-content">
+                        <h2>AutoLab</h2>
+                        <p>
+                            Upload your data, describe what you need in plain language,
+                            and get a complete physics analysis &mdash; fit parameters,
+                            uncertainties, plots, and comparison to theory.
+                        </p>
+                        <span className="home-hero-cta">
+                            Start Analysis &rarr;
+                        </span>
+                    </div>
+                </div>
+            </Link>
+
+            {/* Section 3: Tool Grid */}
+            <h3 className="home-tools-heading">More Tools</h3>
+            <div className="home-tools-grid">
                 {tools.map(tool => (
                     <Link
                         key={tool.path}
