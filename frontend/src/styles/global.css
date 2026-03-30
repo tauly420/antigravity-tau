@@ -90,11 +90,11 @@
 /* ======= DARK THEME ======= */
 [data-theme="dark"] {
     /* --- Brand (adjusted for dark backgrounds) --- */
-    --primary: #4dd0e1;
-    --primary-dark: #00838f;
-    --primary-light: #80deea;
-    --accent: #42a5f5;
-    --accent-light: #80d6ff;
+    --primary: #5b9bd5;
+    --primary-dark: #3a7bbf;
+    --primary-light: #7eb8e5;
+    --accent: #4a8ec9;
+    --accent-light: #6ca8d9;
 
     /* --- Semantic status (brighter on dark) --- */
     --success: #66bb6a;
@@ -117,24 +117,24 @@
     --border-light: #222244;
 
     /* --- Header (dark blue gradient, scientific instrument) --- */
-    --header-bg: #0d1b2a;
-    --header-bg-mid: #1b2838;
-    --header-bg-mid2: #1e2a4a;
-    --header-bg-end: #243356;
-    --header-shadow: rgba(13, 27, 42, 0.5);
+    --header-bg: #1a2744;
+    --header-bg-mid: #1e3050;
+    --header-bg-mid2: #23395d;
+    --header-bg-end: #2a4270;
+    --header-shadow: rgba(26, 39, 68, 0.5);
 
-    /* --- Interactive states (D-03: subtle glow, teal primary) --- */
-    --primary-hover-bg: rgba(77, 208, 225, 0.08);
-    --primary-hover-border: rgba(77, 208, 225, 0.4);
-    --primary-focus-ring: rgba(77, 208, 225, 0.2);
-    --primary-shadow: rgba(77, 208, 225, 0.3);
-    --primary-shadow-hover: rgba(77, 208, 225, 0.45);
-    --accent-shadow: rgba(66, 165, 245, 0.3);
-    --accent-shadow-hover: rgba(66, 165, 245, 0.45);
-    --accent-shadow-strong: rgba(66, 165, 245, 0.4);
-    --accent-shadow-stronger: rgba(66, 165, 245, 0.55);
-    --resize-handle-hover: rgba(66, 165, 245, 0.3);
-    --table-row-hover: rgba(77, 208, 225, 0.04);
+    /* --- Interactive states (D-03: subtle glow, blue primary) --- */
+    --primary-hover-bg: rgba(91, 155, 213, 0.08);
+    --primary-hover-border: rgba(91, 155, 213, 0.4);
+    --primary-focus-ring: rgba(91, 155, 213, 0.2);
+    --primary-shadow: rgba(91, 155, 213, 0.3);
+    --primary-shadow-hover: rgba(91, 155, 213, 0.45);
+    --accent-shadow: rgba(74, 142, 201, 0.3);
+    --accent-shadow-hover: rgba(74, 142, 201, 0.45);
+    --accent-shadow-strong: rgba(74, 142, 201, 0.4);
+    --accent-shadow-stronger: rgba(74, 142, 201, 0.55);
+    --resize-handle-hover: rgba(74, 142, 201, 0.3);
+    --table-row-hover: rgba(91, 155, 213, 0.04);
 
     /* --- Status backgrounds (darkened versions) --- */
     --success-bg: rgba(46, 125, 50, 0.15);
@@ -235,7 +235,7 @@ body {
 }
 
 .header-separator {
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.35);
     margin: 0 12px;
     font-weight: 400;
 }
@@ -287,7 +287,7 @@ body {
     box-shadow: var(--shadow-sm);
     transition: all var(--transition);
     cursor: pointer;
-    border-left: 4px solid transparent;
+    border: 1px solid var(--border);
     height: 100%;
     position: relative;
     overflow: hidden;
@@ -362,7 +362,7 @@ body {
 .home-hero-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
-    border-color: var(--primary);
+    border-color: rgba(91, 155, 213, 0.3);
 }
 
 .home-hero-icon {

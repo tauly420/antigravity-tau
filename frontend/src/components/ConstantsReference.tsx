@@ -200,7 +200,7 @@ function ConstantsReference() {
             <h2 style={{ textAlign: 'center', marginBottom: 4 }}>
                 📚 Physics Constants & Equations Reference
             </h2>
-            <p style={{ textAlign: 'center', color: '#666', marginTop: 0, marginBottom: 20, fontSize: 14 }}>
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginTop: 0, marginBottom: 20, fontSize: 14 }}>
                 Essential physical constants and common lab formulas at your fingertips
             </p>
 
@@ -216,14 +216,16 @@ function ConstantsReference() {
                         padding: '10px 14px',
                         fontSize: 15,
                         borderRadius: 6,
-                        border: '1px solid #ccc',
+                        border: '1px solid var(--border)',
                         boxSizing: 'border-box',
+                        background: 'var(--surface)',
+                        color: 'var(--text)',
                     }}
                 />
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e0e0e0', marginBottom: 20 }}>
+            <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--border)', marginBottom: 20 }}>
                 <button
                     onClick={() => setActiveTab('constants')}
                     style={{
@@ -232,9 +234,9 @@ function ConstantsReference() {
                         cursor: 'pointer',
                         background: 'none',
                         border: 'none',
-                        borderBottom: activeTab === 'constants' ? '3px solid #c62828' : '3px solid transparent',
+                        borderBottom: activeTab === 'constants' ? '3px solid var(--primary)' : '3px solid transparent',
                         fontWeight: activeTab === 'constants' ? 700 : 400,
-                        color: activeTab === 'constants' ? '#c62828' : '#555',
+                        color: activeTab === 'constants' ? 'var(--primary)' : 'var(--text-muted)',
                         marginBottom: -2,
                     }}
                 >
@@ -248,9 +250,9 @@ function ConstantsReference() {
                         cursor: 'pointer',
                         background: 'none',
                         border: 'none',
-                        borderBottom: activeTab === 'formulas' ? '3px solid #c62828' : '3px solid transparent',
+                        borderBottom: activeTab === 'formulas' ? '3px solid var(--primary)' : '3px solid transparent',
                         fontWeight: activeTab === 'formulas' ? 700 : 400,
-                        color: activeTab === 'formulas' ? '#c62828' : '#555',
+                        color: activeTab === 'formulas' ? 'var(--primary)' : 'var(--text-muted)',
                         marginBottom: -2,
                     }}
                 >
@@ -269,7 +271,7 @@ function ConstantsReference() {
                         }}
                     >
                         <thead>
-                            <tr style={{ backgroundColor: '#e3f2fd' }}>
+                            <tr style={{ backgroundColor: 'var(--surface-alt)' }}>
                                 <th style={thStyle}>Name</th>
                                 <th style={thStyle}>Symbol</th>
                                 <th style={thStyle}>Value</th>
@@ -281,7 +283,7 @@ function ConstantsReference() {
                         <tbody>
                             {filteredConstants.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} style={{ textAlign: 'center', padding: 24, color: '#999' }}>
+                                    <td colSpan={6} style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>
                                         No constants match your search.
                                     </td>
                                 </tr>
@@ -290,16 +292,16 @@ function ConstantsReference() {
                                     <tr
                                         key={i}
                                         style={{
-                                            borderBottom: '1px solid #e0e0e0',
-                                            backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa',
+                                            borderBottom: '1px solid var(--border)',
+                                            backgroundColor: i % 2 === 0 ? 'var(--surface)' : 'var(--surface-alt)',
                                         }}
                                     >
                                         <td style={tdStyle}>{c.name}</td>
-                                        <td style={{ ...tdStyle, fontFamily: 'monospace', fontWeight: 600, color: '#1565c0' }}>
+                                        <td style={{ ...tdStyle, fontFamily: 'monospace', fontWeight: 600, color: 'var(--primary)' }}>
                                             {c.symbol}
                                         </td>
                                         <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{c.value}</td>
-                                        <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 12, color: '#777' }}>
+                                        <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>
                                             {c.uncertainty}
                                         </td>
                                         <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 13 }}>{c.units}</td>
@@ -308,13 +310,13 @@ function ConstantsReference() {
                                                 onClick={() => handleCopy(c.value, i)}
                                                 title="Copy value"
                                                 style={{
-                                                    background: 'none',
-                                                    border: '1px solid #ccc',
+                                                    background: 'transparent',
+                                                    border: '1px solid var(--border)',
                                                     borderRadius: 4,
                                                     padding: '2px 8px',
                                                     cursor: 'pointer',
                                                     fontSize: 13,
-                                                    color: copiedIndex === i ? '#2e7d32' : '#555',
+                                                    color: copiedIndex === i ? 'var(--success)' : 'var(--text-secondary)',
                                                 }}
                                             >
                                                 {copiedIndex === i ? '\u2713' : '\ud83d\udccb'}
@@ -325,7 +327,7 @@ function ConstantsReference() {
                             )}
                         </tbody>
                     </table>
-                    <p style={{ fontSize: 12, color: '#999', marginTop: 12 }}>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 12 }}>
                         Values from CODATA 2018 recommended values. Constants marked "exact" have defined values with zero uncertainty.
                     </p>
                 </div>
@@ -335,7 +337,7 @@ function ConstantsReference() {
             {activeTab === 'formulas' && (
                 <div>
                     {filteredFormulas.length === 0 ? (
-                        <p style={{ textAlign: 'center', padding: 24, color: '#999' }}>
+                        <p style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>
                             No formulas match your search.
                         </p>
                     ) : (
@@ -344,7 +346,7 @@ function ConstantsReference() {
                                 <h3
                                     style={{
                                         color: 'var(--primary)',
-                                        borderBottom: '2px solid #e0e0e0',
+                                        borderBottom: '2px solid var(--border)',
                                         paddingBottom: 6,
                                         marginBottom: 12,
                                         fontSize: 17,
@@ -362,8 +364,8 @@ function ConstantsReference() {
                                                 gap: 2,
                                                 padding: '10px 14px',
                                                 borderRadius: 6,
-                                                backgroundColor: j % 2 === 0 ? '#fafafa' : '#fff',
-                                                border: '1px solid #eee',
+                                                backgroundColor: j % 2 === 0 ? 'var(--surface-alt)' : 'var(--surface)',
+                                                border: '1px solid var(--border)',
                                             }}
                                         >
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -371,14 +373,14 @@ function ConstantsReference() {
                                                 <span
                                                     style={{
                                                         fontSize: 18,
-                                                        color: '#000',
+                                                        color: 'var(--text)',
                                                         fontWeight: 700,
                                                     }}
                                                     dangerouslySetInnerHTML={{ __html: renderKatex(f.equation) }}
                                                 />
                                             </div>
                                             <div
-                                                style={{ fontSize: 12, color: '#666', marginTop: 2 }}
+                                                style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}
                                                 dangerouslySetInnerHTML={{ __html: renderVariablesWithKatex(f.variables) }}
                                             />
                                         </div>
@@ -398,7 +400,7 @@ const thStyle: React.CSSProperties = {
     padding: '10px 12px',
     fontWeight: 600,
     fontSize: 13,
-    color: '#333',
+    color: 'var(--text)',
     whiteSpace: 'nowrap',
 };
 

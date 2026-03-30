@@ -24,19 +24,19 @@ function DataPreview({ columns, rows, maxRows = 10, defaultOpen = true }: DataPr
     return (
         <div style={{
             marginTop: '0.75rem', marginBottom: '0.75rem',
-            borderRadius: '10px', border: '1px solid #e0e0e0',
-            overflow: 'hidden', background: '#fff',
+            borderRadius: '10px', border: '1px solid var(--border)',
+            overflow: 'hidden', background: 'var(--surface)',
         }}>
             <button
                 onClick={() => setOpen(o => !o)}
                 style={{
                     width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '0.6rem 1rem', background: '#f5f5f5',
+                    padding: '0.6rem 1rem', background: 'var(--surface-alt)',
                     border: 'none', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600,
-                    color: '#333',
+                    color: 'var(--text)',
                 }}
             >
-                <span>📋 Data Preview ({rows.length} rows, {columns.length} cols)</span>
+                <span>Data Preview ({rows.length} rows, {columns.length} cols)</span>
                 <span style={{ fontSize: '1.1rem', transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
             </button>
 
@@ -49,30 +49,31 @@ function DataPreview({ columns, rows, maxRows = 10, defaultOpen = true }: DataPr
                         <thead>
                             <tr>
                                 <th style={{
-                                    padding: '0.4rem 0.6rem', background: '#e3f2fd',
-                                    borderBottom: '2px solid #90caf9', textAlign: 'center',
-                                    position: 'sticky', top: 0, zIndex: 1, fontSize: '0.75rem', color: '#666',
+                                    padding: '0.4rem 0.6rem', background: 'var(--surface-alt)',
+                                    borderBottom: '2px solid var(--border)', textAlign: 'center',
+                                    position: 'sticky', top: 0, zIndex: 1, fontSize: '0.75rem', color: 'var(--text-muted)',
                                 }}>#</th>
                                 {columns.map(col => (
                                     <th key={col} style={{
-                                        padding: '0.4rem 0.6rem', background: '#e3f2fd',
-                                        borderBottom: '2px solid #90caf9', textAlign: 'left',
+                                        padding: '0.4rem 0.6rem', background: 'var(--surface-alt)',
+                                        borderBottom: '2px solid var(--border)', textAlign: 'left',
                                         whiteSpace: 'nowrap', position: 'sticky', top: 0, zIndex: 1,
+                                        color: 'var(--text)',
                                     }}>{col}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
                             {displayRows.map((row, i) => (
-                                <tr key={i} style={{ background: i % 2 === 0 ? '#fafafa' : '#fff' }}>
+                                <tr key={i} style={{ background: i % 2 === 0 ? 'var(--surface)' : 'var(--surface-alt)' }}>
                                     <td style={{
-                                        padding: '0.3rem 0.6rem', borderBottom: '1px solid #eee',
-                                        textAlign: 'center', color: '#999', fontSize: '0.75rem',
+                                        padding: '0.3rem 0.6rem', borderBottom: '1px solid var(--border)',
+                                        textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem',
                                     }}>{i + 1}</td>
                                     {columns.map(col => (
                                         <td key={col} style={{
-                                            padding: '0.3rem 0.6rem', borderBottom: '1px solid #eee',
-                                            whiteSpace: 'nowrap',
+                                            padding: '0.3rem 0.6rem', borderBottom: '1px solid var(--border)',
+                                            whiteSpace: 'nowrap', color: 'var(--text)',
                                         }}>
                                             {row[col] != null ? String(row[col]) : '—'}
                                         </td>
@@ -83,8 +84,8 @@ function DataPreview({ columns, rows, maxRows = 10, defaultOpen = true }: DataPr
                     </table>
                     {rows.length > maxRows && (
                         <div style={{
-                            padding: '0.4rem 1rem', fontSize: '0.8rem', color: '#888',
-                            background: '#fafafa', borderTop: '1px solid #eee',
+                            padding: '0.4rem 1rem', fontSize: '0.8rem', color: 'var(--text-muted)',
+                            background: 'var(--surface-alt)', borderTop: '1px solid var(--border)',
                         }}>
                             Showing first {maxRows} of {rows.length} rows
                         </div>

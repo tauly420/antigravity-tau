@@ -139,9 +139,7 @@ function Home() {
                         onClick={() => setCurrentTool(tool.title)}
                         style={{ textDecoration: 'none', color: 'inherit' }}
                     >
-                        <div className="tool-card" style={{
-                            borderLeft: `4px solid ${tool.color}`,
-                        }}>
+                        <div className="tool-card">
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
                                 {tool.icon ? (
                                     <img
