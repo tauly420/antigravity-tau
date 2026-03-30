@@ -169,3 +169,23 @@ Note: Phase 11 depends on both Phase 8 and Phase 10.
 | 10. AI Content Generation Pipeline | v2.0 | 3/3 | Complete    | 2026-03-27 |
 | 11. Preview, Editing, and PDF Assembly | v2.0 | 3/3 | Complete   | 2026-03-28 |
 | 12. Integration and Polish | v2.0 | 0/2 | Planning | - |
+
+### Phase 13: UI overhaul, new homepage and removal of sidebar, each feature accessible from home page and a back to home button
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 12
+**Plans:** 1/2 plans executed
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 13 to break down)
+
+### Phase 14: Report and AutoLab merge — unified page for full report or analysis-only mode, plus fix PDF export
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 13
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 14 to break down)
