@@ -160,7 +160,7 @@ function NumericalIntegrator() {
                     placeholder={dimension === 1 ? '0, 1' : '0, 1; 0, 1'}
                     style={{ fontFamily: 'monospace' }}
                 />
-                <small style={{ color: '#666', marginTop: '0.25rem', display: 'block' }}>
+                <small style={{ color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'block' }}>
                     {dimension === 1 ? 'Format: a, b' : `Format: a₁, b₁; a₂, b₂${dimension > 2 ? '; …' : ''}`}
                 </small>
             </div>
@@ -180,7 +180,7 @@ function NumericalIntegrator() {
                     <div className="form-group">
                         <label>Condition (optional)</label>
                         <input type="text" value={condition} onChange={(e) => setCondition(e.target.value)} placeholder="x**2 + y**2 < 1" style={{ fontFamily: 'monospace' }} />
-                        <small style={{ color: '#666', marginTop: '0.25rem', display: 'block' }}>For circles, spheres, etc.</small>
+                        <small style={{ color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'block' }}>For circles, spheres, etc.</small>
                     </div>
                     <div className="form-group">
                         <label>Monte Carlo Samples</label>
@@ -210,13 +210,13 @@ function NumericalIntegrator() {
                                 ∫ f = {result.result !== null ? result.result.toFixed(8) : 'N/A'}
                             </p>
                             {result.error_estimate != null && (
-                                <p style={{ color: '#666' }}>Error estimate: ± {result.error_estimate.toExponential(3)}</p>
+                                <p style={{ color: 'var(--text-secondary)' }}>Error estimate: ± {result.error_estimate.toExponential(3)}</p>
                             )}
                             {result.warning && (
-                                <p style={{ color: '#e65100', marginTop: '0.5rem' }}>⚠️ {result.warning}</p>
+                                <p style={{ color: 'var(--warning)', marginTop: '0.5rem' }}>⚠️ {result.warning}</p>
                             )}
                             {result.method && (
-                                <p style={{ fontSize: '0.9rem', color: '#888', marginTop: '0.5rem' }}>Method: {result.method}</p>
+                                <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Method: {result.method}</p>
                             )}
                         </>
                     )}
@@ -248,13 +248,13 @@ function NumericalIntegrator() {
                         ]}
                         layout={{
                             title: { text: `∫ ${functionStr} dx` },
-                            xaxis: { title: { text: 'x' }, gridcolor: '#e0e0e0' },
-                            yaxis: { title: { text: 'f(x)' }, gridcolor: '#e0e0e0' },
+                            xaxis: { title: { text: 'x' }, gridcolor: '#2a2a4a' },
+                            yaxis: { title: { text: 'f(x)' }, gridcolor: '#2a2a4a' },
                             height: 400,
                             margin: { l: 60, r: 30, t: 55, b: 55 },
                             legend: { x: 0, y: 1.15, orientation: 'h' as const },
-                            plot_bgcolor: '#fafafa',
-                            paper_bgcolor: '#fff',
+                            plot_bgcolor: '#16213e',
+                            paper_bgcolor: '#1a1a2e',
                         }}
                         useResizeHandler
                         style={{ width: '100%' }}

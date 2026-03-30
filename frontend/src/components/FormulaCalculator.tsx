@@ -192,10 +192,10 @@ function FormulaCalculator({ prefilled, onResult, embedded }: FormulaCalculatorP
                             const isPrefilled = prefilledNames.includes(name);
                             return (
                                 <div key={name} className="form-group" style={{
-                                    background: isPrefilled ? '#e8f5e9' : '#fafafa',
+                                    background: isPrefilled ? 'var(--success-bg, #1a3a1a)' : 'var(--surface-alt)',
                                     padding: '0.75rem',
                                     borderRadius: '8px',
-                                    border: isPrefilled ? '1.5px solid #a5d6a7' : '1px solid #eee',
+                                    border: isPrefilled ? '1.5px solid var(--success)' : '1px solid var(--border)',
                                 }}>
                                     <label style={{ fontFamily: 'monospace', fontSize: '1.1rem', color: isPrefilled ? 'var(--success)' : 'var(--primary)' }}>
                                         {name} {isPrefilled && <span style={{ fontSize: '0.75rem', fontWeight: 400 }}>(from fit)</span>}
@@ -226,7 +226,7 @@ function FormulaCalculator({ prefilled, onResult, embedded }: FormulaCalculatorP
             )}
 
             {varNames.length === 0 && expression.trim() && (
-                <p style={{ color: '#999', fontStyle: 'italic', margin: '1rem 0' }}>
+                <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', margin: '1rem 0' }}>
                     No variables detected. Type a variable name (e.g., <code>x</code>, <code>myVar</code>) in your expression.
                 </p>
             )}
@@ -243,10 +243,10 @@ function FormulaCalculator({ prefilled, onResult, embedded }: FormulaCalculatorP
                     <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: '1rem 0', fontFamily: 'monospace' }}>
                         {result.formatted}
                     </p>
-                    <p style={{ fontSize: '0.9rem', color: '#666' }}>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                         Value: {result.value?.toExponential(6)}
                     </p>
-                    <p style={{ fontSize: '0.9rem', color: '#666' }}>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                         Uncertainty: {result.uncertainty?.toExponential(6)}
                     </p>
                 </div>

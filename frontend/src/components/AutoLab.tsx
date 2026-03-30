@@ -539,7 +539,7 @@ function AutoLab() {
             {/* -- Header -- */}
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                 <h2 style={{ fontSize: '1.8rem', margin: 0 }}>🤖 AutoLab</h2>
-                <p style={{ color: '#666', marginTop: '0.4rem', fontSize: '1.05rem' }}>
+                <p style={{ color: 'var(--text-secondary)', marginTop: '0.4rem', fontSize: '1.05rem' }}>
                     🔬 AI-Powered Automated Analysis — Upload, Instruct, Get Results
                 </p>
             </div>
@@ -558,17 +558,17 @@ function AutoLab() {
                             if (f) handleFileChange(f);
                         }}
                         style={{
-                            border: '2px dashed #1565c0', borderRadius: '10px', padding: '1.5rem',
+                            border: '2px dashed var(--primary)', borderRadius: '10px', padding: '1.5rem',
                             textAlign: 'center', cursor: 'pointer',
-                            background: file ? '#e8f5e9' : '#e3f2fd', transition: 'all 0.2s',
+                            background: file ? 'var(--success-bg)' : 'var(--info-bg)', transition: 'all 0.2s',
                         }}
                     >
                         {file ? (
-                            <span style={{ fontWeight: 600, color: '#2e7d32' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--success)' }}>
                                 {file.name} ({(file.size / 1024).toFixed(1)} KB)
                             </span>
                         ) : (
-                            <span style={{ color: '#1565c0' }}>
+                            <span style={{ color: 'var(--primary)' }}>
                                 Click or drag & drop your data file<br />
                                 <small>.xlsx, .csv, .tsv, .ods, .dat</small>
                             </span>
@@ -581,7 +581,7 @@ function AutoLab() {
                         style={{ display: 'none' }}
                     />
                     {previewError && (
-                        <p style={{ color: '#e65100', fontSize: '0.85rem', margin: '0.3rem 0 0' }}>
+                        <p style={{ color: 'var(--warning)', fontSize: '0.85rem', margin: '0.3rem 0 0' }}>
                             {previewError}
                         </p>
                     )}
@@ -594,8 +594,8 @@ function AutoLab() {
 
                 {/* Example datasets */}
                 <div style={{
-                    padding: '0.8rem 1rem', background: '#e8f5e9', borderRadius: '10px',
-                    border: '1px solid #a5d6a7', marginBottom: '1rem',
+                    padding: '0.8rem 1rem', background: 'var(--success-bg)', borderRadius: '10px',
+                    border: '1px solid var(--success-border)', marginBottom: '1rem',
                 }}>
                     <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.9rem' }}>
                         🧪 Try an example (loads data + instructions):
@@ -635,8 +635,8 @@ function AutoLab() {
 
                 {/* Fit Model Selection */}
                 <div style={{
-                    padding: '1rem', background: '#e3f2fd', borderRadius: '10px',
-                    border: '1px solid #90caf9', marginBottom: '1rem',
+                    padding: '1rem', background: 'var(--info-bg)', borderRadius: '10px',
+                    border: '1px solid var(--border)', marginBottom: '1rem',
                 }}>
                     <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.95rem' }}>
                         📊 Fit Model
@@ -646,7 +646,7 @@ function AutoLab() {
                         onChange={e => { setSelectedModel(e.target.value); setFixedParams({}); }}
                         style={{
                             width: '100%', padding: '0.55rem 0.75rem', fontSize: '0.95rem',
-                            border: '1px solid #ccc', borderRadius: '8px', background: '#fff',
+                            border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--surface)',
                             fontFamily: 'inherit', cursor: 'pointer',
                         }}
                     >
@@ -660,7 +660,7 @@ function AutoLab() {
                     {/* Custom expression input */}
                     {selectedModel === 'custom' && (
                         <div style={{ marginTop: '0.6rem' }}>
-                            <label style={{ fontSize: '0.85rem', color: '#555' }}>Custom expression (use x as variable):</label>
+                            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Custom expression (use x as variable):</label>
                             <input
                                 type="text"
                                 value={customExpr}
@@ -668,7 +668,7 @@ function AutoLab() {
                                 placeholder="e.g. A*exp(-x/tau) + C"
                                 style={{
                                     width: '100%', padding: '0.5rem 0.75rem', fontSize: '0.9rem',
-                                    border: '1px solid #ccc', borderRadius: '6px', fontFamily: 'monospace',
+                                    border: '1px solid var(--border)', borderRadius: '6px', fontFamily: 'monospace',
                                     marginTop: '0.3rem', boxSizing: 'border-box',
                                 }}
                             />
@@ -678,7 +678,7 @@ function AutoLab() {
                     {/* Fixed parameters (show when a specific model is selected) */}
                     {selectedModel !== 'auto' && selectedModel !== 'custom' && MODEL_PARAMS[selectedModel] && (
                         <div style={{ marginTop: '0.6rem' }}>
-                            <p style={{ fontSize: '0.85rem', color: '#555', margin: '0 0 0.4rem' }}>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 0.4rem' }}>
                                 🔒 Fix constants (leave blank to fit freely):
                             </p>
                             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -686,7 +686,7 @@ function AutoLab() {
                                     <div key={param} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                                         <label style={{
                                             fontSize: '0.88rem', fontFamily: 'monospace',
-                                            fontWeight: 600, color: '#333', minWidth: '1.5rem',
+                                            fontWeight: 600, color: 'var(--text)', minWidth: '1.5rem',
                                         }}>{param} =</label>
                                         <input
                                             type="text"
@@ -695,15 +695,15 @@ function AutoLab() {
                                             placeholder="free"
                                             style={{
                                                 width: '5rem', padding: '0.3rem 0.5rem',
-                                                fontSize: '0.85rem', border: '1px solid #ccc',
+                                                fontSize: '0.85rem', border: '1px solid var(--border)',
                                                 borderRadius: '5px', fontFamily: 'monospace',
-                                                background: fixedParams[param]?.trim() ? '#fff3e0' : '#fff',
+                                                background: fixedParams[param]?.trim() ? '#fff3e0' : 'var(--surface)',
                                             }}
                                         />
                                     </div>
                                 ))}
                             </div>
-                            <p style={{ fontSize: '0.78rem', color: '#888', margin: '0.3rem 0 0' }}>
+                            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.3rem 0 0' }}>
                                 Tip: Set c=0 for no vertical offset, b=0 to remove a term, etc.
                             </p>
                         </div>
@@ -712,8 +712,8 @@ function AutoLab() {
 
                 {/* Theoretical value (optional) */}
                 <div style={{
-                    padding: '1rem', background: '#f3e5f5', borderRadius: '10px',
-                    border: '1px solid #ce93d8', marginBottom: '1rem',
+                    padding: '1rem', background: 'var(--surface-alt)', borderRadius: '10px',
+                    border: '1px solid var(--border)', marginBottom: '1rem',
                 }}>
                     <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.95rem' }}>
                         🎯 Theoretical Value (optional)
@@ -757,7 +757,7 @@ function AutoLab() {
             {/* === RESULTS SECTION === */}
             {hasResults && (
                 <div style={{ marginTop: '2.5rem' }}>
-                    <h3 style={{ color: '#c62828', marginBottom: '1.25rem', fontSize: '1.2rem' }}>
+                    <h3 style={{ color: 'var(--text)', marginBottom: '1.25rem', fontSize: '1.2rem' }}>
                         📊 Results
                     </h3>
 
@@ -765,11 +765,11 @@ function AutoLab() {
                     {errorSteps.length > 0 && (
                         <div style={{
                             padding: '0.8rem 1rem', borderRadius: '10px',
-                            border: '2px solid #ef9a9a', background: '#ffebee', marginBottom: '1rem',
+                            border: '2px solid var(--danger-border)', background: 'var(--danger-bg)', marginBottom: '1rem',
                         }}>
                             <strong>⚠️ Errors during analysis:</strong>
                             {errorSteps.map((s, i) => (
-                                <p key={i} style={{ margin: '0.3rem 0 0', fontSize: '0.88rem', color: '#c62828' }}>
+                                <p key={i} style={{ margin: '0.3rem 0 0', fontSize: '0.88rem', color: 'var(--danger)' }}>
                                     {s.step}: {s.result?.error || s.message}
                                 </p>
                             ))}
@@ -780,13 +780,13 @@ function AutoLab() {
                     {fitStep && fitStep.result && (
                         <div style={{ marginBottom: '1.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
-                            <h4 style={{ margin: 0, color: '#333', fontSize: '1rem' }}>
+                            <h4 style={{ margin: 0, color: 'var(--text)', fontSize: '1rem' }}>
                                 Fit Parameters -- <em style={{ fontWeight: 400 }}>{fitStep.result.model_name || fitStep.args?.model}</em>
                                 {(() => {
                                     const modelKey = (fitStep.args?.model || '').toLowerCase();
                                     const formula = MODEL_FORMULAS[modelKey] || (fitStep.args?.custom_expr ? fitStep.args.custom_expr : null);
                                     return formula ? (
-                                        <span style={{ marginLeft: '0.5rem', fontSize: '0.88rem', color: '#666', fontFamily: 'monospace' }}>
+                                        <span style={{ marginLeft: '0.5rem', fontSize: '0.88rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                                             ({formula})
                                         </span>
                                     ) : null;
@@ -796,9 +796,9 @@ function AutoLab() {
                                 onClick={handleCopyTable}
                                 style={{
                                     padding: '0.3rem 0.7rem', fontSize: '0.8rem',
-                                    border: '1px solid #ccc', borderRadius: '6px',
-                                    background: tableCopied ? '#e8f5e9' : '#fff',
-                                    color: tableCopied ? '#2e7d32' : '#555',
+                                    border: '1px solid var(--border)', borderRadius: '6px',
+                                    background: tableCopied ? 'var(--success-bg)' : 'var(--surface)',
+                                    color: tableCopied ? 'var(--success)' : 'var(--text-secondary)',
                                     cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s',
                                 }}
                             >
@@ -808,7 +808,7 @@ function AutoLab() {
                             <div style={{ overflowX: 'auto', userSelect: 'text' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                                     <thead>
-                                        <tr style={{ background: '#e3f2fd' }}>
+                                        <tr style={{ background: 'var(--surface-alt)' }}>
                                             <th style={thStyle}>Parameter</th>
                                             <th style={thStyle}>Rounded (2 sig. fig. on unc.)</th>
                                             <th style={thStyle}>Full precision</th>
@@ -820,10 +820,10 @@ function AutoLab() {
                                             const unc = Number(fitStep.result!.uncertainties?.[j]);
                                             const fmt = roundWithUncertainty(val, unc);
                                             return (
-                                                <tr key={name} style={{ background: j % 2 === 0 ? '#fafafa' : '#fff' }}>
+                                                <tr key={name} style={{ background: j % 2 === 0 ? 'var(--surface)' : 'var(--surface-alt)' }}>
                                                     <td style={tdStyle}><strong>{name}</strong></td>
                                                     <td style={tdStyle}>{fmt.rounded}</td>
-                                                    <td style={{ ...tdStyle, color: '#888', fontSize: '0.82rem' }}>{fmt.unrounded}</td>
+                                                    <td style={{ ...tdStyle, color: 'var(--text-muted)', fontSize: '0.82rem' }}>{fmt.unrounded}</td>
                                                 </tr>
                                             );
                                         })}
@@ -833,8 +833,8 @@ function AutoLab() {
                             {/* Fit statistics */}
                             <div style={{
                                 marginTop: '0.5rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap',
-                                fontSize: '0.88rem', color: '#555',
-                                padding: '0.5rem 0.75rem', background: '#f5f5f5', borderRadius: '6px',
+                                fontSize: '0.88rem', color: 'var(--text-secondary)',
+                                padding: '0.5rem 0.75rem', background: 'var(--surface-alt)', borderRadius: '6px',
                             }}>
                                 {fitStep.result.reduced_chi_squared != null && (
                                     <span>{'\u03C7\u00B2'} reduced = <strong>{Number(fitStep.result.reduced_chi_squared).toFixed(3)}</strong></span>
@@ -855,16 +855,16 @@ function AutoLab() {
                     {/* -- Formula result -- */}
                     {formulaStep && formulaStep.result && (
                         <div style={{ marginBottom: '1.5rem' }}>
-                            <h4 style={{ margin: '0 0 0.6rem', color: '#333', fontSize: '1rem' }}>
+                            <h4 style={{ margin: '0 0 0.6rem', color: 'var(--text)', fontSize: '1rem' }}>
                                 🔢 Formula Calculation
                             </h4>
                             <div style={{
-                                padding: '0.85rem 1rem', background: '#ede7f6',
-                                borderRadius: '8px', border: '1px solid #b39ddb',
+                                padding: '0.85rem 1rem', background: 'var(--surface-alt)',
+                                borderRadius: '8px', border: '1px solid var(--border)',
                                 fontFamily: 'monospace', fontSize: '0.95rem',
                             }}>
-                                <div style={{ marginBottom: '0.4rem', color: '#555' }}>
-                                    Expression: <strong style={{ color: '#111' }}>{formulaStep.args?.expression}</strong>
+                                <div style={{ marginBottom: '0.4rem', color: 'var(--text-secondary)' }}>
+                                    Expression: <strong style={{ color: 'var(--text)' }}>{formulaStep.args?.expression}</strong>
                                 </div>
                                 {(() => {
                                     const val = Number(formulaStep.result!.value);
@@ -876,9 +876,9 @@ function AutoLab() {
                                         <>
                                             <div>
                                                 Result (rounded):&nbsp;
-                                                <strong style={{ fontSize: '1.05rem', color: '#111' }}>{fmt.rounded}</strong>
+                                                <strong style={{ fontSize: '1.05rem', color: 'var(--text)' }}>{fmt.rounded}</strong>
                                             </div>
-                                            <div style={{ color: '#999', fontSize: '0.83rem', marginTop: '0.25rem' }}>
+                                            <div style={{ color: 'var(--text-muted)', fontSize: '0.83rem', marginTop: '0.25rem' }}>
                                                 Full: {fmt.unrounded}
                                             </div>
                                         </>
@@ -891,7 +891,7 @@ function AutoLab() {
                     {/* -- N-sigma result -- */}
                     {nsigmaStep && nsigmaStep.result && (
                         <div style={{ marginBottom: '1.5rem' }}>
-                            <h4 style={{ margin: '0 0 0.6rem', color: '#333', fontSize: '1rem' }}>
+                            <h4 style={{ margin: '0 0 0.6rem', color: 'var(--text)', fontSize: '1rem' }}>
                                 🎯 N-Sigma Comparison
                             </h4>
                             {(() => {
@@ -908,17 +908,17 @@ function AutoLab() {
                                     <div style={{
                                         padding: '0.85rem 1rem', borderRadius: '8px',
                                         border: `2px solid ${col}`,
-                                        background: ns <= 2 ? '#e8f5e9' : ns <= 3 ? '#fff3e0' : '#ffebee',
+                                        background: ns <= 2 ? 'var(--success-bg)' : ns <= 3 ? 'var(--warning-bg)' : 'var(--danger-bg)',
                                     }}>
                                         <div style={{ fontSize: '1.3rem', fontWeight: 700, color: col }}>
                                             N-{'\u03C3'} = {ns.toFixed(2)}
-                                            <span style={{ fontSize: '0.95rem', fontWeight: 500, marginLeft: '0.75rem', color: '#333' }}>
+                                            <span style={{ fontSize: '0.95rem', fontWeight: 500, marginLeft: '0.75rem', color: 'var(--text)' }}>
                                                 -- {nsigmaStep.result!.verdict}
                                             </span>
                                         </div>
-                                        <div style={{ marginTop: '0.4rem', fontSize: '0.9rem', color: '#555' }}>
+                                        <div style={{ marginTop: '0.4rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                                             Measured: <strong>{measFmt}</strong>
-                                            <span style={{ margin: '0 0.75rem', color: '#bbb' }}>vs</span>
+                                            <span style={{ margin: '0 0.75rem', color: 'var(--text-muted)' }}>vs</span>
                                             Theoretical: <strong>{tv}{tu ? ` \u00B1 ${tu}` : ''}</strong>
                                         </div>
                                     </div>
@@ -930,7 +930,7 @@ function AutoLab() {
                     {/* === FIT PLOT === */}
                     {fitData && fitData.x_data && (
                         <div style={{ marginBottom: '1.5rem' }}>
-                            <h4 style={{ color: '#333', margin: '0 0 0.5rem', fontSize: '1rem' }}>📈 Fit Plot</h4>
+                            <h4 style={{ color: 'var(--text)', margin: '0 0 0.5rem', fontSize: '1rem' }}>📈 Fit Plot</h4>
                             <div ref={fitPlotRef}>
                             <Plot
                                 data={[
@@ -957,11 +957,11 @@ function AutoLab() {
                                 ]}
                                 layout={{
                                     title: { text: `Fit -- ${fitData.model_name}` },
-                                    xaxis: { title: { text: xLabel }, gridcolor: '#e0e0e0' },
-                                    yaxis: { title: { text: yLabel }, gridcolor: '#e0e0e0' },
+                                    xaxis: { title: { text: xLabel }, gridcolor: '#2a2a4a' },
+                                    yaxis: { title: { text: yLabel }, gridcolor: '#2a2a4a' },
                                     height: 420, margin: { l: 60, r: 30, t: 55, b: 55 },
                                     legend: { x: 0, y: 1.15, orientation: 'h' as const },
-                                    plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
+                                    plot_bgcolor: '#16213e', paper_bgcolor: '#1a1a2e',
                                 }}
                                 useResizeHandler style={{ width: '100%' }} config={plotConfig}
                             />
@@ -992,16 +992,16 @@ function AutoLab() {
                                     }]}
                                     layout={{
                                         title: { text: 'Residuals (data \u2212 fit)' },
-                                        xaxis: { title: { text: xLabel }, gridcolor: '#e0e0e0' },
-                                        yaxis: { title: { text: `${yLabel} \u2212 f(${xLabel})` }, gridcolor: '#e0e0e0' },
+                                        xaxis: { title: { text: xLabel }, gridcolor: '#2a2a4a' },
+                                        yaxis: { title: { text: `${yLabel} \u2212 f(${xLabel})` }, gridcolor: '#2a2a4a' },
                                         height: 280, margin: { l: 60, r: 30, t: 45, b: 45 },
-                                        plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
+                                        plot_bgcolor: '#16213e', paper_bgcolor: '#1a1a2e',
                                     }}
                                     useResizeHandler style={{ width: '100%' }} config={plotConfig}
                                 />
                                 </div>
                             )}
-                            <p style={{ color: '#888', fontSize: '0.85rem', margin: '0.5rem 0 0' }}>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0.5rem 0 0' }}>
                                 Use the camera icon on each plot to download as PNG.
                             </p>
                         </div>
@@ -1016,9 +1016,9 @@ function AutoLab() {
                                 onClick={handleExportReport}
                                 style={{
                                     padding: '0.6rem 1.5rem', fontSize: '0.95rem',
-                                    border: '2px solid #1565c0', borderRadius: '8px',
-                                    background: reportCopied ? '#e8f5e9' : '#e3f2fd',
-                                    color: reportCopied ? '#2e7d32' : '#1565c0',
+                                    border: '2px solid var(--primary)', borderRadius: '8px',
+                                    background: reportCopied ? 'var(--success-bg)' : 'var(--info-bg)',
+                                    color: reportCopied ? 'var(--success)' : 'var(--primary)',
                                     cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s',
                                     fontFamily: "'Inter', sans-serif",
                                 }}
@@ -1050,9 +1050,9 @@ function AutoLab() {
                                 disabled={pdfExporting}
                                 style={{
                                     padding: '0.6rem 1.5rem', fontSize: '0.95rem',
-                                    border: '2px solid #1565c0', borderRadius: '8px',
-                                    background: pdfExporting ? '#f5f5f5' : '#fff',
-                                    color: '#1565c0',
+                                    border: '2px solid var(--primary)', borderRadius: '8px',
+                                    background: pdfExporting ? 'var(--surface-alt)' : 'var(--surface)',
+                                    color: 'var(--primary)',
                                     cursor: pdfExporting ? 'wait' : 'pointer',
                                     fontWeight: 600, transition: 'all 0.2s',
                                     fontFamily: "'Inter', sans-serif",
@@ -1065,7 +1065,7 @@ function AutoLab() {
 
                     {/* === INLINE AI CHAT === */}
                     <div style={{
-                        marginTop: '1.5rem', border: '1px solid #e0e0e0',
+                        marginTop: '1.5rem', border: '1px solid var(--border)',
                         borderRadius: '12px', overflow: 'hidden',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                         fontFamily: "'Inter', sans-serif",
@@ -1082,7 +1082,7 @@ function AutoLab() {
                         {/* Message thread */}
                         <div style={{
                             minHeight: '100px', maxHeight: '400px', overflowY: 'auto',
-                            padding: '1rem 1.2rem', background: '#fafafa',
+                            padding: '1rem 1.2rem', background: 'var(--surface-alt)',
                             display: 'flex', flexDirection: 'column', gap: '0.75rem',
                         }}>
                             {chatMessages.length === 0 && summaryStep ? (
@@ -1090,8 +1090,8 @@ function AutoLab() {
                                     <div style={{
                                         padding: '0.6rem 0.9rem',
                                         borderRadius: '12px 12px 12px 2px',
-                                        background: '#fff',
-                                        color: '#333',
+                                        background: 'var(--surface)',
+                                        color: 'var(--text)',
                                         border: '1px solid #e0e0e0',
                                         fontSize: '0.9rem', lineHeight: 1.6,
                                     }}
@@ -1101,7 +1101,7 @@ function AutoLab() {
                                     />
                                 </div>
                             ) : chatMessages.length === 0 ? (
-                                <p style={{ color: '#aaa', fontSize: '0.9rem', textAlign: 'center', margin: 'auto 0' }}>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', margin: 'auto 0' }}>
                                     Ask anything about your results -- interpretation, further analysis, comparisons...
                                 </p>
                             ) : null}
@@ -1127,8 +1127,8 @@ function AutoLab() {
                                 <div style={{ alignSelf: 'flex-start' }}>
                                     <div style={{
                                         padding: '0.6rem 0.9rem', borderRadius: '12px 12px 12px 2px',
-                                        background: '#fff', border: '1px solid #e0e0e0',
-                                        fontSize: '0.9rem', color: '#999',
+                                        background: 'var(--surface)', border: '1px solid var(--border)',
+                                        fontSize: '0.9rem', color: 'var(--text-muted)',
                                     }}>
                                         Thinking...
                                     </div>
@@ -1140,7 +1140,7 @@ function AutoLab() {
                         {/* Input row */}
                         <div style={{
                             display: 'flex', gap: '0.5rem', padding: '0.85rem 1.2rem',
-                            background: '#fff', borderTop: '1px solid #e0e0e0',
+                            background: 'var(--surface)', borderTop: '1px solid var(--border)',
                         }}>
                             <input
                                 type="text" value={chatInput}
@@ -1150,7 +1150,7 @@ function AutoLab() {
                                 disabled={chatLoading}
                                 style={{
                                     flex: 1, padding: '0.55rem 0.85rem',
-                                    border: '1px solid #ccc', borderRadius: '8px',
+                                    border: '1px solid var(--border)', borderRadius: '8px',
                                     fontSize: '0.9rem', outline: 'none',
                                     fontFamily: "'Inter', sans-serif",
                                     transition: 'border-color 0.2s',

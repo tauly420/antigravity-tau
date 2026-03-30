@@ -290,7 +290,7 @@ function StatisticsCalculator() {
             <h2 style={{ marginBottom: '0.5rem' }}>
                 {'\uD83D\uDCCA'} Statistics Buddy
             </h2>
-            <p style={{ color: '#666', marginBottom: '1.5rem' }}>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
                 Your friendly statistics companion — paste data, upload a file, or try the example. Get instant stats, histograms, and more.
             </p>
 
@@ -337,7 +337,7 @@ function StatisticsCalculator() {
                             fontSize: '0.95rem',
                             padding: '0.75rem',
                             borderRadius: '6px',
-                            border: '1px solid #ccc',
+                            border: '1px solid var(--border)',
                             resize: 'vertical',
                             boxSizing: 'border-box',
                         }}
@@ -363,15 +363,15 @@ function StatisticsCalculator() {
                             padding: '2rem',
                             textAlign: 'center',
                             cursor: 'pointer',
-                            backgroundColor: '#f5f9ff',
+                            backgroundColor: 'var(--surface-alt)',
                             transition: 'border-color 0.2s, background-color 0.2s',
                         }}
-                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#1565c0'; e.currentTarget.style.backgroundColor = '#e3f2fd'; }}
-                        onDragLeave={(e) => { e.currentTarget.style.borderColor = '#90caf9'; e.currentTarget.style.backgroundColor = '#f5f9ff'; }}
+                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#1565c0'; e.currentTarget.style.backgroundColor = 'var(--surface-alt)'; }}
+                        onDragLeave={(e) => { e.currentTarget.style.borderColor = '#90caf9'; e.currentTarget.style.backgroundColor = 'var(--surface-alt)'; }}
                         onDrop={(e) => {
                             e.preventDefault();
                             e.currentTarget.style.borderColor = '#90caf9';
-                            e.currentTarget.style.backgroundColor = '#f5f9ff';
+                            e.currentTarget.style.backgroundColor = 'var(--surface-alt)';
                             const file = e.dataTransfer.files[0];
                             if (file && fileInputRef.current) {
                                 const dt = new DataTransfer();
@@ -385,16 +385,16 @@ function StatisticsCalculator() {
                             <div>
                                 <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{'\uD83D\uDCC4'}</div>
                                 <div style={{ fontWeight: 'bold', color: '#1565c0' }}>{fileName}</div>
-                                <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.25rem' }}>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                                     {fileData ? `${fileData.columns.length} columns, ${fileData.rows.length} rows` : 'Loading...'}
                                 </div>
-                                <div style={{ fontSize: '0.8rem', color: '#999', marginTop: '0.5rem' }}>Click to upload a different file</div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Click to upload a different file</div>
                             </div>
                         ) : (
                             <div>
                                 <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{'\uD83D\uDCC2'}</div>
-                                <div style={{ fontWeight: 'bold', color: '#333' }}>Click or drag a file here</div>
-                                <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.25rem' }}>Supports .csv, .tsv, .xlsx, .xls</div>
+                                <div style={{ fontWeight: 'bold', color: 'var(--text)' }}>Click or drag a file here</div>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Supports .csv, .tsv, .xlsx, .xls</div>
                             </div>
                         )}
                     </div>
@@ -418,8 +418,8 @@ function StatisticsCalculator() {
                                                 padding: '0.5rem 1rem',
                                                 borderRadius: '20px',
                                                 border: isSelected ? '2px solid #1565c0' : '2px solid #ddd',
-                                                backgroundColor: isSelected ? '#e3f2fd' : (hasNumbers ? '#fff' : '#f5f5f5'),
-                                                color: isSelected ? '#1565c0' : (hasNumbers ? '#333' : '#999'),
+                                                backgroundColor: isSelected ? 'var(--surface-alt)' : (hasNumbers ? 'var(--surface)' : 'var(--surface-alt)'),
+                                                color: isSelected ? 'var(--primary)' : (hasNumbers ? 'var(--text)' : 'var(--text-muted)'),
                                                 cursor: hasNumbers ? 'pointer' : 'default',
                                                 fontWeight: isSelected ? 700 : 400,
                                                 fontSize: '0.9rem',
@@ -435,30 +435,30 @@ function StatisticsCalculator() {
                                 })}
                             </div>
                             {selectedColumn && (
-                                <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.5rem' }}>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                                     {'\u2139\uFE0F'} {selectedColumn}: {getColumnPreview(selectedColumn)}
                                 </div>
                             )}
 
                             {/* Data preview */}
                             {selectedColumn && (
-                                <div style={{ marginTop: '0.75rem', maxHeight: '150px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '6px' }}>
+                                <div style={{ marginTop: '0.75rem', maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '6px' }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', fontFamily: 'monospace' }}>
                                         <thead>
                                             <tr>
-                                                <th style={{ position: 'sticky', top: 0, padding: '0.4rem 0.75rem', backgroundColor: '#f5f5f5', borderBottom: '1px solid #ddd', textAlign: 'left', width: '50px' }}>#</th>
-                                                <th style={{ position: 'sticky', top: 0, padding: '0.4rem 0.75rem', backgroundColor: '#f5f5f5', borderBottom: '1px solid #ddd', textAlign: 'right' }}>{selectedColumn}</th>
+                                                <th style={{ position: 'sticky', top: 0, padding: '0.4rem 0.75rem', backgroundColor: 'var(--surface-alt)', borderBottom: '1px solid var(--border)', textAlign: 'left', width: '50px' }}>#</th>
+                                                <th style={{ position: 'sticky', top: 0, padding: '0.4rem 0.75rem', backgroundColor: 'var(--surface-alt)', borderBottom: '1px solid var(--border)', textAlign: 'right' }}>{selectedColumn}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {fileData.rows.slice(0, 20).map((row, i) => (
                                                 <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                                                    <td style={{ padding: '0.3rem 0.75rem', color: '#999' }}>{i + 1}</td>
+                                                    <td style={{ padding: '0.3rem 0.75rem', color: 'var(--text-muted)' }}>{i + 1}</td>
                                                     <td style={{ padding: '0.3rem 0.75rem', textAlign: 'right' }}>{row[selectedColumn]}</td>
                                                 </tr>
                                             ))}
                                             {fileData.rows.length > 20 && (
-                                                <tr><td colSpan={2} style={{ padding: '0.3rem 0.75rem', color: '#999', textAlign: 'center' }}>... {fileData.rows.length - 20} more rows</td></tr>
+                                                <tr><td colSpan={2} style={{ padding: '0.3rem 0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>... {fileData.rows.length - 20} more rows</td></tr>
                                             )}
                                         </tbody>
                                     </table>
@@ -525,7 +525,7 @@ function StatisticsCalculator() {
                             border: '1px solid #bbdefb',
                         }}
                     >
-                        <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.25rem' }}>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
                             Result (x&#772; &plusmn; &sigma;<sub>mean</sub>)
                         </div>
                         <div
@@ -575,11 +575,11 @@ function StatisticsCalculator() {
                     <div style={{
                         marginTop: '1rem',
                         padding: '0.75rem 1rem',
-                        backgroundColor: '#fff8e1',
+                        backgroundColor: 'var(--warning-bg)',
                         borderRadius: '8px',
                         border: '1px solid #ffe082',
                         fontSize: '0.9rem',
-                        color: '#5d4037',
+                        color: 'var(--text-secondary)',
                     }}>
                         <strong>{'\uD83D\uDCA1'} Quick take:</strong>{' '}
                         {stats.n} measurements, relative uncertainty {((stats.sem / Math.abs(stats.mean)) * 100).toFixed(1)}%.
@@ -605,7 +605,7 @@ function StatisticsCalculator() {
                                         style={{
                                             textAlign: 'left',
                                             padding: '0.6rem 1rem',
-                                            backgroundColor: '#e3f2fd',
+                                            backgroundColor: 'var(--surface-alt)',
                                             borderBottom: '2px solid #90caf9',
                                             fontFamily: 'inherit',
                                         }}
@@ -616,7 +616,7 @@ function StatisticsCalculator() {
                                         style={{
                                             textAlign: 'right',
                                             padding: '0.6rem 1rem',
-                                            backgroundColor: '#e3f2fd',
+                                            backgroundColor: 'var(--surface-alt)',
                                             borderBottom: '2px solid #90caf9',
                                             fontFamily: 'inherit',
                                         }}
@@ -678,11 +678,11 @@ function StatisticsCalculator() {
                             layout={{
                                 xaxis: {
                                     title: 'Value' as any,
-                                    gridcolor: '#eee',
+                                    gridcolor: '#2a2a4a',
                                 },
                                 yaxis: {
                                     title: 'Count' as any,
-                                    gridcolor: '#eee',
+                                    gridcolor: '#2a2a4a',
                                 },
                                 shapes: [
                                     {
@@ -692,7 +692,7 @@ function StatisticsCalculator() {
                                         y0: 0,
                                         y1: 1,
                                         yref: 'paper',
-                                        line: { color: '#c62828', width: 2.5, dash: 'dash' },
+                                        line: { color: 'var(--danger)', width: 2.5, dash: 'dash' },
                                     },
                                     {
                                         type: 'rect',
@@ -712,7 +712,7 @@ function StatisticsCalculator() {
                                         yref: 'paper',
                                         text: `x\u0304 = ${stats.mean.toPrecision(5)}`,
                                         showarrow: false,
-                                        font: { color: '#c62828', size: 12, family: 'monospace' },
+                                        font: { color: 'var(--danger)', size: 12, family: 'monospace' },
                                     },
                                     {
                                         x: stats.mean + stats.std,
@@ -720,7 +720,7 @@ function StatisticsCalculator() {
                                         yref: 'paper',
                                         text: `+\u03C3`,
                                         showarrow: false,
-                                        font: { color: '#c62828', size: 11 },
+                                        font: { color: 'var(--danger)', size: 11 },
                                     },
                                     {
                                         x: stats.mean - stats.std,
@@ -728,11 +728,11 @@ function StatisticsCalculator() {
                                         yref: 'paper',
                                         text: `-\u03C3`,
                                         showarrow: false,
-                                        font: { color: '#c62828', size: 11 },
+                                        font: { color: 'var(--danger)', size: 11 },
                                     },
                                 ],
-                                plot_bgcolor: '#fafafa',
-                                paper_bgcolor: '#fff',
+                                plot_bgcolor: '#16213e',
+                                paper_bgcolor: '#1a1a2e',
                                 margin: { t: 40, r: 30, b: 50, l: 60 },
                                 bargap: 0.05,
                                 showlegend: false,
@@ -763,10 +763,10 @@ function StatisticsCalculator() {
                             layout={{
                                 yaxis: {
                                     title: (inputMode === 'file' && selectedColumn ? selectedColumn : 'Value') as any,
-                                    gridcolor: '#eee',
+                                    gridcolor: '#2a2a4a',
                                 },
-                                plot_bgcolor: '#fafafa',
-                                paper_bgcolor: '#fff',
+                                plot_bgcolor: '#16213e',
+                                paper_bgcolor: '#1a1a2e',
                                 margin: { t: 20, r: 30, b: 30, l: 60 },
                                 showlegend: false,
                             }}

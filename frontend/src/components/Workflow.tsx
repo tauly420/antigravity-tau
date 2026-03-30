@@ -266,7 +266,7 @@ function Workflow() {
         <div className="wf-section-header" style={{ opacity: isUnlocked ? 1 : 0.4 }}>
             <span className={`wf-num ${isUnlocked ? 'active' : ''}`}>{num}</span>
             <h3 style={{ margin: 0 }}>{title}</h3>
-            {!isUnlocked && <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#999' }}>🔒 Complete step {num - 1} first</span>}
+            {!isUnlocked && <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: 'var(--text-muted)' }}>🔒 Complete step {num - 1} first</span>}
         </div>
     );
 
@@ -523,21 +523,21 @@ function Workflow() {
 
                                 <Plot data={getPlotData()} layout={{
                                     title: { text: plotTitle || 'Data + Fit' },
-                                    xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#e0e0e0' },
-                                    yaxis: { title: { text: yLabel || 'Y' }, gridcolor: '#e0e0e0' },
+                                    xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#2a2a4a' },
+                                    yaxis: { title: { text: yLabel || 'Y' }, gridcolor: '#2a2a4a' },
                                     height: 450, legend: { x: 0, y: 1.15, orientation: 'h' as const },
-                                    margin: { l: 65, r: 30, t: 55, b: 60 }, plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
+                                    margin: { l: 65, r: 30, t: 55, b: 60 }, plot_bgcolor: '#16213e', paper_bgcolor: '#1a1a2e',
                                 }} useResizeHandler style={{ width: '100%' }} config={{ responsive: true, displaylogo: false, toImageButtonOptions: { format: 'png' as any, filename: plotTitle || 'fit_plot', height: 800, width: 1200, scale: 2 } }} />
 
                                 <Plot data={getResidualData()} layout={{
                                     title: { text: 'Residuals' },
-                                    xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#e0e0e0' },
-                                    yaxis: { title: { text: 'Residual' }, gridcolor: '#e0e0e0' },
-                                    height: 280, margin: { l: 65, r: 30, t: 40, b: 55 }, plot_bgcolor: '#fafafa', paper_bgcolor: '#fff',
-                                    shapes: [{ type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 0, y1: 0, line: { color: '#888', width: 1, dash: 'dash' } }],
+                                    xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#2a2a4a' },
+                                    yaxis: { title: { text: 'Residual' }, gridcolor: '#2a2a4a' },
+                                    height: 280, margin: { l: 65, r: 30, t: 40, b: 55 }, plot_bgcolor: '#16213e', paper_bgcolor: '#1a1a2e',
+                                    shapes: [{ type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 0, y1: 0, line: { color: 'var(--text-muted)', width: 1, dash: 'dash' } }],
                                 }} useResizeHandler style={{ width: '100%' }} config={{ responsive: true, displaylogo: false }} />
 
-                                <p style={{ color: '#888', fontSize: '0.85rem' }}>📷 Use the camera icon on each plot to download as PNG.</p>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>📷 Use the camera icon on each plot to download as PNG.</p>
                             </>
                         )}
                     </div>
@@ -622,9 +622,9 @@ function Workflow() {
                                 📝 Generate Report
                             </button>
                         ) : (
-                            <div style={{ background: '#f5f5f5', borderRadius: '10px', padding: '1rem', border: '1px solid #e0e0e0' }}>
+                            <div style={{ background: 'var(--surface-alt)', borderRadius: '10px', padding: '1rem', border: '1px solid var(--border)' }}>
                                 <h4 style={{ margin: '0 0 0.75rem 0' }}>Tell the AI about your experiment</h4>
-                                <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.75rem' }}>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
                                     {reportLang === 'he'
                                         ? 'תאר את הניסוי: מה מדדת, מה ההשוואה ב-N-σ, ופרטים נוספים שיעזרו ליצור דו"ח טוב.'
                                         : 'Describe your experiment: what did you measure, what are you comparing in the N-σ test, and any other relevant details.'}
@@ -650,8 +650,8 @@ function Workflow() {
                         {/* Generated report display */}
                         {generatedReport && (
                             <div style={{
-                                marginTop: '1.5rem', padding: '1.25rem', background: '#fafafa',
-                                borderRadius: '10px', border: '1px solid #e0e0e0',
+                                marginTop: '1.5rem', padding: '1.25rem', background: 'var(--surface-alt)',
+                                borderRadius: '10px', border: '1px solid var(--border)',
                                 direction: reportLang === 'he' ? 'rtl' : 'ltr',
                                 textAlign: reportLang === 'he' ? 'right' : 'left',
                                 lineHeight: 1.7, fontSize: '0.95rem',

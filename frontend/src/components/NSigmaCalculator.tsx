@@ -74,7 +74,7 @@ function NSigmaCalculator({ prefilled1, onResult }: NSigmaCalculatorProps) {
             </div>
 
             <div className="grid grid-2">
-                <div style={{ background: '#f9f9f9', padding: '1rem', borderRadius: '8px' }}>
+                <div style={{ background: 'var(--surface-alt)', padding: '1rem', borderRadius: '8px' }}>
                     <h3>Measurement 1 {prefilled1 ? '(from formula)' : ''}</h3>
                     <div className="form-group">
                         <label>Value</label>
@@ -98,7 +98,7 @@ function NSigmaCalculator({ prefilled1, onResult }: NSigmaCalculatorProps) {
                     </div>
                 </div>
 
-                <div style={{ background: '#f9f9f9', padding: '1rem', borderRadius: '8px' }}>
+                <div style={{ background: 'var(--surface-alt)', padding: '1rem', borderRadius: '8px' }}>
                     <h3>Measurement 2</h3>
                     <div className="form-group">
                         <label>Value</label>
@@ -135,7 +135,7 @@ function NSigmaCalculator({ prefilled1, onResult }: NSigmaCalculatorProps) {
                         {result.n_sigma.toFixed(2)}σ
                     </h3>
                     <p style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Verdict: {result.verdict}</p>
-                    <p style={{ marginTop: '0.5rem', color: '#666' }}>{result.message}</p>
+                    <p style={{ marginTop: '0.5rem', color: 'var(--text-secondary)' }}>{result.message}</p>
                 </div>
             )}
         </div>

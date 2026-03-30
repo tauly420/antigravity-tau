@@ -234,12 +234,12 @@ function Sidebar() {
                 </div>
 
                 {status === 'no-key' && (
-                    <div style={{ padding: '0.75rem 1rem', background: '#fff3e0', borderBottom: '1px solid #ffe0b2', fontSize: '0.85rem', color: '#e65100' }}>
+                    <div style={{ padding: '0.75rem 1rem', background: 'var(--warning-bg)', borderBottom: '1px solid var(--warning-border)', fontSize: '0.85rem', color: 'var(--warning)' }}>
                         ⚠️ <strong>AI API key</strong> not set. Chat won't work until configured.
                     </div>
                 )}
                 {status === 'error' && (
-                    <div style={{ padding: '0.75rem 1rem', background: '#ffebee', borderBottom: '1px solid #ef9a9a', fontSize: '0.85rem', color: '#c62828' }}>
+                    <div style={{ padding: '0.75rem 1rem', background: 'var(--danger-bg)', borderBottom: '1px solid var(--danger-border)', fontSize: '0.85rem', color: 'var(--danger)' }}>
                         ⚠️ Chat agent failed to initialize.
                     </div>
                 )}
@@ -263,9 +263,9 @@ function Sidebar() {
                         accept=".csv,.tsv,.txt,.dat,.json,.md,.py,.tex,.log,.xlsx,.xls,.ods"
                     />
                     {attachedFile && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.6rem', background: '#e3f2fd', borderRadius: '6px', fontSize: '0.8rem', marginBottom: '0.4rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.6rem', background: 'var(--info-bg)', borderRadius: '6px', fontSize: '0.8rem', marginBottom: '0.4rem' }}>
                             <span>📎 {attachedFile.name}</span>
-                            <button onClick={() => setAttachedFile(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem', padding: 0, lineHeight: 1, color: '#999' }}>✕</button>
+                            <button onClick={() => setAttachedFile(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem', padding: 0, lineHeight: 1, color: 'var(--text-muted)' }}>✕</button>
                         </div>
                     )}
                     <div style={{ display: 'flex', gap: '0.4rem', width: '100%' }}>

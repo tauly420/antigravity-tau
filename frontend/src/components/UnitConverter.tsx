@@ -130,10 +130,10 @@ function UnitConverter() {
                 </div>
 
                 <div className="form-group">
-                    <label>To {loading && <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: 'normal' }}>(Converting...)</span>}</label>
+                    <label>To {loading && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>(Converting...)</span>}</label>
                     <div style={{
                         padding: '0.75rem',
-                        background: '#f5f5f5',
+                        background: 'var(--surface-alt)',
                         border: '1px solid #ddd',
                         borderRadius: '8px',
                         marginBottom: '0.5rem',
@@ -155,7 +155,7 @@ function UnitConverter() {
             </div>
 
             {result && (
-                <div style={{ textAlign: 'center', marginTop: '2rem', color: '#666' }}>
+                <div style={{ textAlign: 'center', marginTop: '2rem', color: 'var(--text-secondary)' }}>
                     <p style={{ fontSize: '1rem' }}>
                         {value} {fromUnit.replace(/_/g, ' ')} =
                         <strong> {Number(result.result).toLocaleString()} </strong>

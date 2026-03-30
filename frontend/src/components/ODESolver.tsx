@@ -196,7 +196,7 @@ function ODESolver() {
         responsive: true, displaylogo: false,
         toImageButtonOptions: { format: 'png' as any, filename: 'ode_plot', height: 800, width: 1200, scale: 2 },
     };
-    const plotBg = { plot_bgcolor: '#fafafa', paper_bgcolor: '#fff' };
+    const plotBg = { plot_bgcolor: '#16213e', paper_bgcolor: '#1a1a2e' };
 
     /* ── Determine if this is an x-y system (4 components: x, y, vx, vy) ── */
     const isXY = result && result.y.length >= 4 && coordSystem === 'cartesian';
@@ -320,7 +320,7 @@ function ODESolver() {
                     <div className="result-box success">
                         <h3>✅ Solution Found</h3>
                         <p><strong>Status:</strong> {result.message}</p>
-                        <p style={{ fontSize: '0.9rem', color: '#666' }}>
+                        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                             {result.t.length} points · method: {method} · coordinate system: {coordSystem}
                         </p>
                     </div>
@@ -348,7 +348,7 @@ function ODESolver() {
                             <span>{animSpeed}x</span>
                         </label>
                         {frameEnd !== null && (
-                            <span style={{ fontSize: '0.8rem', color: '#555' }}>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                                 t = {result.t[Math.min(frameEnd, result.t.length - 1)]?.toFixed(3)}
                                 &nbsp;({Math.min(frameEnd + 1, result.t.length)}/{result.t.length})
                             </span>
@@ -404,8 +404,8 @@ function ODESolver() {
                         }))}
                         layout={{
                             title: { text: 'Solution vs Time' },
-                            xaxis: { title: { text: 'Time (t)' }, gridcolor: '#e0e0e0' },
-                            yaxis: { title: { text: 'y(t)' }, gridcolor: '#e0e0e0' },
+                            xaxis: { title: { text: 'Time (t)' }, gridcolor: '#2a2a4a' },
+                            yaxis: { title: { text: 'y(t)' }, gridcolor: '#2a2a4a' },
                             height: 420,
                             margin: { l: 60, r: 30, t: 50, b: 50 },
                             legend: { x: 0, y: 1.15, orientation: 'h' as const },
@@ -440,8 +440,8 @@ function ODESolver() {
                             ]}
                             layout={{
                                 title: { text: 'Phase Portrait' },
-                                xaxis: { title: { text: 'y₀' }, gridcolor: '#e0e0e0' },
-                                yaxis: { title: { text: 'y₁' }, gridcolor: '#e0e0e0', scaleanchor: 'x' as any },
+                                xaxis: { title: { text: 'y₀' }, gridcolor: '#2a2a4a' },
+                                yaxis: { title: { text: 'y₁' }, gridcolor: '#2a2a4a', scaleanchor: 'x' as any },
                                 height: 420,
                                 margin: { l: 60, r: 30, t: 50, b: 50 },
                                 ...plotBg,
@@ -461,7 +461,7 @@ function ODESolver() {
                                     type: 'scatter' as const,
                                     mode: 'lines' as const,
                                     name: 'Trajectory',
-                                    line: { width: 2.5, color: '#e65100' },
+                                    line: { width: 2.5, color: 'var(--warning)' },
                                 },
                                 ...(frameEnd !== null ? [{
                                     x: [isPolar ? result.x_cartesian[Math.min(frameEnd, result.x_cartesian.length - 1)]
@@ -477,8 +477,8 @@ function ODESolver() {
                             ]}
                             layout={{
                                 title: { text: isPolar ? 'Orbit (X-Y from Polar)' : 'Spatial Trajectory (X vs Y)' },
-                                xaxis: { title: { text: 'X' }, gridcolor: '#e0e0e0' },
-                                yaxis: { title: { text: 'Y' }, gridcolor: '#e0e0e0', scaleanchor: 'x' as any },
+                                xaxis: { title: { text: 'X' }, gridcolor: '#2a2a4a' },
+                                yaxis: { title: { text: 'Y' }, gridcolor: '#2a2a4a', scaleanchor: 'x' as any },
                                 height: 450,
                                 margin: { l: 60, r: 30, t: 50, b: 50 },
                                 ...plotBg,
@@ -510,8 +510,8 @@ function ODESolver() {
                             ]}
                             layout={{
                                 title: { text: 'Energy Conservation' },
-                                xaxis: { title: { text: 'Time (t)' }, gridcolor: '#e0e0e0' },
-                                yaxis: { title: { text: 'Energy' }, gridcolor: '#e0e0e0' },
+                                xaxis: { title: { text: 'Time (t)' }, gridcolor: '#2a2a4a' },
+                                yaxis: { title: { text: 'Energy' }, gridcolor: '#2a2a4a' },
                                 height: 380,
                                 margin: { l: 60, r: 30, t: 50, b: 50 },
                                 legend: { x: 0, y: 1.15, orientation: 'h' as const },
@@ -550,7 +550,7 @@ function ODESolver() {
                         />
                     )}
 
-                    <p style={{ color: '#888', fontSize: '0.85rem', marginTop: '0.75rem' }}>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.75rem' }}>
                         📷 Use the camera icon on each plot to download as PNG.
                     </p>
                 </div>

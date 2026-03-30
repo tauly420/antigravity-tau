@@ -270,13 +270,13 @@ function FourierAnalysis() {
                     ]}
                     layout={{
                         title: { text: 'Time-Domain Signal' },
-                        xaxis: { title: { text: 'Time (s)' }, gridcolor: '#e0e0e0' },
-                        yaxis: { title: { text: 'Amplitude' }, gridcolor: '#e0e0e0' },
+                        xaxis: { title: { text: 'Time (s)' }, gridcolor: '#2a2a4a' },
+                        yaxis: { title: { text: 'Amplitude' }, gridcolor: '#2a2a4a' },
                         height: 350,
                         margin: { l: 60, r: 30, t: 45, b: 50 },
                         legend: { x: 0, y: 1.12, orientation: 'h' as const },
-                        plot_bgcolor: '#fafafa',
-                        paper_bgcolor: '#fff',
+                        plot_bgcolor: '#16213e',
+                        paper_bgcolor: '#1a1a2e',
                     }}
                     useResizeHandler style={{ width: '100%' }}
                     config={{ responsive: true, displaylogo: false }}
@@ -298,12 +298,12 @@ function FourierAnalysis() {
                     }]}
                     layout={{
                         title: { text: 'DFT — Amplitude Spectrum' },
-                        xaxis: { title: { text: 'Frequency (Hz)' }, gridcolor: '#e0e0e0' },
-                        yaxis: { title: { text: 'Amplitude' }, gridcolor: '#e0e0e0' },
+                        xaxis: { title: { text: 'Frequency (Hz)' }, gridcolor: '#2a2a4a' },
+                        yaxis: { title: { text: 'Amplitude' }, gridcolor: '#2a2a4a' },
                         height: 350,
                         margin: { l: 60, r: 30, t: 45, b: 50 },
-                        plot_bgcolor: '#fafafa',
-                        paper_bgcolor: '#fff',
+                        plot_bgcolor: '#16213e',
+                        paper_bgcolor: '#1a1a2e',
                         annotations: result.dominant_frequencies?.slice(0, 5).map((d: DominantFreq, i: number) => ({
                             x: d.frequency,
                             y: d.amplitude,
@@ -335,12 +335,12 @@ function FourierAnalysis() {
                     }]}
                     layout={{
                         title: { text: 'Power Spectral Density' },
-                        xaxis: { title: { text: 'Frequency (Hz)' }, gridcolor: '#e0e0e0' },
-                        yaxis: { title: { text: 'Power' }, type: 'log', gridcolor: '#e0e0e0' },
+                        xaxis: { title: { text: 'Frequency (Hz)' }, gridcolor: '#2a2a4a' },
+                        yaxis: { title: { text: 'Power' }, type: 'log', gridcolor: '#2a2a4a' },
                         height: 350,
                         margin: { l: 60, r: 30, t: 45, b: 50 },
-                        plot_bgcolor: '#fafafa',
-                        paper_bgcolor: '#fff',
+                        plot_bgcolor: '#16213e',
+                        paper_bgcolor: '#1a1a2e',
                     }}
                     useResizeHandler style={{ width: '100%' }}
                     config={{ responsive: true, displaylogo: false }}
@@ -371,7 +371,7 @@ function FourierAnalysis() {
                             ))}
                         </tbody>
                     </table>
-                    <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.5rem' }}>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                         Frequency resolution: {smartFormat(result.freq_resolution, 3)} Hz | Nyquist: {smartFormat(result.nyquist_freq, 4)} Hz
                     </p>
                 </div>
@@ -379,9 +379,9 @@ function FourierAnalysis() {
 
             {/* ─── Inverse DFT / Filtering ─── */}
             {result && (
-                <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f9f9f9', borderRadius: '10px', border: '1px solid #e0e0e0' }}>
+                <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--surface-alt)', borderRadius: '10px', border: '1px solid var(--border)' }}>
                     <h4 style={{ margin: '0 0 1rem 0' }}>🔄 Inverse DFT & Frequency Filtering</h4>
-                    <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                         Reconstruct the signal from the DFT. Optionally apply a frequency filter to remove noise or isolate specific components.
                     </p>
 
@@ -448,13 +448,13 @@ function FourierAnalysis() {
                                 ]}
                                 layout={{
                                     title: { text: `Inverse DFT — ${filterType === 'none' ? 'Full Reconstruction' : filterType.charAt(0).toUpperCase() + filterType.slice(1) + ' Filtered'}` },
-                                    xaxis: { title: { text: 'Time (s)' }, gridcolor: '#e0e0e0' },
-                                    yaxis: { title: { text: 'Amplitude' }, gridcolor: '#e0e0e0' },
+                                    xaxis: { title: { text: 'Time (s)' }, gridcolor: '#2a2a4a' },
+                                    yaxis: { title: { text: 'Amplitude' }, gridcolor: '#2a2a4a' },
                                     height: 350,
                                     margin: { l: 60, r: 30, t: 45, b: 50 },
                                     legend: { x: 0, y: 1.12, orientation: 'h' as const },
-                                    plot_bgcolor: '#fafafa',
-                                    paper_bgcolor: '#fff',
+                                    plot_bgcolor: '#16213e',
+                                    paper_bgcolor: '#1a1a2e',
                                 }}
                                 useResizeHandler style={{ width: '100%' }}
                                 config={{ responsive: true, displaylogo: false }}
