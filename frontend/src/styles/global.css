@@ -803,6 +803,16 @@ button:disabled {
     padding: 6px 8px;
 }
 
+.matrix-grid input[type="number"]::-webkit-outer-spin-button,
+.matrix-grid input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.matrix-grid input[type="number"] {
+    -moz-appearance: textfield;
+}
+
 /* ═════════════ Sidebar Toggle ═════════════ */
 .sidebar-toggle {
     position: fixed;

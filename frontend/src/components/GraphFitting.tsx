@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Plot from './PlotWrapper';
 import DataPreview from './DataPreview';
 import * as api from '../services/api';
@@ -62,6 +62,7 @@ function GraphFitting() {
     const [fileInfo, setFileInfo] = useState<{ sheetNames: string[]; sheetsInfo: Record<string, string[]> } | null>(null);
     const [selectedSheet, setSelectedSheet] = useState('');
     const [file, setFile] = useState<File | null>(null);
+    const fileRef = useRef<HTMLInputElement>(null);
 
     const [xCol, setXCol] = useState('');
     const [yCol, setYCol] = useState('');
@@ -205,8 +206,38 @@ function GraphFitting() {
                 </div>
 
                 <div className="form-group">
-                    <label>Upload Excel / CSV</label>
-                    <input type="file" accept=".xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.dat,.txt" onChange={e => e.target.files?.[0] && handleFileSelect(e.target.files[0])} />
+                    <label style={{ fontWeight: 600, fontSize: '1rem' }}>📁 Data File</label>
+                    <div
+                        onClick={() => fileRef.current?.click()}
+                        onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                        onDrop={e => {
+                            e.preventDefault();
+                            const f = e.dataTransfer.files[0];
+                            if (f) handleFileSelect(f);
+                        }}
+                        style={{
+                            border: '2px dashed var(--primary)', borderRadius: '10px', padding: '1.5rem',
+                            textAlign: 'center', cursor: 'pointer',
+                            background: file ? 'var(--success-bg)' : 'var(--info-bg)', transition: 'all 0.2s',
+                        }}
+                    >
+                        {file ? (
+                            <span style={{ fontWeight: 600, color: 'var(--success)' }}>
+                                {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                            </span>
+                        ) : (
+                            <span style={{ color: 'var(--primary)' }}>
+                                Click or drag &amp; drop your data file<br />
+                                <small>.xlsx, .csv, .tsv, .ods, .dat</small>
+                            </span>
+                        )}
+                    </div>
+                    <input
+                        ref={fileRef} type="file"
+                        accept=".xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.dat,.txt"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); }}
+                        style={{ display: 'none' }}
+                    />
                 </div>
 
                 {uploading && <div className="loading-spinner">Loading…</div>}

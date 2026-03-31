@@ -10,9 +10,9 @@ function MatrixCalculator() {
 
     const [operation, setOperation] = useState('multiply');
 
-    const [matrixA, setMatrixA] = useState<number[][]>([[1, 2], [3, 4]]);
-    const [matrixB, setMatrixB] = useState<number[][]>([[5, 6], [7, 8]]);
-    const [vectorB, setVectorB] = useState<number[]>([5, 6]);
+    const [matrixA, setMatrixA] = useState<number[][]>([[0, 0], [0, 0]]);
+    const [matrixB, setMatrixB] = useState<number[][]>([[0, 0], [0, 0]]);
+    const [vectorB, setVectorB] = useState<number[]>([0, 0]);
 
     const [result, setResult] = useState<any>(null);
     const [error, setError] = useState('');
@@ -39,9 +39,13 @@ function MatrixCalculator() {
         });
     }, [rowsA]);
 
-    // ── Cell update ─────────────────────────────────
+    // ── Cell editing (raw strings so "-" isn't wiped) ──
+    const [editingCell, setEditingCell] = useState<{ which: string; r: number; c: number; raw: string } | null>(null);
+
     const updateCell = (which: 'A' | 'B' | 'vec', r: number, c: number, raw: string) => {
-        const v = parseFloat(raw) || 0;
+        setEditingCell({ which, r, c, raw });
+        const v = parseFloat(raw);
+        if (isNaN(v)) return;  // keep raw string visible, don't commit NaN
         if (which === 'A') {
             const m = matrixA.map(row => [...row]);
             m[r][c] = v;
@@ -55,6 +59,32 @@ function MatrixCalculator() {
             vec[r] = v;
             setVectorB(vec);
         }
+    };
+
+    const commitCell = (which: 'A' | 'B' | 'vec', r: number, c: number, raw: string) => {
+        setEditingCell(null);
+        const v = parseFloat(raw);
+        const num = isNaN(v) ? 0 : v;
+        if (which === 'A') {
+            const m = matrixA.map(row => [...row]);
+            m[r][c] = num;
+            setMatrixA(m);
+        } else if (which === 'B') {
+            const m = matrixB.map(row => [...row]);
+            m[r][c] = num;
+            setMatrixB(m);
+        } else {
+            const vec = [...vectorB];
+            vec[r] = num;
+            setVectorB(vec);
+        }
+    };
+
+    const getCellValue = (which: string, r: number, c: number, cell: number) => {
+        if (editingCell && editingCell.which === which && editingCell.r === r && editingCell.c === c) {
+            return editingCell.raw;
+        }
+        return String(cell);
     };
 
     // ── Utility buttons ─────────────────────────────
@@ -159,9 +189,12 @@ function MatrixCalculator() {
                         row.map((cell, j) => (
                             <input
                                 key={`${which}-${i}-${j}`}
-                                type="number"
-                                value={cell}
+                                type="text"
+                                inputMode="decimal"
+                                value={getCellValue(which, i, j, cell)}
                                 onChange={e => updateCell(which, i, j, e.target.value)}
+                                onBlur={e => commitCell(which, i, j, e.target.value)}
+                                onFocus={() => setEditingCell({ which, r: i, c: j, raw: String(cell) })}
                             />
                         ))
                     )}
@@ -181,9 +214,12 @@ function MatrixCalculator() {
                     {vectorB.map((cell, i) => (
                         <input
                             key={`vec-${i}`}
-                            type="number"
-                            value={cell}
+                            type="text"
+                            inputMode="decimal"
+                            value={getCellValue('vec', i, 0, cell)}
                             onChange={e => updateCell('vec', i, 0, e.target.value)}
+                            onBlur={e => commitCell('vec', i, 0, e.target.value)}
+                            onFocus={() => setEditingCell({ which: 'vec', r: i, c: 0, raw: String(cell) })}
                         />
                     ))}
                 </div>
