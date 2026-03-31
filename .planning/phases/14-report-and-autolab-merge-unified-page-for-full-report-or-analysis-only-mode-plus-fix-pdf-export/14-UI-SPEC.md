@@ -21,7 +21,7 @@ created: 2026-03-31
 | Preset | not applicable |
 | Component library | none (custom CSS with design tokens) |
 | Icon library | Unicode emoji (existing pattern) |
-| Font | Inter (400, 500, 600, 700) via Google Fonts |
+| Font | Inter (400, 700) via Google Fonts |
 
 ---
 
@@ -39,7 +39,7 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Vertical separation between flow stages (upload, results, report) |
 | 3xl | 64px | Page-level top/bottom margin |
 
-Exceptions: Button padding uses 10px vertical / 24px horizontal (existing pattern: `0.65rem 1.5rem`). Touch targets minimum 44px height on mobile for the "Generate Full Lab Report" expand button.
+Exceptions: Button padding uses `8px 24px` (`0.5rem 1.5rem`). Touch targets minimum 44px height on mobile for the "Generate Full Lab Report" expand button.
 
 ---
 
@@ -50,9 +50,9 @@ Exceptions: Button padding uses 10px vertical / 24px horizontal (existing patter
 | Body | 15px (0.9375rem) | 400 | 1.5 |
 | Label | 14px (0.875rem) | 400 | 1.4 |
 | Heading | 24px (1.5rem) | 700 | 1.2 |
-| Section Title | 18px (1.15rem) | 600 | 1.3 |
+| Section Title | 18px (1.15rem) | 700 | 1.3 |
 
-Source: Existing global.css patterns. These match the established `.card h3` (1.5rem/700) and `.card p` (0.9375rem/400) declarations.
+Source: Existing global.css patterns. These match the established `.card h3` (1.5rem/700) and `.card p` (0.9375rem/400) declarations. Only two weights are used: 400 for body/label text and 700 for headings and section titles.
 
 ---
 
@@ -68,8 +68,8 @@ Source: Existing global.css patterns. These match the established `.card h3` (1.
 Accent reserved for:
 - "Run Analysis" primary CTA button
 - "Generate Full Lab Report" expand CTA button
-- "Generate Report" AI generation button
-- "Export as PDF" button
+- "Generate Lab Report" AI generation button
+- "Export Results PDF" / "Export Full Report PDF" buttons
 - Active/selected accordion section border
 - Progress indicator during analysis/generation
 - Link text in summary/results
@@ -132,6 +132,7 @@ NOT for: borders, card backgrounds, labels, section headers, or decorative eleme
 - File upload, instructions, theoretical value fields remain as-is
 - Example datasets reduced to single "Free Fall Demo" button (btn-secondary)
 - "Run Analysis" remains the primary CTA (btn-primary gradient)
+- Primary visual anchor: the "Run Analysis" button (accent color, right-aligned, largest interactive element)
 
 ### Stage 2: Analysis Results (existing, inline chat removed)
 
@@ -184,10 +185,10 @@ NOT for: borders, card backgrounds, labels, section headers, or decorative eleme
 |  [Upload lab instructions (PDF/DOCX)]            |
 |  Language: [Hebrew | English]                     |
 +--------------------------------------------------+
-|  [ Generate Report ]                              |
+|  [ Generate Lab Report ]                          |
 +--------------------------------------------------+
 |  Follow-up Questions (if AI asks)                 |
-|  Q1: _________ Q2: _________ [ Submit Answers ]  |
+|  Q1: _________ Q2: _________ [ Send Answers ]    |
 +--------------------------------------------------+
 |  Section Editor (accordion)                       |
 |  > Theoretical Background  [AI Generated badge]   |
@@ -207,7 +208,7 @@ NOT for: borders, card backgrounds, labels, section headers, or decorative eleme
 - Context form fields pre-filled where possible (D-04):
   - Title: from filename or AI-extracted experiment name
   - Analysis data: auto-loaded from Stage 2 results (D-06)
-- "Generate Report" is btn-primary gradient
+- "Generate Lab Report" is btn-primary gradient
 - Section accordion, title page form, template selector all imported from existing report components
 - "Export Full Report PDF" is btn-accent gradient
 
@@ -252,13 +253,13 @@ NOT for: borders, card backgrounds, labels, section headers, or decorative eleme
 | Primary CTA (analysis) | "Run Analysis" |
 | Primary CTA (report expand) | "Generate Full Lab Report" |
 | Report expand subtitle | "Expand your analysis into a complete academic lab report with AI-generated theory, discussion, and professional PDF export." |
-| Primary CTA (report generate) | "Generate Report" |
+| Primary CTA (report generate) | "Generate Lab Report" |
 | Primary CTA (PDF results-only) | "Export Results PDF" |
 | Primary CTA (PDF full report) | "Export Full Report PDF" |
 | Empty state heading (no results) | "Upload data to get started" |
 | Empty state body (no results) | "Upload an Excel or CSV file with your experimental data, describe what analysis you want, and let AI do the rest." |
 | Empty state heading (no report sections) | "Generate your report" |
-| Empty state body (no report sections) | "Fill in the context form above and click Generate Report. AI will create theoretical background, discussion, and conclusions based on your analysis results." |
+| Empty state body (no report sections) | "Fill in the context form above and click Generate Lab Report. AI will create theoretical background, discussion, and conclusions based on your analysis results." |
 | Error state (analysis failed) | "Analysis failed: {error message}. Try adjusting your instructions or check that your data file has the expected columns." |
 | Error state (PDF export failed) | "PDF generation failed: {error message}. Please try again. If the problem persists, try a different template." |
 | Error state (report generation failed) | "Report generation failed: {error message}. Check your internet connection and try again." |
@@ -267,6 +268,7 @@ NOT for: borders, card backgrounds, labels, section headers, or decorative eleme
 | Destructive: remove example datasets | No confirmation needed (D-12 is a code removal, not a user action) |
 | AI badge | "AI Generated" (green-tinted badge, clears on user edit -- existing pattern from Phase 11) |
 | Partial analysis warning | "Some analysis steps were skipped. The report will use available data only." |
+| Follow-up submit button | "Send Answers" |
 
 ---
 
