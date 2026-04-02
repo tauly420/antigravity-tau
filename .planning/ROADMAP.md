@@ -175,17 +175,20 @@ Note: Phase 11 depends on both Phase 8 and Phase 10.
 **Goal:** [To be planned]
 **Requirements**: TBD
 **Depends on:** Phase 12
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 13 to break down)
+- [x] TBD (run /gsd:plan-phase 13 to break down) (completed 2026-03-31)
 
 ### Phase 14: Report and AutoLab merge — unified page for full report or analysis-only mode, plus fix PDF export
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Merge AutoLab and Report pages into a single progressive flow at /autolab: upload, analyze, optionally generate a full lab report with AI sections and PDF export. Fix WeasyPrint PDF pipeline and remove jsPDF.
+**Requirements**: D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10, D-11, D-12, D-13
 **Depends on:** Phase 13
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 14 to break down)
+- [ ] 14-01-PLAN.md -- Backend: results-only PDF endpoint + WeasyPrint fix/quality improvements
+- [ ] 14-02-PLAN.md -- Frontend scaffolding: extract normalize util, create ReportSection, ReportExpander, PdfExportSelector components
+- [ ] 14-03-PLAN.md -- AutoLab.tsx integration: merge report section, remove chat, strip examples, wire plot capture, replace jsPDF
+- [ ] 14-04-PLAN.md -- Cleanup: remove /report route, delete dead files, uninstall jsPDF, extend Free Fall demo, visual verification
