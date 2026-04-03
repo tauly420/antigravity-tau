@@ -307,3 +307,15 @@ export const exportReportPdf = async (data: {
     });
     return response.data;
 };
+
+export const exportResultsPdf = async (data: {
+    analysis_data: Record<string, unknown>;
+    plots: Record<string, string | null>;
+    summary: string;
+    language: string;
+}): Promise<Blob> => {
+    const response = await api.post('/report/export-results-pdf', data, {
+        responseType: 'blob',
+    });
+    return response.data;
+};
