@@ -23,7 +23,7 @@ const NAV_ITEMS = [
     { path: '/autolab', label: 'AutoLab', icon: '🤖', highlight: true },
     { path: '/workflow', label: 'Workflow', icon: '⚙️' },
     { path: '/formula', label: 'Formula', icon: '📐' },
-    { path: '/matrix', label: 'Matrix', icon: '🔢' },
+    { path: '/matrix', label: 'Matrix + System Solver', icon: '🔢' },
     { path: '/fitting', label: 'Graph & Fitting', icon: '📈' },
     { path: '/ode', label: 'ODE Solver', icon: '∿' },
     { path: '/integrator', label: 'Integrator', icon: '∫' },

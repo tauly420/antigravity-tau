@@ -59,6 +59,7 @@ export const matrixOperations = async (data: {
 export const solveSystem = async (data: {
     matrix_a: number[][];
     vector_b: number[];
+    include_steps?: boolean;
 }) => {
     const response = await api.post('/matrix/solve_system', data);
     return response.data;
@@ -69,13 +70,18 @@ export const calculateDeterminant = async (data: { matrix: number[][] }) => {
     return response.data;
 };
 
-export const luDecomposition = async (data: { matrix: number[][] }) => {
+export const luDecomposition = async (data: { matrix: number[][]; include_steps?: boolean }) => {
     const response = await api.post('/matrix/lu_decomposition', data);
     return response.data;
 };
 
-export const findEigenvalues = async (data: { matrix: number[][] }) => {
+export const findEigenvalues = async (data: { matrix: number[][]; include_steps?: boolean }) => {
     const response = await api.post('/matrix/eigenvalues', data);
+    return response.data;
+};
+
+export const svdDecomposition = async (data: { matrix: number[][]; include_steps?: boolean }) => {
+    const response = await api.post('/matrix/svd', data);
     return response.data;
 };
 

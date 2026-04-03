@@ -9,6 +9,7 @@ function MatrixCalculator() {
     const [colsB, setColsB] = useState(2);
 
     const [operation, setOperation] = useState('multiply');
+    const [includeSteps, setIncludeSteps] = useState(false);
 
     const [matrixA, setMatrixA] = useState<number[][]>([[0, 0], [0, 0]]);
     const [matrixB, setMatrixB] = useState<number[][]>([[0, 0], [0, 0]]);
@@ -20,12 +21,11 @@ function MatrixCalculator() {
 
     const { setLastResult, setCurrentTool, addToHistory } = useAnalysis();
 
-    useEffect(() => { setCurrentTool('Matrix Calculator'); }, []);
+    useEffect(() => { setCurrentTool('Matrix + System of Equation Solver'); }, [setCurrentTool]);
 
-    // ── Resize helpers ──────────────────────────────
     const resizeMatrix = (old: number[][], r: number, c: number) =>
         Array(r).fill(0).map((_, i) =>
-            Array(c).fill(0).map((_, j) => (old[i]?.[j] ?? 0))
+            Array(c).fill(0).map((_, j) => (old[i]?.[j] ?? 0)),
         );
 
     useEffect(() => { setMatrixA(prev => resizeMatrix(prev, rowsA, colsA)); }, [rowsA, colsA]);
@@ -39,13 +39,12 @@ function MatrixCalculator() {
         });
     }, [rowsA]);
 
-    // ── Cell editing (raw strings so "-" isn't wiped) ──
     const [editingCell, setEditingCell] = useState<{ which: string; r: number; c: number; raw: string } | null>(null);
 
     const updateCell = (which: 'A' | 'B' | 'vec', r: number, c: number, raw: string) => {
         setEditingCell({ which, r, c, raw });
         const v = parseFloat(raw);
-        if (isNaN(v)) return;  // keep raw string visible, don't commit NaN
+        if (isNaN(v)) return;
         if (which === 'A') {
             const m = matrixA.map(row => [...row]);
             m[r][c] = v;
@@ -87,7 +86,6 @@ function MatrixCalculator() {
         return String(cell);
     };
 
-    // ── Utility buttons ─────────────────────────────
     const clearMatrix = (t: 'A' | 'B') => {
         if (t === 'A') setMatrixA(Array(rowsA).fill(0).map(() => Array(colsA).fill(0)));
         else setMatrixB(Array(rowsB).fill(0).map(() => Array(colsB).fill(0)));
@@ -109,9 +107,6 @@ function MatrixCalculator() {
         setError('');
     };
 
-
-
-    // ── Calculate ───────────────────────────────────
     const handleCalculate = async () => {
         setError(''); setResult(null); setLoading(true);
         try {
@@ -124,22 +119,25 @@ function MatrixCalculator() {
 
             let response;
             if (operation === 'solve_system') {
-                response = await api.solveSystem({ matrix_a: matrixA, vector_b: vectorB });
-                setResult({ type: 'solution', data: response.solution });
+                response = await api.solveSystem({ matrix_a: matrixA, vector_b: vectorB, include_steps: includeSteps });
+                setResult({ type: 'solution', data: response.solution, steps: response.steps });
             } else if (operation === 'determinant') {
                 response = await api.calculateDeterminant({ matrix: matrixA });
                 setResult({ type: 'determinant', data: response.determinant });
             } else if (operation === 'lu') {
-                response = await api.luDecomposition({ matrix: matrixA });
+                response = await api.luDecomposition({ matrix: matrixA, include_steps: includeSteps });
                 setResult({ type: 'lu', data: response });
             } else if (operation === 'eigenvalues') {
-                response = await api.findEigenvalues({ matrix: matrixA });
+                response = await api.findEigenvalues({ matrix: matrixA, include_steps: includeSteps });
                 setResult({ type: 'eigenvalues', data: response });
+            } else if (operation === 'svd') {
+                response = await api.svdDecomposition({ matrix: matrixA, include_steps: includeSteps });
+                setResult({ type: 'svd', data: response });
             } else {
                 response = await api.matrixOperations({
                     operation,
                     matrix_a: matrixA,
-                    matrix_b: !['transpose', 'inverse'].includes(operation) ? matrixB : undefined
+                    matrix_b: !['transpose', 'inverse'].includes(operation) ? matrixB : undefined,
                 });
                 setResult({ type: 'matrix', data: response.result });
             }
@@ -151,15 +149,15 @@ function MatrixCalculator() {
     };
 
     const needsB = ['add', 'subtract', 'multiply'].includes(operation);
+    const canShowSteps = ['solve_system', 'lu', 'eigenvalues', 'svd'].includes(operation);
 
-    // ── Matrix grid renderer with brackets ──────────
     const renderMatrix = (
         matrix: number[][],
         which: 'A' | 'B',
         rows: number,
         cols: number,
         setRows: (n: number) => void,
-        setCols: (n: number) => void
+        setCols: (n: number) => void,
     ) => (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
@@ -181,7 +179,6 @@ function MatrixCalculator() {
                 <button className="small-btn" onClick={() => setIdentity(which)}>Identity</button>
             </div>
 
-            {/* Bracketed matrix grid */}
             <div className="matrix-wrapper">
                 <div className="matrix-bracket left" />
                 <div className="matrix-grid" style={{ gridTemplateColumns: `repeat(${cols}, 60px)` }}>
@@ -196,7 +193,7 @@ function MatrixCalculator() {
                                 onBlur={e => commitCell(which, i, j, e.target.value)}
                                 onFocus={() => setEditingCell({ which, r: i, c: j, raw: String(cell) })}
                             />
-                        ))
+                        )),
                     )}
                 </div>
                 <div className="matrix-bracket right" />
@@ -204,7 +201,6 @@ function MatrixCalculator() {
         </div>
     );
 
-    // ── Vector renderer with brackets ───────────────
     const renderVector = () => (
         <div>
             <h3>Vector b</h3>
@@ -228,7 +224,6 @@ function MatrixCalculator() {
         </div>
     );
 
-    // ── Result matrix renderer ──────────────────────
     const renderResultMatrix = (data: number[][]) => (
         <div className="matrix-wrapper" style={{ margin: '1rem auto' }}>
             <div className="matrix-bracket left" style={{ borderColor: '#2e7d32' }} />
@@ -243,11 +238,62 @@ function MatrixCalculator() {
         </div>
     );
 
+    const renderSteps = (steps: any) => {
+        if (!steps) return null;
+
+        return (
+            <div style={{ marginTop: '1rem', borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
+                <h4>Step-by-step explanation</h4>
+
+                {Array.isArray(steps.summary) && (
+                    <ol>
+                        {steps.summary.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                    </ol>
+                )}
+
+                {steps.forward_elimination?.steps?.length > 0 && (
+                    <div>
+                        <strong>Gaussian elimination</strong>
+                        <ul>
+                            {steps.forward_elimination.steps.map((s: any, i: number) => <li key={i}>{s.step}</li>)}
+                        </ul>
+                    </div>
+                )}
+
+                {steps.backward_substitution?.length > 0 && (
+                    <div>
+                        <strong>Backward substitution</strong>
+                        <ul>
+                            {steps.backward_substitution.map((s: any, i: number) => (
+                                <li key={i}>{s.variable}: {s.equation} = {s.value}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {Array.isArray(steps.description) && (
+                    <div>
+                        <strong>LU steps</strong>
+                        <ol>
+                            {steps.description.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                        </ol>
+                    </div>
+                )}
+
+                {steps.invariants && (
+                    <p>
+                        Invariants &mdash; tr(A): <strong>{steps.invariants.trace_A}</strong>, det(A): <strong>{steps.invariants.determinant_A}</strong>.
+                    </p>
+                )}
+            </div>
+        );
+    };
+
     return (
         <div className="card">
-            <h2>Matrix Calculator</h2>
+            <h2>Matrix + System of Equation Solver</h2>
             <p style={{ color: 'var(--text-secondary, #666)', fontSize: '0.95rem', margin: '0 0 1.5rem 0', lineHeight: 1.5 }}>
-                Perform matrix operations: add, multiply, transpose, inverse, determinant, LU decomposition, eigenvalues & eigenvectors, or solve Ax = b.
+                Perform matrix operations, solve Ax=b with optional Gaussian-elimination steps, compute LU/eigen decomposition, or run SVD.
             </p>
 
             <div className="form-group">
@@ -262,8 +308,16 @@ function MatrixCalculator() {
                     <option value="solve_system">Solve System (Ax = b)</option>
                     <option value="lu">LU Decomposition</option>
                     <option value="eigenvalues">Eigenvalues / Eigenvectors</option>
+                    <option value="svd">SVD Decomposition (A = UΣVᵀ)</option>
                 </select>
             </div>
+
+            {canShowSteps && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                    <input type="checkbox" checked={includeSteps} onChange={e => setIncludeSteps(e.target.checked)} />
+                    Include step-by-step explanation
+                </label>
+            )}
 
             <div className="grid grid-2" style={{ gap: '2rem', alignItems: 'start' }}>
                 {renderMatrix(matrixA, 'A', rowsA, colsA, setRowsA, setColsA)}
@@ -297,6 +351,7 @@ function MatrixCalculator() {
                             {result.data.map((val: number, i: number) => (
                                 <div key={i}>x<sub>{i + 1}</sub> = <strong>{val.toFixed(4)}</strong></div>
                             ))}
+                            {renderSteps(result.steps)}
                         </div>
                     )}
 
@@ -304,19 +359,40 @@ function MatrixCalculator() {
                         <div>
                             <p><strong>Eigenvalues:</strong></p>
                             <p style={{ fontFamily: 'monospace' }}>
-                                {result.data.eigenvalues.map((val: number, i: number) => `λ${i + 1} = ${val.toFixed(4)}`).join(', ')}
+                                {result.data.eigenvalues.map((val: any, i: number) => `λ${i + 1} = ${val}`).join(', ')}
                             </p>
+                            {renderSteps(result.data.steps)}
                         </div>
                     )}
 
                     {result.type === 'lu' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                            {['L', 'U', 'P'].map(name => (
-                                <div key={name}>
-                                    <strong>{name}</strong>
-                                    {result.data[name] && renderResultMatrix(result.data[name])}
+                        <div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                                {['L', 'U', 'P'].map(name => (
+                                    <div key={name}>
+                                        <strong>{name}</strong>
+                                        {result.data[name] && renderResultMatrix(result.data[name])}
+                                    </div>
+                                ))}
+                            </div>
+                            {renderSteps(result.data.steps)}
+                        </div>
+                    )}
+
+                    {result.type === 'svd' && (
+                        <div>
+                            <p><strong>Singular values:</strong> {result.data.singular_values.map((v: number) => v.toFixed(4)).join(', ')}</p>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div>
+                                    <strong>U</strong>
+                                    {renderResultMatrix(result.data.U)}
                                 </div>
-                            ))}
+                                <div>
+                                    <strong>Vᵀ</strong>
+                                    {renderResultMatrix(result.data.Vt)}
+                                </div>
+                            </div>
+                            {renderSteps(result.data.steps)}
                         </div>
                     )}
                 </div>

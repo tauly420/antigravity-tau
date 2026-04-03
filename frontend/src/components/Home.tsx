@@ -35,7 +35,7 @@ const tools = [
         color: '#f57c00',
     },
     {
-        title: 'Matrix Calculator',
+        title: 'Matrix + System of Equation Solver',
         desc: 'Perform matrix operations, solve systems, compute eigenvalues and determinants.',
         path: '/matrix',
         icon: '',

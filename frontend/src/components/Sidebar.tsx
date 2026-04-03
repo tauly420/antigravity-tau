@@ -20,7 +20,7 @@ export const PAGE_TIPS: Record<string, { title: string; tip: string }> = {
         tip: 'Enter any mathematical expression with variables. I can help you with uncertainty propagation — each variable can have a value ± uncertainty, and the calculator computes the propagated error automatically.',
     },
     '/matrix': {
-        title: 'Matrix Calculator',
+        title: 'Matrix + System of Equation Solver',
         tip: "Perform matrix operations: add, multiply, transpose, inverse, determinant, LU decomposition, eigenvalues & eigenvectors, or solve Ax = b. I can explain any of these operations!",
     },
     '/ode': {

@@ -233,3 +233,57 @@ class TestIntegrationMultiEndpoint:
         assert resp.status_code == 400
         data = resp.get_json()
         assert "error" in data
+
+
+# ============================================================
+# Matrix endpoint tests
+# ============================================================
+
+class TestMatrixEndpoint:
+    """Tests for matrix solver/decomposition endpoints."""
+
+    def test_matrix_solve_system_with_steps(self, client):
+        resp = client.post('/api/matrix/solve_system', json={
+            "matrix_a": [[2, 1], [1, 3]],
+            "vector_b": [5, 6],
+            "include_steps": True,
+        })
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["error"] is None
+        assert "steps" in data
+        assert "forward_elimination" in data["steps"]
+        assert "backward_substitution" in data["steps"]
+
+    def test_matrix_lu_with_steps(self, client):
+        resp = client.post('/api/matrix/lu_decomposition', json={
+            "matrix": [[4, 3], [6, 3]],
+            "include_steps": True,
+        })
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["error"] is None
+        assert "steps" in data
+        assert "description" in data["steps"]
+
+    def test_matrix_eigenvalues_with_steps(self, client):
+        resp = client.post('/api/matrix/eigenvalues', json={
+            "matrix": [[2, 1], [1, 2]],
+            "include_steps": True,
+        })
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["error"] is None
+        assert "steps" in data
+        assert "invariants" in data["steps"]
+
+    def test_matrix_svd(self, client):
+        resp = client.post('/api/matrix/svd', json={
+            "matrix": [[1, 0], [0, 2]],
+            "include_steps": True,
+        })
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["error"] is None
+        assert "U" in data and "Vt" in data and "singular_values" in data
+        assert "steps" in data
