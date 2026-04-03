@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: AI-Powered Academic Lab Report Export
 status: Ready to execute
-stopped_at: Completed 13-01-PLAN.md
-last_updated: "2026-03-30T06:57:28.321Z"
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-04-03T05:31:54.479Z"
 progress:
   total_phases: 7
-  completed_phases: 4
-  total_plans: 14
-  completed_plans: 11
+  completed_phases: 5
+  total_plans: 18
+  completed_plans: 13
 ---
 
 # Project State
@@ -52,6 +52,7 @@ Plan: 2 of 2
 | Phase 10 P02 | 3min | 2 tasks | 2 files |
 | Phase 10 P03 | 4min | 1 task | 1 file |
 | Phase 13 P01 | 3min | 2 tasks | 3 files |
+| Phase 14 P01 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,7 @@ Recent decisions affecting current work:
 - [Phase 10]: Added uploadInstructionFile to api.ts alongside generation functions for self-contained report API surface
 - [Phase 10]: normalizeAnalysisData helper in ReportBeta.tsx converts snake_case AutoLab results to camelCase before API calls
 - [Phase 13]: Kept NAV_ITEMS array for header route-to-label mapping despite sidebar removal
+- [Phase 14]: Results-only PDF uses template-minimal class and same generate_pdf pipeline as full report
 
 ### Roadmap Evolution
 
@@ -91,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-30T06:57:28.318Z
-Stopped at: Completed 13-01-PLAN.md
+Last session: 2026-04-03T05:31:54.476Z
+Stopped at: Completed 14-01-PLAN.md
 Resume file: None
