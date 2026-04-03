@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Plot from './PlotWrapper';
 import DataPreview from './DataPreview';
 import { useAnalysis } from '../context/AnalysisContext';
 import * as api from '../services/api';
 import { roundWithUncertainty, smartFormat, formatPValue } from '../utils/format';
-import { renderLatex } from '../utils/latex';
-import { exportAutolabPdf } from '../utils/exportPdf';
+import ReportSection from './report/ReportSection';
+import ReportExpander from './report/ReportExpander';
+import { normalizeAnalysisData } from '../utils/normalize';
+import { exportResultsPdf } from '../services/api';
+// @ts-ignore - plotly.js-dist-min has no types
+import Plotly from 'plotly.js-dist-min';
 
 /* ===================================================================
    AutoLab -- AI-Powered Automated Analysis
@@ -15,47 +18,6 @@ import { exportAutolabPdf } from '../utils/exportPdf';
 
 /* -- Built-in example datasets -- */
 const EXAMPLE_DATASETS = [
-    {
-        label: "Hooke's Law (Linear)",
-        instructions: 'Use the first sheet. Column "Extension_m" is x, "Force_N" is y, "Force_Error_N" is y error, "Extension_Error_m" is x error. Fit a linear model. Calculate the slope a (the spring constant k) and report its value.',
-        theoVal: '50.0',
-        theoUnc: '2.0',
-        columns: ['Extension_m', 'Force_N', 'Force_Error_N', 'Extension_Error_m'],
-        rows: [
-            { Extension_m: 0.01, Force_N: 0.65, Force_Error_N: 0.50, Extension_Error_m: 0.005 },
-            { Extension_m: 0.02, Force_N: 0.82, Force_Error_N: 0.50, Extension_Error_m: 0.005 },
-            { Extension_m: 0.03, Force_N: 1.68, Force_Error_N: 0.55, Extension_Error_m: 0.005 },
-            { Extension_m: 0.04, Force_N: 1.85, Force_Error_N: 0.55, Extension_Error_m: 0.005 },
-            { Extension_m: 0.05, Force_N: 2.72, Force_Error_N: 0.60, Extension_Error_m: 0.005 },
-            { Extension_m: 0.06, Force_N: 2.88, Force_Error_N: 0.60, Extension_Error_m: 0.005 },
-            { Extension_m: 0.07, Force_N: 3.70, Force_Error_N: 0.65, Extension_Error_m: 0.005 },
-            { Extension_m: 0.08, Force_N: 3.85, Force_Error_N: 0.65, Extension_Error_m: 0.005 },
-            { Extension_m: 0.09, Force_N: 4.65, Force_Error_N: 0.70, Extension_Error_m: 0.005 },
-            { Extension_m: 0.10, Force_N: 4.90, Force_Error_N: 0.75, Extension_Error_m: 0.005 },
-        ],
-    },
-    {
-        label: 'Oscillation (Sinusoidal)',
-        instructions: 'First sheet. Column "Time_s" is x, "Displacement_cm" is y, "Displacement_Error_cm" is y error. Fit a sinusoidal model. Calculate the period T = 2*pi/omega and compare to the theoretical value.',
-        theoVal: '2.51',
-        theoUnc: '0.10',
-        columns: ['Time_s', 'Displacement_cm', 'Displacement_Error_cm'],
-        rows: (() => {
-            const data = [];
-            const noise = [0.3, -0.8, 1.2, -0.4, 0.9, -1.1, 0.5, -0.7, 1.4, -0.3,
-                           0.6, -1.3, 0.8, -0.5, 1.1, -0.9, 0.4, -1.2, 0.7, -0.6, 0.2];
-            for (let i = 0; i <= 20; i++) {
-                const t = i * 0.25;
-                const y = 5.0 * Math.sin(2.5 * t + 0.3) + 2.0;
-                data.push({
-                    Time_s: parseFloat(t.toFixed(3)),
-                    Displacement_cm: parseFloat((y + noise[i]).toFixed(3)),
-                    Displacement_Error_cm: 1.0,
-                });
-            }
-            return data;
-        })(),
-    },
     {
         label: 'Free Fall (Quadratic)',
         instructions: 'First sheet. "Time_s" is x, "Height_m" is y, "Height_Error_m" is y error. Fit a quadratic model. Extract g = 2*a and compare to the theoretical value I provided.',
@@ -81,29 +43,6 @@ const EXAMPLE_DATASETS = [
             { Time_s: 1.5, Height_m: 11.03, Height_Error_m: 0.50, Time_Error_s: 0.02 },
         ],
     },
-    {
-        label: 'RC Discharge (Exponential)',
-        instructions: 'First sheet. "Time_s" is x, "Voltage_V" is y, "Voltage_Error_V" is y error. This is an RC circuit discharge experiment. Fit an exponential model (V = V0 * e^(-t/RC)). Calculate the time constant tau = -1/b and compare to the theoretical value.',
-        theoVal: '2.2',
-        theoUnc: '0.1',
-        columns: ['Time_s', 'Voltage_V', 'Voltage_Error_V'],
-        rows: (() => {
-            // V(t) = 5.0 * exp(-t/2.2) with noise
-            const noise = [0.08, -0.12, 0.15, -0.06, 0.10, -0.14, 0.07, -0.09, 0.11, -0.05,
-                           0.04, -0.08, 0.06, -0.03, 0.02];
-            const data = [];
-            for (let i = 0; i < 15; i++) {
-                const t = i * 0.5;
-                const v = 5.0 * Math.exp(-t / 2.2) + noise[i];
-                data.push({
-                    Time_s: parseFloat(t.toFixed(2)),
-                    Voltage_V: parseFloat(Math.max(0.01, v).toFixed(3)),
-                    Voltage_Error_V: 0.15,
-                });
-            }
-            return data;
-        })(),
-    },
 ];
 
 /** Convert rows to CSV and create a File object */
@@ -123,10 +62,6 @@ interface StepResult {
     message?: string;
 }
 
-interface ChatMessage {
-    role: 'user' | 'assistant';
-    content: string;
-}
 
 /** Model formula map for display */
 const MODEL_FORMULAS: Record<string, string> = {
@@ -190,7 +125,6 @@ function buildHtmlTable(names: string[], params: number[], uncs: number[], round
 }
 
 function AutoLab() {
-    const navigate = useNavigate();
     const [file, setFile] = useState<File | null>(null);
     const [instructions, setInstructions] = useState('');
     const [theoVal, setTheoVal] = useState('');
@@ -211,15 +145,14 @@ function AutoLab() {
     const [previewData, setPreviewData] = useState<{ columns: string[]; rows: Record<string, any>[] } | null>(null);
     const [previewError, setPreviewError] = useState('');
 
-    /* Inline chat state */
-    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-    const [chatInput, setChatInput] = useState('');
-    const [chatLoading, setChatLoading] = useState(false);
-    const chatEndRef = useRef<HTMLDivElement>(null);
-
     const [tableCopied, setTableCopied] = useState(false);
     const [reportCopied, setReportCopied] = useState(false);
-    const [pdfExporting, setPdfExporting] = useState(false);
+
+    /* Report expander + plot capture state */
+    const [reportExpanded, setReportExpanded] = useState(false);
+    const [plotImages, setPlotImages] = useState<{ fit: string | null; residuals: string | null }>({ fit: null, residuals: null });
+    const [resultsExporting, setResultsExporting] = useState(false);
+    const [resultsExportError, setResultsExportError] = useState<string | null>(null);
 
     const fileRef = useRef<HTMLInputElement>(null);
     const fitPlotRef = useRef<HTMLDivElement>(null);
@@ -228,10 +161,28 @@ function AutoLab() {
 
     useEffect(() => { setCurrentTool('AutoLab'); }, []);
 
-    // Auto-scroll chat to bottom when new messages arrive
+    /* Capture plot images after analysis for PDF export */
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [chatMessages]);
+        const capturePlots = async () => {
+            try {
+                const fitEl = fitPlotRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+                if (fitEl) {
+                    const fitImg = await Plotly.toImage(fitEl, { format: 'png', width: 700, height: 400, scale: 2 });
+                    const residualsEl = residualsPlotRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+                    const residualsImg = residualsEl
+                        ? await Plotly.toImage(residualsEl, { format: 'png', width: 700, height: 300, scale: 2 })
+                        : null;
+                    setPlotImages({ fit: fitImg, residuals: residualsImg });
+                }
+            } catch (e) {
+                console.warn('Could not capture plot images:', e);
+            }
+        };
+        if (fitData && !plotImages.fit) {
+            const timer = setTimeout(capturePlots, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [fitData, plotImages.fit]);
 
     /* Parse file for preview when user selects one */
     const handleFileChange = async (f: File) => {
@@ -260,7 +211,8 @@ function AutoLab() {
         setSteps([]);
         setFitData(null);
         setAnalysisState(null);
-        setChatMessages([]);
+        setPlotImages({ fit: null, residuals: null });
+        setReportExpanded(false);
         setError('');
         setSelectedModel('auto');
         setCustomExpr('');
@@ -273,7 +225,8 @@ function AutoLab() {
         setSteps([]);
         setFitData(null);
         setAnalysisState(null);
-        setChatMessages([]);
+        setPlotImages({ fit: null, residuals: null });
+        setReportExpanded(false);
         setError('');
 
         try {
@@ -337,49 +290,28 @@ function AutoLab() {
         }
     };
 
-    const handleSendChat = async () => {
-        const msg = chatInput.trim();
-        if (!msg || chatLoading) return;
-
-        const newMessages: ChatMessage[] = [...chatMessages, { role: 'user', content: msg }];
-        setChatMessages(newMessages);
-        setChatInput('');
-        setChatLoading(true);
-
+    /* Results-only PDF export handler */
+    const handleExportResultsPdf = async () => {
+        setResultsExporting(true);
+        setResultsExportError(null);
         try {
-            const context = {
-                fit: analysisState?.fit ? {
-                    model_name: analysisState.fit.model_name,
-                    parameter_names: analysisState.fit.parameter_names,
-                    parameters: analysisState.fit.parameters,
-                    uncertainties: analysisState.fit.uncertainties,
-                    reduced_chi_squared: analysisState.fit.reduced_chi_squared,
-                    p_value: analysisState.fit.p_value,
-                    r_squared: analysisState.fit.r_squared,
-                    dof: analysisState.fit.dof,
-                    n_data: analysisState.fit.n_data,
-                    chi_squared: analysisState.fit.chi_squared,
-                } : undefined,
-                formula: analysisState?.formula,
-                nsigma: analysisState?.nsigma,
-                parsed: analysisState?.parsed ? {
-                    columns: analysisState.parsed.columns,
-                    num_rows: analysisState.parsed.num_rows,
-                    x_col: analysisState.parsed.x_col,
-                    y_col: analysisState.parsed.y_col,
-                } : undefined,
-                instructions,
-                file_info: file ? { name: file.name, size: file.size } : undefined,
-            };
-            const result = await api.autolabChat({ messages: newMessages, context });
-            setChatMessages(prev => [...prev, { role: 'assistant', content: result.reply }]);
-        } catch (err: any) {
-            setChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: `Error: ${err.message || 'Chat failed'}`,
-            }]);
+            const normalized = analysisState ? normalizeAnalysisData(analysisState) : {};
+            const blob = await exportResultsPdf({
+                analysis_data: normalized,
+                plots: plotImages,
+                summary: summaryStep?.message || '',
+                language: 'en',
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'analysis-results.pdf';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e: any) {
+            setResultsExportError(e?.response?.data?.error || e?.message || 'PDF generation failed');
         } finally {
-            setChatLoading(false);
+            setResultsExporting(false);
         }
     };
 
@@ -776,6 +708,20 @@ function AutoLab() {
                         </div>
                     )}
 
+                    {/* -- AI Summary -- */}
+                    {summaryStep && summaryStep.message && (
+                        <div style={{
+                            padding: '1rem 1.2rem', borderRadius: '10px',
+                            background: 'var(--success-bg)', border: '1px solid var(--success-border)',
+                            marginBottom: '1.5rem', fontSize: '0.95rem', lineHeight: 1.6,
+                        }}>
+                            <strong style={{ display: 'block', marginBottom: '0.4rem', color: 'var(--success)' }}>
+                                ✅ Analysis Summary
+                            </strong>
+                            <span style={{ color: 'var(--text)' }}>{summaryStep.message}</span>
+                        </div>
+                    )}
+
                     {/* -- Parameter table (raw results, shown first) -- */}
                     {fitStep && fitStep.result && (
                         <div style={{ marginBottom: '1.5rem' }}>
@@ -1007,7 +953,7 @@ function AutoLab() {
                         </div>
                     )}
 
-                    {/* === LAB REPORT EXPORT === */}
+                    {/* === EXPORT BUTTONS === */}
                     {fitStep && (
                         <div style={{
                             marginBottom: '1.5rem', display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap',
@@ -1026,190 +972,41 @@ function AutoLab() {
                                 {reportCopied ? '✅ Report Copied to Clipboard!' : '📋 Copy Results as Lab Report'}
                             </button>
                             <button
-                                onClick={async () => {
-                                    setPdfExporting(true);
-                                    try {
-                                        const modelKey = (fitStep.args?.model || '').toLowerCase();
-                                        const formula = MODEL_FORMULAS[modelKey] || fitStep.args?.custom_expr || null;
-                                        await exportAutolabPdf({
-                                            summary: summaryStep?.message,
-                                            fitResult: fitStep.result as any,
-                                            fitModel: fitStep.result?.model_name || fitStep.args?.model,
-                                            fitFormula: formula,
-                                            formulaResult: formulaStep?.result as any,
-                                            nsigmaResult: nsigmaStep?.result as any,
-                                            xLabel,
-                                            yLabel,
-                                            fitPlotEl: fitPlotRef.current?.querySelector('.js-plotly-plot') as HTMLElement || null,
-                                            residualsPlotEl: residualsPlotRef.current?.querySelector('.js-plotly-plot') as HTMLElement || null,
-                                        });
-                                    } finally {
-                                        setPdfExporting(false);
-                                    }
-                                }}
-                                disabled={pdfExporting}
+                                onClick={handleExportResultsPdf}
+                                disabled={resultsExporting}
                                 style={{
                                     padding: '0.6rem 1.5rem', fontSize: '0.95rem',
                                     border: '2px solid var(--primary)', borderRadius: '8px',
-                                    background: pdfExporting ? 'var(--surface-alt)' : 'var(--surface)',
+                                    background: resultsExporting ? 'var(--surface-alt)' : 'var(--surface)',
                                     color: 'var(--primary)',
-                                    cursor: pdfExporting ? 'wait' : 'pointer',
+                                    cursor: resultsExporting ? 'wait' : 'pointer',
                                     fontWeight: 600, transition: 'all 0.2s',
                                     fontFamily: "'Inter', sans-serif",
                                 }}
                             >
-                                {pdfExporting ? '⏳ Generating PDF...' : '📄 Download PDF Report'}
+                                {resultsExporting ? '⏳ Generating PDF...' : '📄 Export Results PDF'}
                             </button>
                         </div>
                     )}
+                    {resultsExportError && (
+                        <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '8px', textAlign: 'center' }}>
+                            PDF generation failed: {resultsExportError}. Please try again.
+                        </p>
+                    )}
 
-                    {/* === INLINE AI CHAT === */}
-                    <div style={{
-                        marginTop: '1.5rem', border: '1px solid var(--border)',
-                        borderRadius: '12px', overflow: 'hidden',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                        fontFamily: "'Inter', sans-serif",
-                    }}>
-                        <div style={{
-                            background: 'linear-gradient(135deg, #b71c1c, #c62828)',
-                            padding: '0.85rem 1.2rem', color: 'white',
-                            fontWeight: 700, fontSize: '1.05rem',
-                            letterSpacing: '-0.01em',
-                        }}>
-                            🤖 AI Analysis Assistant
-                        </div>
-
-                        {/* Message thread */}
-                        <div style={{
-                            minHeight: '100px', maxHeight: '400px', overflowY: 'auto',
-                            padding: '1rem 1.2rem', background: 'var(--surface-alt)',
-                            display: 'flex', flexDirection: 'column', gap: '0.75rem',
-                        }}>
-                            {chatMessages.length === 0 && summaryStep ? (
-                                <div style={{ alignSelf: 'flex-start', maxWidth: '90%' }}>
-                                    <div style={{
-                                        padding: '0.6rem 0.9rem',
-                                        borderRadius: '12px 12px 12px 2px',
-                                        background: 'var(--surface)',
-                                        color: 'var(--text)',
-                                        border: '1px solid #e0e0e0',
-                                        fontSize: '0.9rem', lineHeight: 1.6,
-                                    }}
-                                        dangerouslySetInnerHTML={{
-                                            __html: renderLatex(summaryStep.message || '')
-                                        }}
-                                    />
-                                </div>
-                            ) : chatMessages.length === 0 ? (
-                                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', margin: 'auto 0' }}>
-                                    Ask anything about your results -- interpretation, further analysis, comparisons...
-                                </p>
-                            ) : null}
-                            {chatMessages.map((msg, i) => (
-                                <div key={i} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-                                    <div style={{
-                                        padding: '0.6rem 0.9rem',
-                                        borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-                                        background: msg.role === 'user' ? '#c62828' : '#fff',
-                                        color: msg.role === 'user' ? 'white' : '#333',
-                                        border: msg.role === 'assistant' ? '1px solid #e0e0e0' : 'none',
-                                        fontSize: '0.9rem', lineHeight: 1.6,
-                                    }}
-                                        dangerouslySetInnerHTML={{
-                                            __html: msg.role === 'assistant'
-                                                ? renderLatex(msg.content)
-                                                : escapeHtmlSimple(msg.content)
-                                        }}
-                                    />
-                                </div>
-                            ))}
-                            {chatLoading && (
-                                <div style={{ alignSelf: 'flex-start' }}>
-                                    <div style={{
-                                        padding: '0.6rem 0.9rem', borderRadius: '12px 12px 12px 2px',
-                                        background: 'var(--surface)', border: '1px solid var(--border)',
-                                        fontSize: '0.9rem', color: 'var(--text-muted)',
-                                    }}>
-                                        Thinking...
-                                    </div>
-                                </div>
-                            )}
-                            <div ref={chatEndRef} />
-                        </div>
-
-                        {/* Input row */}
-                        <div style={{
-                            display: 'flex', gap: '0.5rem', padding: '0.85rem 1.2rem',
-                            background: 'var(--surface)', borderTop: '1px solid var(--border)',
-                        }}>
-                            <input
-                                type="text" value={chatInput}
-                                onChange={e => setChatInput(e.target.value)}
-                                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
-                                placeholder="Ask about your results -- interpretation, further analysis, comparisons..."
-                                disabled={chatLoading}
-                                style={{
-                                    flex: 1, padding: '0.55rem 0.85rem',
-                                    border: '1px solid var(--border)', borderRadius: '8px',
-                                    fontSize: '0.9rem', outline: 'none',
-                                    fontFamily: "'Inter', sans-serif",
-                                    transition: 'border-color 0.2s',
-                                }}
-                            />
-                            <button
-                                onClick={handleSendChat}
-                                disabled={chatLoading || !chatInput.trim()}
-                                style={{
-                                    padding: '0.55rem 1.2rem',
-                                    background: (chatLoading || !chatInput.trim()) ? '#ccc' : 'linear-gradient(135deg, #b71c1c, #c62828)',
-                                    color: 'white', border: 'none', borderRadius: '8px',
-                                    cursor: (chatLoading || !chatInput.trim()) ? 'default' : 'pointer',
-                                    fontWeight: 600, fontSize: '0.9rem', transition: 'all 0.2s',
-                                    fontFamily: "'Inter', sans-serif",
-                                }}
-                            >
-                                Send
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Generate Report CTA -- per D-01 */}
-                    <button
-                        onClick={() => navigate('/report')}
-                        style={{
-                            width: '100%',
-                            marginTop: '24px',
-                            background: 'linear-gradient(135deg, var(--primary, #1565c0) 0%, #1976d2 100%)',
-                            color: 'white',
-                            fontSize: '1rem',
-                            fontWeight: 600,
-                            padding: '16px 32px',
-                            borderRadius: '8px',
-                            border: 'none',
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 8px rgba(21, 101, 192, 0.3)',
-                            transition: 'box-shadow 0.2s, filter 0.2s',
-                        }}
-                        onMouseEnter={e => {
-                            (e.target as HTMLButtonElement).style.boxShadow = '0 4px 12px rgba(21, 101, 192, 0.4)';
-                            (e.target as HTMLButtonElement).style.filter = 'brightness(1.05)';
-                        }}
-                        onMouseLeave={e => {
-                            (e.target as HTMLButtonElement).style.boxShadow = '0 2px 8px rgba(21, 101, 192, 0.3)';
-                            (e.target as HTMLButtonElement).style.filter = 'none';
-                        }}
-                    >
-                        Generate Report
-                    </button>
+                    {/* Report Expander + Full Report Section (D-01, D-03) */}
+                    <ReportExpander expanded={reportExpanded} onToggle={() => setReportExpanded(prev => !prev)}>
+                        <ReportSection
+                            analysisData={analysisState}
+                            plotImages={plotImages}
+                            initialTitle={file?.name?.replace(/\.(xlsx?|csv|tsv|ods)$/i, '').replace(/[_-]/g, ' ') || ''}
+                            instructions={instructions}
+                        />
+                    </ReportExpander>
                 </div>
             )}
         </div>
     );
-}
-
-/** Simple HTML escape for user messages */
-function escapeHtmlSimple(text: string): string {
-    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 export default AutoLab;
