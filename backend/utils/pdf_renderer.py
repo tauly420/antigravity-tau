@@ -98,10 +98,10 @@ def render_latex_for_pdf(latex_expr: str, display_mode: bool = False) -> str:
         else:
             logger.warning(f"KaTeX subprocess returned: {result.stderr}")
             # Return escaped text as fallback
-            return f'<span class="katex-error">{latex_expr}</span>'
+            return f'<code class="katex-fallback">{latex_expr}</code>'
     except (FileNotFoundError, subprocess.TimeoutExpired) as e:
         logger.warning(f"KaTeX subprocess failed: {e}")
-        return f'<span class="katex-error">{latex_expr}</span>'
+        return f'<code class="katex-fallback">{latex_expr}</code>'
 
 
 def process_text_with_math(text: str) -> str:
@@ -151,8 +151,13 @@ def generate_pdf(html_body: str, direction: str = 'rtl', lang: str = 'he') -> by
     Returns:
         PDF file contents as bytes.
     """
-    import weasyprint
-    from weasyprint.text.fonts import FontConfiguration
+    try:
+        import weasyprint
+        from weasyprint.text.fonts import FontConfiguration
+    except ImportError:
+        raise ImportError(
+            "WeasyPrint not installed. Install with: pip install weasyprint"
+        )
 
     # Read CSS
     css_path = os.path.join(TEMPLATES_DIR, 'report_styles.css')

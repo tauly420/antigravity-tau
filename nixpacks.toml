@@ -18,5 +18,9 @@ cmds = [
 [phases.build]
 cmds = ['cd frontend && npm run build']
 
+[variables]
+GDK_PIXBUF_MODULE_FILE = ""
+XDG_DATA_DIRS = "/usr/share:/usr/local/share"
+
 [start]
 cmd = '. .venv/bin/activate && cd backend && python app.py'

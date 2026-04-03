@@ -1242,14 +1242,14 @@ body {
 }
 body {
     font-family: 'Noto Sans Hebrew', sans-serif;
-    font-size: 12pt;
+    font-size: 11pt;
     line-height: 1.6;
     direction: rtl;
     unicode-bidi: embed;
 }
 h1, h2, h3 { font-weight: 700; }
 h1 { font-size: 18pt; }
-h2 { font-size: 14pt; }
+h2 { font-size: 14pt; margin-top: 1.5em; margin-bottom: 0.5em; }
 .math-inline {
     direction: ltr;
     unicode-bidi: embed;
@@ -1351,6 +1351,25 @@ p {
     margin: 4px 0 16px 0;
     font-weight: 400;
     text-align: center;
+}
+
+/* Results summary box (used by results-only PDF) */
+.results-summary {
+    background: #f5f5f5;
+    border-left: 4px solid #2e7d32;
+    padding: 12px 16px;
+    margin-bottom: 1em;
+    font-size: 11pt;
+    line-height: 1.5;
+}
+
+/* KaTeX fallback when rendering fails */
+.katex-fallback {
+    font-family: 'KaTeX_Main', monospace;
+    font-size: 0.95em;
+    background: #f9f9f9;
+    padding: 1px 4px;
+    border-radius: 2px;
 }
 
 /* --- Template: Israeli Lab Report (default) --- */
