@@ -42,6 +42,21 @@ const EXAMPLE_DATASETS = [
             { Time_s: 1.4, Height_m: 9.61, Height_Error_m: 0.45, Time_Error_s: 0.02 },
             { Time_s: 1.5, Height_m: 11.03, Height_Error_m: 0.50, Time_Error_s: 0.02 },
         ],
+        reportContext: {
+            title: 'Free Fall Experiment',
+            subject: 'Classical Mechanics',
+            equipment: 'Timer, meter stick, metal ball, photogate sensor',
+            notes: 'Measured the height of a falling ball at regular time intervals. The ball was released from rest and fell under gravity.',
+        },
+        titlePage: {
+            studentName: 'Demo User',
+            studentId: '123456789',
+            labPartner: 'Demo Partner',
+            labPartnerId: '987654321',
+            courseName: 'Physics Lab 1',
+            experimentTitle: 'Free Fall Experiment',
+            date: new Date().toISOString().split('T')[0],
+        },
     },
 ];
 
@@ -147,6 +162,10 @@ function AutoLab() {
 
     const [tableCopied, setTableCopied] = useState(false);
     const [reportCopied, setReportCopied] = useState(false);
+    const [demoReportContext, setDemoReportContext] = useState<{
+        title: string; subject: string; equipment: string; notes: string;
+        titlePage?: Record<string, string>;
+    } | null>(null);
 
     /* Report expander + plot capture state */
     const [reportExpanded, setReportExpanded] = useState(false);
@@ -217,6 +236,11 @@ function AutoLab() {
         setSelectedModel('auto');
         setCustomExpr('');
         setFixedParams({});
+        if (ex.reportContext) {
+            setDemoReportContext({ ...ex.reportContext, titlePage: ex.titlePage });
+        } else {
+            setDemoReportContext(null);
+        }
     };
 
     const handleRun = async () => {
@@ -1001,6 +1025,7 @@ function AutoLab() {
                             plotImages={plotImages}
                             initialTitle={file?.name?.replace(/\.(xlsx?|csv|tsv|ods)$/i, '').replace(/[_-]/g, ' ') || ''}
                             instructions={instructions}
+                            demoContext={demoReportContext}
                         />
                     </ReportExpander>
                 </div>

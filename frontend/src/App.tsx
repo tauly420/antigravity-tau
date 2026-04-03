@@ -15,7 +15,6 @@ import FourierAnalysis from './components/FourierAnalysis';
 import AutoLab from './components/AutoLab';
 import StatisticsCalculator from './components/StatisticsCalculator';
 import ConstantsReference from './components/ConstantsReference';
-import ReportBeta from './components/ReportBeta';
 import { AnalysisProvider } from './context/AnalysisContext';
 import Sidebar from './components/Sidebar';
 
@@ -33,7 +32,6 @@ const NAV_ITEMS = [
     { path: '/fourier', label: 'Fourier', icon: '〜' },
     { path: '/statistics', label: 'Statistics', icon: '📊' },
     { path: '/constants', label: 'Constants', icon: '🔬' },
-    { path: '/report', label: 'Report', icon: '📄', highlight: true },
 ];
 
 function AppContent() {
@@ -78,7 +76,6 @@ function AppContent() {
                     <Route path="/fourier" element={<FourierAnalysis />} />
                     <Route path="/statistics" element={<StatisticsCalculator />} />
                     <Route path="/constants" element={<ConstantsReference />} />
-                    <Route path="/report" element={<ReportBeta />} />
                 </Routes>
             </main>
 

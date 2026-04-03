@@ -29,6 +29,13 @@ interface ReportSectionProps {
   plotImages: { fit: string | null; residuals: string | null };
   initialTitle?: string;
   instructions?: string;
+  demoContext?: {
+    title: string;
+    subject: string;
+    equipment: string;
+    notes: string;
+    titlePage?: Record<string, string>;
+  } | null;
 }
 
 // Shared inline style constants
@@ -65,6 +72,7 @@ export default function ReportSection({
   plotImages,
   initialTitle,
   instructions: initialInstructions,
+  demoContext,
 }: ReportSectionProps) {
   // --- State declarations ---
   const [contextForm, setContextForm] = useState<ContextForm>({
@@ -115,6 +123,30 @@ export default function ReportSection({
       setContextForm(prev => ({ ...prev, notes: prev.notes || initialInstructions }));
     }
   }, [initialTitle, initialInstructions]);
+
+  // Demo context pre-fill (D-12)
+  useEffect(() => {
+    if (demoContext) {
+      setContextForm({
+        title: demoContext.title,
+        subject: demoContext.subject,
+        equipment: demoContext.equipment,
+        notes: demoContext.notes,
+      });
+      if (demoContext.titlePage) {
+        setTitlePageData(prev => ({
+          ...prev,
+          studentName: demoContext.titlePage?.studentName || '',
+          studentId: demoContext.titlePage?.studentId || '',
+          labPartner: demoContext.titlePage?.labPartner || '',
+          labPartnerId: demoContext.titlePage?.labPartnerId || '',
+          courseName: demoContext.titlePage?.courseName || '',
+          experimentTitle: demoContext.titlePage?.experimentTitle || '',
+          date: demoContext.titlePage?.date || '',
+        }));
+      }
+    }
+  }, [demoContext]);
 
   // Auto-focus first follow-up question
   useEffect(() => {
