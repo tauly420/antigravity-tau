@@ -391,6 +391,137 @@ def assemble_report_html(sections, title_page, plots, analysis_data, template='i
     return '\n'.join(html_parts)
 
 
+def assemble_results_html(analysis_data, plots, summary='', language='he'):
+    """Build results-only HTML for a lightweight PDF (no AI sections, no title page).
+
+    Args:
+        analysis_data: dict with normalized fit data (camelCase keys).
+            Expected shape: {fit: {parameters: [...], goodnessOfFit: {...}, modelName: str},
+                             formula: {expression, formatted}, nsigma: {nSigma, verdict}}
+        plots: dict with keys: fit (base64 str or None), residuals (base64 str or None)
+        summary: AI-generated summary text to display at top.
+        language: 'he' | 'en'
+
+    Returns:
+        HTML string for the results body (before math processing).
+    """
+    import base64
+    import tempfile
+
+    html_parts = []
+    html_parts.append('<div class="template-minimal">')
+
+    # Heading
+    heading = 'Analysis Results' if language == 'en' else '\u05ea\u05d5\u05e6\u05d0\u05d5\u05ea \u05e0\u05d9\u05ea\u05d5\u05d7'
+    html_parts.append(f'<h1 class="report-title">{heading}</h1>')
+
+    # Summary box
+    if summary and summary.strip():
+        html_parts.append(f'<div class="results-summary"><p>{summary.strip()}</p></div>')
+
+    # Parameter table
+    fit = analysis_data.get('fit', None) if analysis_data else None
+    if fit and isinstance(fit, dict):
+        params = fit.get('parameters', [])
+        gof = fit.get('goodnessOfFit', {})
+        model = fit.get('modelName', '')
+
+        if model:
+            model_lbl = '\u05de\u05d5\u05d3\u05dc \u05d4\u05ea\u05d0\u05de\u05d4' if language == 'he' else 'Fit Model'
+            html_parts.append(f'<p><strong>{model_lbl}:</strong> {model}</p>')
+
+        if params:
+            param_lbl = '\u05e4\u05e8\u05de\u05d8\u05e8' if language == 'he' else 'Parameter'
+            value_lbl = '\u05e2\u05e8\u05da' if language == 'he' else 'Value'
+            latex_lbl = 'LaTeX'
+            html_parts.append('<table class="param-table">')
+            html_parts.append(f'<thead><tr><th>{param_lbl}</th><th>{value_lbl}</th><th>{latex_lbl}</th></tr></thead>')
+            html_parts.append('<tbody>')
+            for p in params:
+                pname = p.get('name', '')
+                rounded = p.get('rounded', f"{p.get('value', '')} +/- {p.get('uncertainty', '')}")
+                latex_name = p.get('latex', pname)
+                latex_cell = f'${latex_name}$' if latex_name else ''
+                html_parts.append(f'<tr><td>{pname}</td><td>{rounded}</td><td>{latex_cell}</td></tr>')
+            html_parts.append('</tbody></table>')
+
+        # Goodness-of-fit stats
+        gof_parts = []
+        if gof.get('chiSquaredReduced') is not None:
+            dof = gof.get('dof', '')
+            chi_str = f"$\\chi^2/\\text{{dof}} = {gof['chiSquaredReduced']:.4f}$"
+            if dof:
+                chi_str += f" (dof = {dof})"
+            gof_parts.append(chi_str)
+        if gof.get('rSquared') is not None:
+            gof_parts.append(f"$R^2 = {gof['rSquared']:.6f}$")
+        if gof.get('pValue') is not None:
+            gof_parts.append(f"$P = {gof['pValue']:.4f}$")
+        if gof_parts:
+            html_parts.append(f'<p>{", ".join(gof_parts)}</p>')
+
+    # Formula calculation
+    formula = analysis_data.get('formula') if analysis_data else None
+    if formula and isinstance(formula, dict):
+        expr = formula.get('expression', '')
+        formatted = formula.get('formatted', '')
+        if expr and formatted:
+            formula_lbl = '\u05d7\u05d9\u05e9\u05d5\u05d1 \u05e0\u05d5\u05e1\u05d7\u05d4' if language == 'he' else 'Formula Calculation'
+            html_parts.append(f'<h2>{formula_lbl}</h2>')
+            html_parts.append(f'<p>${expr} = {formatted}$</p>')
+
+    # N-sigma comparison
+    nsigma = analysis_data.get('nsigma') if analysis_data else None
+    if nsigma and isinstance(nsigma, dict):
+        ns = nsigma.get('nSigma', '')
+        verdict = nsigma.get('verdict', '')
+        if ns != '' and verdict:
+            nsigma_lbl = '\u05d4\u05e9\u05d5\u05d5\u05d0\u05ea N-sigma' if language == 'he' else 'N-sigma Comparison'
+            # Color coding
+            try:
+                ns_val = float(ns)
+                if ns_val <= 2:
+                    color = '#2e7d32'
+                elif ns_val <= 3:
+                    color = '#f57c00'
+                else:
+                    color = '#d32f2f'
+            except (ValueError, TypeError):
+                color = '#333'
+            html_parts.append(f'<h2>{nsigma_lbl}</h2>')
+            html_parts.append(f'<p style="color: {color}; font-weight: 700;">$N_\\sigma = {ns}$ \u2014 {verdict}</p>')
+
+    # Plot images
+    fig_num = 1
+    for plot_key, caption_he, caption_en in [
+        ('fit', '\u05d2\u05e8\u05e3 \u05d4\u05ea\u05d0\u05de\u05d4', 'Fit Plot'),
+        ('residuals', '\u05e9\u05d0\u05e8\u05d9\u05d5\u05ea', 'Residuals'),
+    ]:
+        img_data = plots.get(plot_key) if plots else None
+        if img_data and isinstance(img_data, str):
+            b64_str = img_data
+            if ',' in img_data:
+                b64_str = img_data.split(',', 1)[1]
+            try:
+                img_bytes = base64.b64decode(b64_str)
+                tmp = tempfile.NamedTemporaryFile(suffix='.png', delete=False, dir=TEMPLATES_DIR)
+                tmp.write(img_bytes)
+                tmp.close()
+                fig_path = os.path.basename(tmp.name)
+                caption_text = caption_he if language == 'he' else caption_en
+                fig_label = '\u05d0\u05d9\u05d5\u05e8' if language == 'he' else 'Figure'
+                html_parts.append(f'<div class="figure">')
+                html_parts.append(f'<img src="{fig_path}" class="plot-image" />')
+                html_parts.append(f'<p class="figure-caption">{fig_label} {fig_num}: {caption_text}</p>')
+                html_parts.append(f'</div>')
+                fig_num += 1
+            except Exception:
+                pass  # Skip invalid image data
+
+    html_parts.append('</div>')  # Close template wrapper
+    return '\n'.join(html_parts)
+
+
 def generate_test_pdf() -> bytes:
     """Generate a comprehensive test PDF with Hebrew text and math expressions.
 

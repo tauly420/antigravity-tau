@@ -13,7 +13,7 @@ import os
 import traceback
 
 from flask import Blueprint, Response, request, jsonify
-from utils.pdf_renderer import assemble_report_html, generate_pdf, process_text_with_math, _cleanup_temp_images
+from utils.pdf_renderer import assemble_report_html, assemble_results_html, generate_pdf, process_text_with_math, _cleanup_temp_images
 from openai import OpenAI
 from utils.file_parser import extract_pdf_text, extract_docx_text
 
@@ -257,6 +257,62 @@ def export_pdf():
             mimetype='application/pdf',
             headers={
                 'Content-Disposition': 'attachment; filename="lab-report.pdf"',
+                'Content-Type': 'application/pdf',
+            }
+        )
+
+    except Exception as e:
+        _cleanup_temp_images()
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@report_bp.route('/export-results-pdf', methods=['POST'])
+def export_results_pdf():
+    """Generate results-only PDF (no AI sections, no title page).
+
+    Accepts JSON with:
+        analysis_data: {fit: {...}, formula: {...}, nsigma: {...}} - normalized analysis results
+        plots: {fit: "data:image/png;base64,...", residuals: "data:image/png;base64,..."}
+        summary: AI-generated summary text
+        language: 'he' | 'en' (default: 'he')
+
+    Returns: PDF bytes with Content-Disposition attachment header.
+    """
+    try:
+        body = request.get_json(silent=True)
+        if not body:
+            return jsonify({"error": "Request body is required"}), 400
+
+        analysis_data = body.get('analysis_data', {})
+        plots = body.get('plots', {})
+        summary = body.get('summary', '')
+        language = body.get('language', 'he')
+
+        # Assemble results-only HTML
+        html_body = assemble_results_html(
+            analysis_data=analysis_data,
+            plots=plots,
+            summary=summary,
+            language=language,
+        )
+
+        # Process LaTeX math delimiters to KaTeX HTML
+        processed = process_text_with_math(html_body)
+
+        # Set direction based on language
+        direction = 'rtl' if language == 'he' else 'ltr'
+
+        # Generate PDF
+        pdf_bytes = generate_pdf(processed, direction=direction, lang=language)
+
+        # Cleanup temp plot images
+        _cleanup_temp_images()
+
+        return Response(
+            pdf_bytes,
+            mimetype='application/pdf',
+            headers={
+                'Content-Disposition': 'attachment; filename="analysis-results.pdf"',
                 'Content-Type': 'application/pdf',
             }
         )
