@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: AI-Powered Academic Lab Report Export
 status: Phase complete — ready for verification
-stopped_at: Completed 14-02-PLAN.md
-last_updated: "2026-04-03T05:33:46.391Z"
+stopped_at: Phase 15 context gathered
+last_updated: "2026-04-03T15:12:40.815Z"
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 5
   total_plans: 18
   completed_plans: 14
@@ -82,6 +82,7 @@ Recent decisions affecting current work:
 
 - Phase 13 added: UI overhaul — new homepage, sidebar removal, feature cards on home page with back-to-home navigation
 - Phase 14 added: Report and AutoLab merge — unified page for full report or analysis-only mode, plus fix PDF export
+- Phase 15 added: autolab fixes and polish
 
 ### Pending Todos
 
@@ -95,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-03T05:33:46.387Z
-Stopped at: Completed 14-02-PLAN.md
-Resume file: None
+Last session: 2026-04-03T15:12:40.809Z
+Stopped at: Phase 15 context gathered
+Resume file: .planning/phases/15-autolab-fixes-and-polish/15-CONTEXT.md
