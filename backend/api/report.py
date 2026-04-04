@@ -73,7 +73,32 @@ def debug_pdf():
     diagnostics['env'] = {
         'GDK_PIXBUF_MODULE_FILE': os.environ.get('GDK_PIXBUF_MODULE_FILE', 'NOT SET'),
         'XDG_DATA_DIRS': os.environ.get('XDG_DATA_DIRS', 'NOT SET'),
+        'LD_LIBRARY_PATH': os.environ.get('LD_LIBRARY_PATH', 'NOT SET'),
     }
+
+    # Find actual library locations on disk
+    import subprocess
+    try:
+        result = subprocess.run(
+            ['find', '/nix', '-name', 'libgobject-2.0.so*', '-o', '-name', 'libcairo.so*', '-o', '-name', 'libpango-1.0.so*'],
+            capture_output=True, text=True, timeout=10
+        )
+        diagnostics['nix_lib_search'] = result.stdout.strip().split('\n')[:20] if result.stdout.strip() else 'NONE FOUND'
+    except Exception as e:
+        diagnostics['nix_lib_search'] = f'search failed: {e}'
+
+    # Check Nix profile lib directory
+    nix_lib = '/root/.nix-profile/lib'
+    diagnostics['nix_profile_lib'] = {
+        'exists': os.path.exists(nix_lib),
+        'is_symlink': os.path.islink(nix_lib),
+    }
+    if os.path.exists(nix_lib):
+        try:
+            so_files = [f for f in os.listdir(nix_lib) if '.so' in f][:20]
+            diagnostics['nix_profile_lib']['so_files_sample'] = so_files
+        except Exception as e:
+            diagnostics['nix_profile_lib']['error'] = str(e)
 
     return diagnostics
 
