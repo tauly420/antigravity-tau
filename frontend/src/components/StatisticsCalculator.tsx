@@ -306,14 +306,14 @@ function StatisticsCalculator() {
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
                 <button
                     onClick={() => { setInputMode('manual'); setError(''); }}
-                    className={inputMode === 'manual' ? '' : 'btn-secondary'}
+                    className={inputMode === 'manual' ? 'btn-primary' : 'btn-secondary'}
                     style={{ flex: 1 }}
                 >
                     {'\u270D\uFE0F'} Manual Input
                 </button>
                 <button
                     onClick={() => { setInputMode('file'); setError(''); }}
-                    className={inputMode === 'file' ? '' : 'btn-secondary'}
+                    className={inputMode === 'file' ? 'btn-primary' : 'btn-secondary'}
                     style={{ flex: 1 }}
                 >
                     {'\uD83D\uDCC1'} Upload File
@@ -414,16 +414,9 @@ function StatisticsCalculator() {
                                         <button
                                             key={col}
                                             onClick={() => { setSelectedColumn(col); setStats(null); setData([]); }}
+                                            className={isSelected ? 'btn-primary btn-sm' : 'btn-secondary btn-sm'}
                                             style={{
-                                                padding: '0.5rem 1rem',
                                                 borderRadius: '20px',
-                                                border: isSelected ? '2px solid #1565c0' : '2px solid #ddd',
-                                                backgroundColor: isSelected ? 'var(--surface-alt)' : (hasNumbers ? 'var(--surface)' : 'var(--surface-alt)'),
-                                                color: isSelected ? 'var(--primary)' : (hasNumbers ? 'var(--text)' : 'var(--text-muted)'),
-                                                cursor: hasNumbers ? 'pointer' : 'default',
-                                                fontWeight: isSelected ? 700 : 400,
-                                                fontSize: '0.9rem',
-                                                transition: 'all 0.2s',
                                                 opacity: hasNumbers ? 1 : 0.6,
                                             }}
                                             disabled={!hasNumbers}
@@ -472,33 +465,16 @@ function StatisticsCalculator() {
             {/* Buttons */}
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
                 <button
+                    className="btn-primary"
                     onClick={handleCalculate}
                     disabled={inputMode === 'file' && !selectedColumn}
-                    style={{
-                        flex: 1,
-                        padding: '0.75rem',
-                        backgroundColor: (inputMode === 'file' && !selectedColumn) ? '#ccc' : 'var(--primary)',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '1rem',
-                        fontWeight: 'bold',
-                        cursor: (inputMode === 'file' && !selectedColumn) ? 'not-allowed' : 'pointer',
-                    }}
+                    style={{ flex: 1 }}
                 >
                     {'\uD83D\uDD2C'} Analyze
                 </button>
                 <button
+                    className="btn-accent"
                     onClick={handleTryExample}
-                    style={{
-                        padding: '0.75rem 1.5rem',
-                        backgroundColor: '#1565c0',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '1rem',
-                        cursor: 'pointer',
-                    }}
                 >
                     {'\uD83D\uDCA1'} Try Example
                 </button>
@@ -540,31 +516,14 @@ function StatisticsCalculator() {
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '0.75rem' }}>
                             <button
+                                className={copied ? 'btn-accent btn-sm' : 'btn-primary btn-sm'}
                                 onClick={handleCopy}
-                                style={{
-                                    padding: '0.4rem 1.2rem',
-                                    backgroundColor: copied ? '#2e7d32' : '#c62828',
-                                    color: '#fff',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    fontSize: '0.9rem',
-                                    cursor: 'pointer',
-                                    transition: 'background-color 0.2s',
-                                }}
                             >
                                 {copied ? '\u2714 Copied!' : '\uD83D\uDCCB Copy Result'}
                             </button>
                             <button
+                                className="btn-accent btn-sm"
                                 onClick={handleCopyTable}
-                                style={{
-                                    padding: '0.4rem 1.2rem',
-                                    backgroundColor: '#7b1fa2',
-                                    color: '#fff',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    fontSize: '0.9rem',
-                                    cursor: 'pointer',
-                                }}
                             >
                                 {'\uD83D\uDCCA'} Copy All Stats
                             </button>

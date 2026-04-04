@@ -96,15 +96,8 @@ function UnitConverter() {
                         <button
                             key={cat}
                             onClick={() => handleCategoryChange(cat)}
-                            className={category === cat ? 'active' : ''}
-                            style={{
-                                flex: 1,
-                                background: category === cat ? 'var(--primary)' : 'white',
-                                color: category === cat ? 'white' : 'var(--text)',
-                                borderColor: category === cat ? 'var(--primary)' : '#ddd',
-                                padding: '0.5rem',
-                                fontSize: '0.9rem'
-                            }}
+                            className={category === cat ? 'btn-primary btn-sm' : 'btn-secondary btn-sm'}
+                            style={{ flex: 1 }}
                         >
                             {cat.charAt(0).toUpperCase() + cat.slice(1)}
                         </button>

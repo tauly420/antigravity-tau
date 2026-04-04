@@ -324,7 +324,7 @@ function GraphFitting() {
                         </div>
                     )}
 
-                    <button onClick={handleFit} disabled={loading || !xCol || !yCol} style={{ marginTop: '1rem' }}>
+                    <button className="btn-primary" onClick={handleFit} disabled={loading || !xCol || !yCol} style={{ marginTop: '1rem' }}>
                         {loading ? '⏳ Fitting…' : '▶ Fit Data'}
                     </button>
                 </>

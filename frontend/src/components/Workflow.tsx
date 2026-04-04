@@ -592,25 +592,15 @@ function Workflow() {
                         <div style={{ display: 'flex', gap: '0', marginBottom: '1rem' }}>
                             <button
                                 onClick={() => setReportLang('en')}
-                                style={{
-                                    fontSize: '0.9rem', padding: '0.5rem 1.3rem', cursor: 'pointer',
-                                    border: '2px solid #1565c0', borderRadius: '8px 0 0 8px',
-                                    background: reportLang === 'en' ? '#1565c0' : 'white',
-                                    color: reportLang === 'en' ? 'white' : '#1565c0',
-                                    fontWeight: reportLang === 'en' ? 700 : 400,
-                                }}
+                                className={reportLang === 'en' ? 'btn-primary btn-sm' : 'btn-secondary btn-sm'}
+                                style={{ borderRadius: '8px 0 0 8px' }}
                             >
                                 🇬🇧 English
                             </button>
                             <button
                                 onClick={() => setReportLang('he')}
-                                style={{
-                                    fontSize: '0.9rem', padding: '0.5rem 1.3rem', cursor: 'pointer',
-                                    border: '2px solid #1565c0', borderLeft: 'none', borderRadius: '0 8px 8px 0',
-                                    background: reportLang === 'he' ? '#1565c0' : 'white',
-                                    color: reportLang === 'he' ? 'white' : '#1565c0',
-                                    fontWeight: reportLang === 'he' ? 700 : 400,
-                                }}
+                                className={reportLang === 'he' ? 'btn-primary btn-sm' : 'btn-secondary btn-sm'}
+                                style={{ borderRadius: '0 8px 8px 0' }}
                             >
                                 🇮🇱 עברית
                             </button>

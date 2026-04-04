@@ -200,7 +200,7 @@ function FourierAnalysis() {
             {/* ─── Example buttons ─── */}
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
                 {EXAMPLES.map(ex => (
-                    <button key={ex.name} className="btn-accent" onClick={() => loadExample(ex)} style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}>
+                    <button key={ex.name} className="btn-accent btn-sm" onClick={() => loadExample(ex)}>
                         {ex.name}
                     </button>
                 ))}
@@ -217,7 +217,7 @@ function FourierAnalysis() {
                     style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
                 />
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginTop: '0.5rem' }}>
-                    <button onClick={parseManualData} className="btn-primary" style={{ fontSize: '0.85rem' }}>Parse Data</button>
+                    <button onClick={parseManualData} className="btn-primary btn-sm">Parse Data</button>
                     <div className="form-group" style={{ margin: 0 }}>
                         <label style={{ fontSize: '0.8rem', margin: 0 }}>Δt (sampling interval)</label>
                         <input type="number" step="any" value={dt} onChange={e => setDt(parseFloat(e.target.value) || 0.01)} style={{ width: '100px', fontSize: '0.85rem' }} />
