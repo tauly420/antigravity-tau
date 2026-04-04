@@ -26,4 +26,4 @@ XDG_DATA_DIRS = "/root/.nix-profile/share:/nix/var/nix/profiles/default/share:/u
 GI_TYPELIB_PATH = "/root/.nix-profile/lib/girepository-1.0:/nix/var/nix/profiles/default/lib/girepository-1.0"
 
 [start]
-cmd = 'export LD_LIBRARY_PATH="$(tr \\n : < /app/.nix-lib-dirs)/root/.nix-profile/lib:$LD_LIBRARY_PATH" && . .venv/bin/activate && cd backend && python app.py'
+cmd = 'export LD_LIBRARY_PATH="$(paste -sd: /app/.nix-lib-dirs):/root/.nix-profile/lib:$LD_LIBRARY_PATH" && export GDK_PIXBUF_MODULE_FILE="$(find /nix/store -name loaders.cache -path "*/gdk-pixbuf*" 2>/dev/null | head -1)" && . .venv/bin/activate && cd backend && python app.py'
