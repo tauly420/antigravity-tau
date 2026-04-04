@@ -18,8 +18,7 @@ cmds = [
 [phases.build]
 cmds = [
     'cd frontend && npm run build',
-    'for d in /nix/store/*/lib; do [ -d "$d" ] && find "$d" -maxdepth 1 -name "lib*.so*" -not -name "*.py" -not -name "*.stp" -exec ln -sf {} /root/.nix-profile/lib/ \\; 2>/dev/null; done; echo "symlinked nix libs"; ls /root/.nix-profile/lib/libgobject* /root/.nix-profile/lib/libpango* /root/.nix-profile/lib/libfontconfig* 2>/dev/null || true',
-    'mkdir -p /etc/ld.so.conf.d && echo "/root/.nix-profile/lib" > /etc/ld.so.conf.d/nix.conf && ldconfig 2>/dev/null || echo "ldconfig not available"'
+    'find /nix/store -maxdepth 2 -type d -name lib 2>/dev/null | sort -u > /app/.nix-lib-dirs && echo "Found $(wc -l < /app/.nix-lib-dirs) nix lib dirs" && grep -l "libgobject-2.0.so" $(cat /app/.nix-lib-dirs) 2>/dev/null || true'
 ]
 
 [variables]
@@ -27,4 +26,4 @@ XDG_DATA_DIRS = "/root/.nix-profile/share:/nix/var/nix/profiles/default/share:/u
 GI_TYPELIB_PATH = "/root/.nix-profile/lib/girepository-1.0:/nix/var/nix/profiles/default/lib/girepository-1.0"
 
 [start]
-cmd = 'export LD_LIBRARY_PATH="/root/.nix-profile/lib:$LD_LIBRARY_PATH" && . .venv/bin/activate && cd backend && python app.py'
+cmd = 'export LD_LIBRARY_PATH="$(tr \\n : < /app/.nix-lib-dirs)/root/.nix-profile/lib:$LD_LIBRARY_PATH" && . .venv/bin/activate && cd backend && python app.py'

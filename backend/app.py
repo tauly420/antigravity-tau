@@ -10,6 +10,7 @@ Main application entry point
 import ctypes.util
 import glob as _glob
 import os as _os
+import re as _re
 
 _original_find_library = ctypes.util.find_library
 
@@ -17,10 +18,20 @@ def _nix_find_library(name):
     result = _original_find_library(name)
     if result:
         return result
+    # Build candidate glob patterns from the name.
+    # WeasyPrint/cffi use names like "gobject-2.0", "fontconfig", "pango-1.0"
+    # but also "libgobject-2.0-0", "libfontconfig-1" (Debian SONAME convention
+    # where libX-N maps to libX.so.N on disk).
+    candidates = [f'lib{name}.so*', f'{name}.so*']
+    # Handle "libfoo-N" -> "libfoo.so.N" convention
+    m = _re.match(r'^(lib.+)-(\d+)$', name)
+    if m:
+        candidates.insert(0, f'{m.group(1)}.so.{m.group(2)}*')
+        candidates.insert(0, f'{m.group(1)}.so*')
     for d in _os.environ.get('LD_LIBRARY_PATH', '').split(':'):
         if not d or not _os.path.isdir(d):
             continue
-        for pattern in [f'lib{name}.so*', f'{name}.so*', f'lib{name}-*.so*']:
+        for pattern in candidates:
             matches = _glob.glob(_os.path.join(d, pattern))
             if matches:
                 return matches[0]
