@@ -3,6 +3,31 @@ Tau-LY Lab Tools - Flask Backend
 Main application entry point
 """
 
+# Patch ctypes.util.find_library before anything imports WeasyPrint.
+# On Nix/nixpacks, libraries exist on disk but aren't in the ldconfig cache,
+# so find_library() returns None even though dlopen() would succeed via
+# LD_LIBRARY_PATH. This patch makes find_library check those dirs too.
+import ctypes.util
+import glob as _glob
+import os as _os
+
+_original_find_library = ctypes.util.find_library
+
+def _nix_find_library(name):
+    result = _original_find_library(name)
+    if result:
+        return result
+    for d in _os.environ.get('LD_LIBRARY_PATH', '').split(':'):
+        if not d or not _os.path.isdir(d):
+            continue
+        for pattern in [f'lib{name}.so*', f'{name}.so*', f'lib{name}-*.so*']:
+            matches = _glob.glob(_os.path.join(d, pattern))
+            if matches:
+                return matches[0]
+    return None
+
+ctypes.util.find_library = _nix_find_library
+
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 import os

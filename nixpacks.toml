@@ -18,8 +18,8 @@ cmds = [
 [phases.build]
 cmds = [
     'cd frontend && npm run build',
-    'for lib in libgobject-2.0 libglib-2.0 libgio-2.0 libgthread-2.0 libpango-1.0 libpangocairo-1.0 libpangoft2-1.0; do for f in $(find /nix/store -maxdepth 3 -name "${lib}.so*" -not -name "*.py" -not -name "*.stp" 2>/dev/null); do ln -sf "$f" /root/.nix-profile/lib/ 2>/dev/null || true; done; done',
-    'echo "/root/.nix-profile/lib" > /etc/ld.so.conf.d/nix.conf && ldconfig 2>/dev/null || true'
+    'for d in /nix/store/*/lib; do [ -d "$d" ] && find "$d" -maxdepth 1 -name "lib*.so*" -not -name "*.py" -not -name "*.stp" -exec ln -sf {} /root/.nix-profile/lib/ \\; 2>/dev/null; done; echo "symlinked nix libs"; ls /root/.nix-profile/lib/libgobject* /root/.nix-profile/lib/libpango* /root/.nix-profile/lib/libfontconfig* 2>/dev/null || true',
+    'mkdir -p /etc/ld.so.conf.d && echo "/root/.nix-profile/lib" > /etc/ld.so.conf.d/nix.conf && ldconfig 2>/dev/null || echo "ldconfig not available"'
 ]
 
 [variables]
