@@ -23,7 +23,4 @@ XDG_DATA_DIRS = "/root/.nix-profile/share:/nix/var/nix/profiles/default/share:/u
 GI_TYPELIB_PATH = "/root/.nix-profile/lib/girepository-1.0:/nix/var/nix/profiles/default/lib/girepository-1.0"
 
 [start]
-cmd = '''
-export LD_LIBRARY_PATH="/root/.nix-profile/lib:/nix/var/nix/profiles/default/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-. .venv/bin/activate && cd backend && python app.py
-'''
+cmd = 'export LD_LIBRARY_PATH="/root/.nix-profile/lib:/nix/var/nix/profiles/default/lib:$LD_LIBRARY_PATH" && . .venv/bin/activate && cd backend && python app.py'
