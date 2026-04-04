@@ -23,13 +23,74 @@ from prompts.report_followup import build_followup_system_prompt
 report_bp = Blueprint('report', __name__)
 
 
+@report_bp.route('/debug-pdf', methods=['GET'])
+def debug_pdf():
+    """Diagnostic endpoint for PDF infrastructure on Railway.
+
+    Returns JSON with import checks, font config status, template file
+    existence, system library availability, and relevant env vars.
+    """
+    import ctypes.util
+    diagnostics = {}
+
+    # WeasyPrint import
+    try:
+        import weasyprint
+        diagnostics['weasyprint'] = {'ok': True, 'version': weasyprint.__version__}
+    except Exception as e:
+        diagnostics['weasyprint'] = {'ok': False, 'error': str(e)}
+
+    # Font config
+    try:
+        from weasyprint.text.fonts import FontConfiguration
+        FontConfiguration()
+        diagnostics['font_config'] = {'ok': True}
+    except Exception as e:
+        diagnostics['font_config'] = {'ok': False, 'error': str(e)}
+
+    # KaTeX
+    try:
+        from markdown_katex.extension import tex2html
+        result = tex2html("x^2", {})
+        diagnostics['katex'] = {'ok': True, 'sample': result[:100]}
+    except Exception as e:
+        diagnostics['katex'] = {'ok': False, 'error': str(e)}
+
+    # Template files
+    from utils.pdf_renderer import TEMPLATES_DIR
+    diagnostics['templates'] = {
+        'dir': TEMPLATES_DIR,
+        'base_html': os.path.exists(os.path.join(TEMPLATES_DIR, 'report_base.html')),
+        'styles_css': os.path.exists(os.path.join(TEMPLATES_DIR, 'report_styles.css')),
+    }
+
+    # System libraries
+    for lib in ['gobject-2.0', 'cairo', 'pango-1.0', 'pangocairo-1.0', 'gdk_pixbuf-2.0']:
+        found = ctypes.util.find_library(lib)
+        diagnostics[f'lib_{lib}'] = found or 'NOT FOUND'
+
+    # Env vars
+    diagnostics['env'] = {
+        'GDK_PIXBUF_MODULE_FILE': os.environ.get('GDK_PIXBUF_MODULE_FILE', 'NOT SET'),
+        'XDG_DATA_DIRS': os.environ.get('XDG_DATA_DIRS', 'NOT SET'),
+    }
+
+    return diagnostics
+
+
 @report_bp.route('/test-pdf', methods=['GET'])
 def test_pdf():
     """Infrastructure spike: generate test PDF with Hebrew + math.
-    Per D-02: kept as permanent debug endpoint."""
+    Per D-02: kept as permanent debug endpoint.
+    Supports ?minimal=1 to bypass KaTeX and test WeasyPrint alone."""
     try:
-        from utils.pdf_renderer import generate_test_pdf
-        pdf_bytes = generate_test_pdf()
+        minimal = request.args.get('minimal', '0') == '1'
+        if minimal:
+            from utils.pdf_renderer import generate_minimal_test_pdf
+            pdf_bytes = generate_minimal_test_pdf()
+        else:
+            from utils.pdf_renderer import generate_test_pdf
+            pdf_bytes = generate_test_pdf()
         return Response(
             pdf_bytes,
             mimetype='application/pdf',

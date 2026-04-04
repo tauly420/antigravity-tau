@@ -79,7 +79,7 @@ def render_latex_for_pdf(latex_expr: str, display_mode: bool = False) -> str:
             options['displayMode'] = True
         return tex2html(latex_expr, options)
     except (ImportError, Exception) as e:
-        logger.debug(f"markdown_katex failed ({e}), falling back to npx katex")
+        logger.warning(f"markdown_katex failed for '{latex_expr[:60]}': {e}, falling back to npx katex")
 
     # Fallback: call npx katex directly
     try:
@@ -100,7 +100,7 @@ def render_latex_for_pdf(latex_expr: str, display_mode: bool = False) -> str:
             # Return escaped text as fallback
             return f'<code class="katex-fallback">{latex_expr}</code>'
     except (FileNotFoundError, subprocess.TimeoutExpired) as e:
-        logger.warning(f"KaTeX subprocess failed: {e}")
+        logger.warning(f"KaTeX subprocess also failed for '{latex_expr[:60]}': {e}")
         return f'<code class="katex-fallback">{latex_expr}</code>'
 
 
@@ -177,8 +177,17 @@ def generate_pdf(html_body: str, direction: str = 'rtl', lang: str = 'he') -> by
 
     # Generate PDF
     font_config = FontConfiguration()
-    html_doc = weasyprint.HTML(string=full_html, base_url=BACKEND_DIR)
-    pdf_bytes = html_doc.write_pdf(font_config=font_config)
+    try:
+        html_doc = weasyprint.HTML(string=full_html, base_url=BACKEND_DIR)
+        pdf_bytes = html_doc.write_pdf(font_config=font_config)
+    except Exception as e:
+        logger.error(
+            f"WeasyPrint PDF generation failed (version {weasyprint.__version__}). "
+            f"HTML preview (first 500 chars): {full_html[:500]!r}"
+        )
+        raise RuntimeError(
+            f"WeasyPrint PDF generation failed (v{weasyprint.__version__}): {e}"
+        ) from e
 
     return pdf_bytes
 
@@ -525,6 +534,19 @@ def assemble_results_html(analysis_data, plots, summary='', language='he'):
 
     html_parts.append('</div>')  # Close template wrapper
     return '\n'.join(html_parts)
+
+
+def generate_minimal_test_pdf() -> bytes:
+    """Generate a bare-minimum PDF with no KaTeX processing.
+
+    Used to isolate whether a 500 error is from WeasyPrint itself
+    or from KaTeX rendering. No math, no Hebrew -- just plain HTML.
+
+    Returns:
+        PDF file contents as bytes.
+    """
+    html_body = '<h1>PDF Infrastructure Test</h1><p>If you can read this, WeasyPrint works.</p>'
+    return generate_pdf(html_body, direction='ltr', lang='en')
 
 
 def generate_test_pdf() -> bytes:
