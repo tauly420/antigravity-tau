@@ -18,6 +18,7 @@ cmds = [
 [phases.build]
 cmds = [
     'cd frontend && npm run build',
+    'for lib in libgobject-2.0 libglib-2.0 libgio-2.0 libgthread-2.0 libpango-1.0 libpangocairo-1.0 libpangoft2-1.0; do for f in $(find /nix/store -maxdepth 3 -name "${lib}.so*" -not -name "*.py" -not -name "*.stp" 2>/dev/null); do ln -sf "$f" /root/.nix-profile/lib/ 2>/dev/null || true; done; done',
     'echo "/root/.nix-profile/lib" > /etc/ld.so.conf.d/nix.conf && ldconfig 2>/dev/null || true'
 ]
 
