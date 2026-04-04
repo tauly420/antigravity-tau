@@ -50,9 +50,9 @@ def debug_pdf():
 
     # KaTeX
     try:
-        from markdown_katex.extension import tex2html
-        result = tex2html("x^2", {})
-        diagnostics['katex'] = {'ok': True, 'sample': result[:100]}
+        from utils.pdf_renderer import render_latex_for_pdf, _find_katex_bin
+        result = render_latex_for_pdf("x^2", display_mode=False)
+        diagnostics['katex'] = {'ok': True, 'sample': result[:100], 'bin': _find_katex_bin()}
     except Exception as e:
         diagnostics['katex'] = {'ok': False, 'error': str(e)}
 

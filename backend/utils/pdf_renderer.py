@@ -60,10 +60,28 @@ BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATES_DIR = os.path.join(BACKEND_DIR, 'templates')
 
 
-def render_latex_for_pdf(latex_expr: str, display_mode: bool = False) -> str:
-    """Convert a LaTeX expression to HTML using KaTeX.
+def _find_katex_bin():
+    """Locate the katex CLI binary, caching the result."""
+    if hasattr(_find_katex_bin, '_path'):
+        return _find_katex_bin._path
+    import shutil
+    # Prefer the globally-installed katex binary
+    path = shutil.which('katex')
+    if not path:
+        # Try common npm global bin locations on Nix/Railway
+        for candidate in ['/root/.npm-global/bin/katex', '/app/node_modules/.bin/katex']:
+            if os.path.isfile(candidate):
+                path = candidate
+                break
+    _find_katex_bin._path = path
+    return path
 
-    Tries markdown_katex first, falls back to npx katex subprocess.
+
+def render_latex_for_pdf(latex_expr: str, display_mode: bool = False) -> str:
+    """Convert a LaTeX expression to HTML using KaTeX CLI.
+
+    Uses the globally-installed katex binary (npm install -g katex).
+    Falls back to npx if the binary isn't found directly.
 
     Args:
         latex_expr: Raw LaTeX string (without $ delimiters).
@@ -72,20 +90,11 @@ def render_latex_for_pdf(latex_expr: str, display_mode: bool = False) -> str:
     Returns:
         HTML string with KaTeX markup.
     """
+    katex_bin = _find_katex_bin()
+    cmd = [katex_bin or 'npx', *([] if katex_bin else ['katex']), '--no-throw-on-error']
+    if display_mode:
+        cmd.append('--display-mode')
     try:
-        from markdown_katex.extension import tex2html
-        options = {'no_inline_svg': True, 'insert_fonts_css': False}
-        if display_mode:
-            options['displayMode'] = True
-        return tex2html(latex_expr, options)
-    except (ImportError, Exception) as e:
-        logger.warning(f"markdown_katex failed for '{latex_expr[:60]}': {e}, falling back to npx katex")
-
-    # Fallback: call npx katex directly
-    try:
-        cmd = ['npx', 'katex', '--no-throw-on-error']
-        if display_mode:
-            cmd.append('--display-mode')
         result = subprocess.run(
             cmd,
             input=latex_expr,
@@ -96,11 +105,10 @@ def render_latex_for_pdf(latex_expr: str, display_mode: bool = False) -> str:
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
         else:
-            logger.warning(f"KaTeX subprocess returned: {result.stderr}")
-            # Return escaped text as fallback
+            logger.warning(f"KaTeX CLI failed for '{latex_expr[:60]}': {result.stderr}")
             return f'<code class="katex-fallback">{latex_expr}</code>'
     except (FileNotFoundError, subprocess.TimeoutExpired) as e:
-        logger.warning(f"KaTeX subprocess also failed for '{latex_expr[:60]}': {e}")
+        logger.warning(f"KaTeX CLI error for '{latex_expr[:60]}': {e}")
         return f'<code class="katex-fallback">{latex_expr}</code>'
 
 
