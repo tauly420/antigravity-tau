@@ -69,7 +69,16 @@ def _find_katex_bin():
     path = shutil.which('katex')
     if not path:
         # Try common npm global bin locations on Nix/Railway
-        for candidate in ['/root/.npm-global/bin/katex', '/app/node_modules/.bin/katex']:
+        candidates = ['/root/.npm-global/bin/katex', '/app/node_modules/.bin/katex']
+        # Also try to discover npm global prefix dynamically
+        try:
+            result = subprocess.run(['npm', 'config', 'get', 'prefix'],
+                                    capture_output=True, text=True, timeout=5)
+            if result.returncode == 0 and result.stdout.strip():
+                candidates.insert(0, os.path.join(result.stdout.strip(), 'bin', 'katex'))
+        except Exception:
+            pass
+        for candidate in candidates:
             if os.path.isfile(candidate):
                 path = candidate
                 break
