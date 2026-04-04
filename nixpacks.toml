@@ -18,14 +18,12 @@ cmds = [
 [phases.build]
 cmds = [
     'cd frontend && npm run build',
-    'echo "/root/.nix-profile/lib" > /etc/ld.so.conf.d/nix.conf && ldconfig 2>/dev/null || true',
-    'find /nix -name "libgobject-2.0.so*" -exec dirname {} \; 2>/dev/null | head -1 > /tmp/nix_lib_path.txt || true'
+    'echo "/root/.nix-profile/lib" > /etc/ld.so.conf.d/nix.conf && ldconfig 2>/dev/null || true'
 ]
 
 [variables]
 XDG_DATA_DIRS = "/root/.nix-profile/share:/nix/var/nix/profiles/default/share:/usr/share:/usr/local/share"
 GI_TYPELIB_PATH = "/root/.nix-profile/lib/girepository-1.0:/nix/var/nix/profiles/default/lib/girepository-1.0"
-LD_LIBRARY_PATH = "/root/.nix-profile/lib:/nix/var/nix/profiles/default/lib"
 
 [start]
-cmd = '. .venv/bin/activate && cd backend && python app.py'
+cmd = 'export LD_LIBRARY_PATH="/root/.nix-profile/lib:$LD_LIBRARY_PATH" && . .venv/bin/activate && cd backend && python app.py'
