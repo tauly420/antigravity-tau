@@ -51,8 +51,21 @@ def debug_pdf():
     # KaTeX
     try:
         from utils.pdf_renderer import render_latex_for_pdf, _find_katex_bin
+        katex_bin = _find_katex_bin()
+        # Run katex directly to capture raw output for diagnostics
+        raw_diag = {}
+        if katex_bin:
+            try:
+                raw = subprocess.run(
+                    [katex_bin, '--no-throw-on-error'],
+                    input='x^2', capture_output=True, text=True, timeout=10
+                )
+                raw_diag = {'returncode': raw.returncode, 'stdout': raw.stdout[:200], 'stderr': raw.stderr[:300]}
+            except Exception as e:
+                raw_diag = {'run_error': str(e)}
         result = render_latex_for_pdf("x^2", display_mode=False)
-        diagnostics['katex'] = {'ok': True, 'sample': result[:100], 'bin': _find_katex_bin()}
+        is_real = 'katex-fallback' not in result
+        diagnostics['katex'] = {'ok': is_real, 'sample': result[:100], 'bin': katex_bin, 'raw': raw_diag}
     except Exception as e:
         diagnostics['katex'] = {'ok': False, 'error': str(e)}
 
