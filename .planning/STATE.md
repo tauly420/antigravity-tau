@@ -83,6 +83,8 @@ Recent decisions affecting current work:
 - Phase 13 added: UI overhaul — new homepage, sidebar removal, feature cards on home page with back-to-home navigation
 - Phase 14 added: Report and AutoLab merge — unified page for full report or analysis-only mode, plus fix PDF export
 - Phase 15 added: autolab fixes and polish
+- Phase 16 inserted: DOCX Export with Math Rendering — add DOCX export alongside PDF, with OMML math, Hebrew RTL, embedded plots
+- Phase 17 (was 16): AutoLab structured input — upfront column/sheet/axis/formula/theory selection, all-at-once analysis, post-analysis report flow
 
 ### Pending Todos
 

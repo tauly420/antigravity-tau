@@ -44,6 +44,14 @@ Requirements for AI-powered academic lab report export. Each maps to roadmap pha
 - [ ] **UI-03**: User can edit any AI-generated section text before exporting to PDF
 - [ ] **UI-04**: User can trigger report generation directly from completed AutoLab results with one click
 
+### DOCX Export
+
+- [ ] **DOCX-01**: User can download a DOCX lab report with the same sections, title page, and content as the PDF export
+- [ ] **DOCX-02**: Math equations in DOCX are rendered as OMML (Office Math Markup) where possible, with LaTeX text fallback for unsupported expressions
+- [ ] **DOCX-03**: DOCX export supports Hebrew RTL text direction with English LTR math
+- [ ] **DOCX-04**: Fit and residuals plots from AutoLab are embedded as images in the DOCX report
+- [ ] **DOCX-05**: User can choose between PDF and DOCX export format from the export UI
+
 ## Future Requirements
 
 Deferred to future milestones. Tracked but not in current roadmap.
@@ -124,10 +132,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-02 | Phase 11: Preview, Editing, and PDF Assembly | Pending |
 | UI-03 | Phase 11: Preview, Editing, and PDF Assembly | Pending |
 | UI-04 | Phase 12: Integration and Polish | Pending |
+| DOCX-01 | Phase 16: DOCX Export | Pending |
+| DOCX-02 | Phase 16: DOCX Export | Pending |
+| DOCX-03 | Phase 16: DOCX Export | Pending |
+| DOCX-04 | Phase 16: DOCX Export | Pending |
+| DOCX-05 | Phase 16: DOCX Export | Pending |
 
 **Coverage:**
-- v2.0 requirements: 14 total
-- Mapped to phases: 14
+- v2.0 requirements: 19 total
+- Mapped to phases: 19
 - Unmapped: 0
 
 ---

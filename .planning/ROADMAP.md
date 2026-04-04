@@ -192,3 +192,39 @@ Plans:
 - [x] 14-02-PLAN.md -- Frontend scaffolding: extract normalize util, create ReportSection, ReportExpander, PdfExportSelector components
 - [ ] 14-03-PLAN.md -- AutoLab.tsx integration: merge report section, remove chat, strip examples, wire plot capture, replace jsPDF
 - [ ] 14-04-PLAN.md -- Cleanup: remove /report route, delete dead files, uninstall jsPDF, extend Free Fall demo, visual verification
+
+### Phase 15: autolab fixes and polish
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 14
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 15 to break down)
+
+### Phase 16: DOCX Export with Math Rendering
+
+**Goal:** Add DOCX export option alongside existing PDF export, with math equation rendering (OMML where possible, LaTeX text fallback), Hebrew RTL support, embedded plots, and a frontend format selector.
+**Requirements**: DOCX-01, DOCX-02, DOCX-03, DOCX-04, DOCX-05
+**Depends on:** Phase 15
+**Success Criteria** (what must be TRUE):
+  1. User can export a DOCX file containing the same title page, AI-generated sections, and analysis data as the PDF export
+  2. Math expressions are rendered as native Office Math (OMML) in Word — at minimum simple expressions (fractions, Greek letters, superscripts); complex expressions fall back to LaTeX text
+  3. DOCX body text flows right-to-left for Hebrew with left-to-right math runs
+  4. Fit and residuals plots appear as embedded images in the DOCX with figure captions
+  5. Export UI offers a PDF/DOCX selector and both formats produce downloadable files
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 16 to break down)
+
+### Phase 17: AutoLab structured input — upfront column/sheet/axis/formula/theory selection, all-at-once analysis, post-analysis report flow
+
+**Goal:** Replace AutoLab's current flow with a structured input experience where users select columns, sheets, axis names, formula, and theoretical value upfront (like Lab Workflow but without dropdown menus); run all analysis stages at once; add post-analysis report flow with context and instructions. Ultimate goal: make Lab Workflow page redundant (removal deferred to future phase).
+**Requirements**: TBD
+**Depends on:** Phase 16
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 17 to break down)
