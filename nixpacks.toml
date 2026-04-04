@@ -19,7 +19,11 @@ cmds = [
 cmds = ['cd frontend && npm run build']
 
 [variables]
-XDG_DATA_DIRS = "/usr/share:/usr/local/share"
+XDG_DATA_DIRS = "/root/.nix-profile/share:/nix/var/nix/profiles/default/share:/usr/share:/usr/local/share"
+GI_TYPELIB_PATH = "/root/.nix-profile/lib/girepository-1.0:/nix/var/nix/profiles/default/lib/girepository-1.0"
 
 [start]
-cmd = '. .venv/bin/activate && cd backend && python app.py'
+cmd = '''
+export LD_LIBRARY_PATH="/root/.nix-profile/lib:/nix/var/nix/profiles/default/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+. .venv/bin/activate && cd backend && python app.py
+'''
