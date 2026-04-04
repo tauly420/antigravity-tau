@@ -189,7 +189,7 @@ function NumericalIntegrator() {
                 </>
             )}
 
-            <button onClick={handleIntegrate} disabled={loading}>
+            <button className="btn-primary" onClick={handleIntegrate} disabled={loading}>
                 {loading ? '⏳ Integrating…' : '▶ Integrate'}
             </button>
 

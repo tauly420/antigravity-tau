@@ -524,6 +524,11 @@ button:disabled {
     box-shadow: 0 4px 12px var(--accent-shadow-hover) !important;
 }
 
+.btn-sm {
+    padding: 0.4rem 0.8rem !important;
+    font-size: 0.85rem !important;
+}
+
 /* ═════════════ Grid System ═════════════ */
 .grid {
     display: grid;

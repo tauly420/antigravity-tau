@@ -176,9 +176,9 @@ function MatrixCalculator() {
             </div>
 
             <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                <button className="small-btn" onClick={() => clearMatrix(which)}>Clear</button>
-                <button className="small-btn" onClick={() => randomizeMatrix(which)}>Random</button>
-                <button className="small-btn" onClick={() => setIdentity(which)}>Identity</button>
+                <button className="btn-secondary btn-sm" onClick={() => clearMatrix(which)}>Clear</button>
+                <button className="btn-secondary btn-sm" onClick={() => randomizeMatrix(which)}>Random</button>
+                <button className="btn-secondary btn-sm" onClick={() => setIdentity(which)}>Identity</button>
             </div>
 
             {/* Bracketed matrix grid */}
@@ -273,7 +273,7 @@ function MatrixCalculator() {
             </div>
 
             <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-                <button onClick={handleCalculate} disabled={loading} className="primary-btn">
+                <button onClick={handleCalculate} disabled={loading} className="btn-primary">
                     {loading ? 'Calculating…' : 'Calculate'}
                 </button>
             </div>

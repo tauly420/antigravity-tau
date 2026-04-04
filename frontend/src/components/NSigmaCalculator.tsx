@@ -123,7 +123,7 @@ function NSigmaCalculator({ prefilled1, onResult }: NSigmaCalculatorProps) {
                 </div>
             </div>
 
-            <button onClick={handleCalculate} disabled={loading} style={{ marginTop: '1.5rem', width: '100%' }}>
+            <button className="btn-primary" onClick={handleCalculate} disabled={loading} style={{ marginTop: '1.5rem', width: '100%' }}>
                 {loading ? 'Calculating...' : 'Calculate N-σ'}
             </button>
 

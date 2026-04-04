@@ -231,7 +231,7 @@ function FormulaCalculator({ prefilled, onResult, embedded }: FormulaCalculatorP
                 </p>
             )}
 
-            <button onClick={handleEvaluate} disabled={loading || !expression.trim()} style={{ marginTop: '1.5rem' }}>
+            <button className="btn-primary" onClick={handleEvaluate} disabled={loading || !expression.trim()} style={{ marginTop: '1.5rem' }}>
                 {loading ? 'Evaluating...' : 'Evaluate'}
             </button>
 
