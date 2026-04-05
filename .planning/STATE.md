@@ -100,8 +100,15 @@ None yet.
 - KaTeX CSS rendering in WeasyPrint is untested combination -- may need SVG fallback
 - Hebrew academic AI prompt quality needs iteration with physics-literate review
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260405-n1p | rename copy results as lab report button to copy results as table in AutoLab | 2026-04-05 | 1d40f4a | [260405-n1p-rename-copy-results-as-lab-report-button](.planning/quick/260405-n1p-rename-copy-results-as-lab-report-button/) |
+
 ## Session Continuity
 
+Last activity: 2026-04-05 - Completed quick task 260405-n1p: rename copy results as lab report button to copy results as table in AutoLab
 Last session: 2026-04-05T12:30:00.472Z
 Stopped at: Completed 16-02-PLAN.md
 Resume file: None
