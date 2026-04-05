@@ -7,6 +7,63 @@ structured physics lab report sections as a JSON object.
 INSTRUCTION_TRUNCATE_LIMIT = 3000
 
 
+def build_results_table_html(analysis_data: dict) -> str:
+    """Build an HTML parameter table from analysis_data for the results section.
+
+    Returns empty string if no fit parameters are available.
+    """
+    if not analysis_data:
+        return ""
+
+    fit = analysis_data.get("fit")
+    if not fit or not isinstance(fit, dict):
+        return ""
+
+    params = fit.get("parameters", [])
+    if not params:
+        return ""
+
+    rows_html = []
+    for p in params:
+        name = p.get("name", "?")
+        value = p.get("value", "?")
+        uncertainty = p.get("uncertainty", "?")
+        rounded = p.get("rounded", f"{value} +/- {uncertainty}")
+        full = f"{value} +/- {uncertainty}"
+        rows_html.append(
+            f'<tr><td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{name}</td>'
+            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{rounded}</td>'
+            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{full}</td></tr>'
+        )
+
+    # Goodness of fit rows
+    gof = fit.get("goodnessOfFit", {}) or {}
+    chi2r = gof.get("chiSquaredReduced")
+    if chi2r is not None:
+        rows_html.append(
+            f'<tr><td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">chi^2/dof</td>'
+            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{float(chi2r):.4f}</td>'
+            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{float(chi2r):.4f}</td></tr>'
+        )
+    pval = gof.get("pValue")
+    if pval is not None:
+        rows_html.append(
+            f'<tr><td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">P-value</td>'
+            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{float(pval):.4f}</td>'
+            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{float(pval):.4f}</td></tr>'
+        )
+
+    th_style = 'border: 1px solid #ccc; padding: 6px 12px; text-align: left; background: #e8f0fe; font-weight: bold;'
+    html = (
+        '<table style="border-collapse: collapse; width: 100%; margin-bottom: 1em;">'
+        f'<thead><tr><th style="{th_style}">Quantity</th>'
+        f'<th style="{th_style}">Rounded</th>'
+        f'<th style="{th_style}">Full Precision</th></tr></thead>'
+        '<tbody>' + ''.join(rows_html) + '</tbody></table>'
+    )
+    return html
+
+
 def _inject_analysis_context(lines: list, analysis_data: dict) -> None:
     """Append analysis results to prompt lines from ReportAnalysisData shape.
 
@@ -170,13 +227,14 @@ def build_report_system_prompt(
 
     # --- Sections to generate ---
     lines.append("=== SECTIONS TO GENERATE ===")
-    lines.append("Generate 4 sections for a physics lab report:")
+    lines.append("Generate 5 sections for a physics lab report:")
     lines.append("1. theory - Theoretical background: relevant physics laws, key formulas in LaTeX. Level: explain laws without full derivations unless user requested them in notes.")
     lines.append("2. method - Measurement method: describe equipment and procedure based on instructions and context.")
-    lines.append("3. discussion - Discussion: interpret the ACTUAL results above, compare measured vs theoretical values, analyze sources of error, reference the chi-squared and n-sigma values.")
-    lines.append("4. conclusions - Conclusions: summarize main findings, state measured values with uncertainties.")
+    lines.append('3. results - Results narrative: Write ONLY about formula calculations and n-sigma comparison. If formula data exists, write a lead-in sentence then the formula on a new line using $$...$$ display math (e.g., "We calculated the period using the formula:\\n\\n$$T = \\\\frac{2\\\\pi}{\\\\omega}$$\\n\\nGiving T = 2.51 +/- 0.03 s."). If n-sigma data exists, state the comparison result. If neither formula nor nsigma data exists, write one brief sentence noting the fit parameters are presented in the table above. Do NOT restate individual parameter values or chi-squared — those are in the results table.')
+    lines.append("4. discussion - Discussion: interpret the ACTUAL results above focusing on physical meaning, compare to expected physics, identify dominant error sources, discuss experimental limitations. Do NOT restate fit parameter values or chi-squared — those are already in the results table.")
+    lines.append("5. conclusions - Conclusions: summarize main findings, state measured values with uncertainties.")
     lines.append("")
     lines.append('Respond with a JSON object with this exact structure:')
-    lines.append('{"theory": "...", "method": "...", "discussion": "...", "conclusions": "...", "warnings": ["..."]}')
+    lines.append('{"theory": "...", "method": "...", "results": "...", "discussion": "...", "conclusions": "...", "warnings": ["..."]}')
 
     return "\n".join(lines)
