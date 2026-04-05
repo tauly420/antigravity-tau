@@ -383,7 +383,7 @@ def _add_results_section(doc, analysis_data, plots, language, is_rtl):
         p_val = gof.get('pValue') or fit.get('pValue')
         dof = gof.get('dof') or fit.get('degreesOfFreedom')
         gof_parts = []
-        if chi_r is not None and dof is not None:
+        if chi_r is not None and dof is not None and float(dof) != 0:
             gof_parts.append(f"chi^2/dof = {float(chi_r) / float(dof):.4f}")
         elif chi_r is not None:
             gof_parts.append(f"chi^2 = {float(chi_r):.4f}")

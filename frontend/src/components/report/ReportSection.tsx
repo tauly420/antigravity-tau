@@ -340,9 +340,18 @@ export default function ReportSection({
 
       setExportStatus('idle');
     } catch (err: unknown) {
-      const msg = err instanceof Error
-        ? err.message
-        : 'Export failed. Check that all required fields are filled and try again.';
+      let msg = 'Export failed. Check that all required fields are filled and try again.';
+      // Axios blob responses hide the actual error JSON — extract it
+      const axiosErr = err as { response?: { data?: Blob } };
+      if (axiosErr?.response?.data instanceof Blob) {
+        try {
+          const text = await axiosErr.response.data.text();
+          const parsed = JSON.parse(text);
+          if (parsed.error) msg = parsed.error;
+        } catch { /* use default msg */ }
+      } else if (err instanceof Error) {
+        msg = err.message;
+      }
       setExportError(msg);
       setExportStatus('error');
     }
@@ -508,8 +517,8 @@ export default function ReportSection({
                 padding: '8px 20px',
                 borderRadius: '8px',
                 border: language === 'he' ? '2px solid var(--primary, #1565c0)' : '1.5px solid var(--border, #e0e0e0)',
-                background: language === 'he' ? 'var(--primary-light, #e3f2fd)' : 'var(--surface, #ffffff)',
-                color: language === 'he' ? 'var(--primary, #1565c0)' : 'var(--text, #1a1a2e)',
+                background: language === 'he' ? 'var(--primary, #1565c0)' : 'var(--surface, #ffffff)',
+                color: language === 'he' ? '#ffffff' : 'var(--text, #1a1a2e)',
                 fontSize: '0.875rem',
                 fontWeight: language === 'he' ? 700 : 400,
                 cursor: 'pointer',
@@ -524,8 +533,8 @@ export default function ReportSection({
                 padding: '8px 20px',
                 borderRadius: '8px',
                 border: language === 'en' ? '2px solid var(--primary, #1565c0)' : '1.5px solid var(--border, #e0e0e0)',
-                background: language === 'en' ? 'var(--primary-light, #e3f2fd)' : 'var(--surface, #ffffff)',
-                color: language === 'en' ? 'var(--primary, #1565c0)' : 'var(--text, #1a1a2e)',
+                background: language === 'en' ? 'var(--primary, #1565c0)' : 'var(--surface, #ffffff)',
+                color: language === 'en' ? '#ffffff' : 'var(--text, #1a1a2e)',
                 fontSize: '0.875rem',
                 fontWeight: language === 'en' ? 700 : 400,
                 cursor: 'pointer',
