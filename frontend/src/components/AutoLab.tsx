@@ -997,7 +997,7 @@ function AutoLab() {
                                     fontFamily: "'Inter', sans-serif",
                                 }}
                             >
-                                {reportCopied ? '✅ Report Copied to Clipboard!' : '📋 Copy Results as Lab Report'}
+                                {reportCopied ? '✅ Table Copied to Clipboard!' : '📋 Copy Results as Table'}
                             </button>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <select
