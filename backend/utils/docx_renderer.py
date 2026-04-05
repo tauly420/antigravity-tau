@@ -9,6 +9,7 @@ import base64
 import logging
 import os
 import re
+from html.parser import HTMLParser
 from io import BytesIO
 from copy import deepcopy
 
@@ -57,6 +58,108 @@ DEFAULT_FONT_SIZE = Pt(11)
 
 # Inline math regex: $...$ but not $$
 INLINE_MATH_RE = re.compile(r'(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)')
+
+
+class _HTMLTableParser(HTMLParser):
+    """Parse simple HTML tables into header and data rows."""
+
+    def __init__(self):
+        super().__init__()
+        self._rows = []
+        self._current_row = []
+        self._current_cell = []
+        self._in_thead = False
+        self._header_row_indices = set()
+        self._tag_stack = []
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        self._tag_stack.append(tag)
+        if tag == 'thead':
+            self._in_thead = True
+        elif tag == 'tr':
+            self._current_row = []
+        elif tag in ('td', 'th'):
+            self._current_cell = []
+            if tag == 'th':
+                self._header_row_indices.add(len(self._rows))
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if self._tag_stack and self._tag_stack[-1] == tag:
+            self._tag_stack.pop()
+        if tag in ('td', 'th'):
+            self._current_row.append(''.join(self._current_cell).strip())
+        elif tag == 'tr':
+            if self._current_row:
+                if self._in_thead:
+                    self._header_row_indices.add(len(self._rows))
+                self._rows.append(self._current_row)
+        elif tag == 'thead':
+            self._in_thead = False
+
+    def handle_data(self, data):
+        if self._tag_stack and self._tag_stack[-1] in ('td', 'th'):
+            self._current_cell.append(data)
+
+    def get_rows(self):
+        """Return (header_row, data_rows)."""
+        header_row = []
+        data_rows = []
+        for i, row in enumerate(self._rows):
+            if i in self._header_row_indices:
+                header_row = row
+            else:
+                data_rows.append(row)
+        return header_row, data_rows
+
+
+def _add_html_table_to_doc(doc, html_str, is_rtl=True):
+    """Parse HTML table string and add as a python-docx Table.
+
+    Header row gets bold text and light blue shading (DDEEFF).
+    """
+    parser = _HTMLTableParser()
+    parser.feed(html_str)
+    header_row, data_rows = parser.get_rows()
+
+    if not header_row:
+        return
+
+    num_cols = len(header_row)
+    table = doc.add_table(rows=1, cols=num_cols)
+    table.style = 'Table Grid'
+
+    # Header row
+    hdr_cells = table.rows[0].cells
+    for i, text in enumerate(header_row):
+        if i < num_cols:
+            hdr_cells[i].text = ''
+            para = hdr_cells[i].paragraphs[0]
+            if is_rtl:
+                set_paragraph_rtl(para)
+            run = para.add_run(text)
+            run.bold = True
+            _set_run_font(run)
+            # Light blue shading
+            tc = hdr_cells[i]._tc
+            tcPr = tc.get_or_add_tcPr()
+            shd = OxmlElement('w:shd')
+            shd.set(qn('w:val'), 'clear')
+            shd.set(qn('w:fill'), 'DDEEFF')
+            tcPr.append(shd)
+
+    # Data rows
+    for row_data in data_rows:
+        row_cells = table.add_row().cells
+        for i, text in enumerate(row_data):
+            if i < num_cols:
+                row_cells[i].text = ''
+                para = row_cells[i].paragraphs[0]
+                if is_rtl:
+                    set_paragraph_rtl(para)
+                run = para.add_run(text)
+                _set_run_font(run)
 
 
 # ---------- Core functions ----------
@@ -484,8 +587,50 @@ def generate_docx(sections, title_page, plots, analysis_data, language='he'):
     # Method
     _add_section(doc, h['method'], sections.get('method', ''), is_rtl)
 
-    # Results
-    _add_results_section(doc, analysis_data, plots, language, is_rtl)
+    # Results — check if sections contain HTML table from build_results_table_html
+    results_content = sections.get('results', '')
+    if results_content.strip().lower().startswith('<table'):
+        # HTML table injected by report.py — render as Word table + prose
+        h_results = HEADERS.get(language, HEADERS['he'])
+        heading = doc.add_heading(h_results['results'], level=2)
+        if is_rtl:
+            set_paragraph_rtl(heading)
+
+        # Split HTML table from remaining prose
+        table_end_idx = results_content.lower().find('</table>')
+        if table_end_idx >= 0:
+            html_table_part = results_content[:table_end_idx + len('</table>')]
+            remaining_prose = results_content[table_end_idx + len('</table>'):]
+        else:
+            html_table_part = results_content
+            remaining_prose = ''
+
+        _add_html_table_to_doc(doc, html_table_part, is_rtl=is_rtl)
+
+        # Render remaining prose paragraphs
+        if remaining_prose.strip():
+            for para_text in remaining_prose.split('\n\n'):
+                para_text = para_text.strip()
+                if para_text:
+                    for line in para_text.split('\n'):
+                        line = line.strip()
+                        if line:
+                            add_mixed_paragraph(doc, line, is_rtl=is_rtl)
+
+        # Still render plots from analysis_data
+        fig_num = 1
+        for plot_key, caption_he, caption_en in [
+            ('fit', 'גרף התאמה', 'Fit Plot'),
+            ('residuals', 'שאריות', 'Residuals'),
+        ]:
+            img_data = plots.get(plot_key) if plots else None
+            if img_data and isinstance(img_data, str):
+                caption = caption_he if language == 'he' else caption_en
+                add_plot_image(doc, img_data, caption, fig_num, language=language)
+                fig_num += 1
+    else:
+        # Fallback: existing behavior
+        _add_results_section(doc, analysis_data, plots, language, is_rtl)
 
     # Discussion
     _add_section(doc, h['discussion'], sections.get('discussion', ''), is_rtl)
