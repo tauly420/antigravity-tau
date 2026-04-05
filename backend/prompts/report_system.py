@@ -28,8 +28,8 @@ def build_results_table_html(analysis_data: dict) -> str:
         name = p.get("name", "?")
         value = p.get("value", "?")
         uncertainty = p.get("uncertainty", "?")
-        rounded = p.get("rounded", f"{value} +/- {uncertainty}")
-        full = f"{value} +/- {uncertainty}"
+        rounded = p.get("rounded", f"{value} \u00b1 {uncertainty}")
+        full = f"{value} \u00b1 {uncertainty}"
         rows_html.append(
             f'<tr><td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{name}</td>'
             f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{rounded}</td>'
@@ -38,27 +38,28 @@ def build_results_table_html(analysis_data: dict) -> str:
 
     # Goodness of fit rows
     gof = fit.get("goodnessOfFit", {}) or {}
-    chi2r = gof.get("chiSquaredReduced")
+    chi2r = gof.get("chiSquaredReduced") or fit.get("reduced_chi_squared")
     if chi2r is not None:
         rows_html.append(
             f'<tr><td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">chi^2/dof</td>'
-            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{float(chi2r):.4f}</td>'
-            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{float(chi2r):.4f}</td></tr>'
+            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{float(chi2r):.3g}</td>'
+            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{float(chi2r)}</td></tr>'
         )
-    pval = gof.get("pValue")
+    pval = gof.get("pValue") or fit.get("p_value")
     if pval is not None:
+        pval_rounded = "< 0.001" if float(pval) < 0.001 else f"{float(pval):.3f}"
         rows_html.append(
             f'<tr><td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">P-value</td>'
-            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{float(pval):.4f}</td>'
-            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{float(pval):.4f}</td></tr>'
+            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{pval_rounded}</td>'
+            f'<td style="border: 1px solid #ccc; padding: 6px 12px; text-align: left;">{float(pval)}</td></tr>'
         )
 
     th_style = 'border: 1px solid #ccc; padding: 6px 12px; text-align: left; background: #e8f0fe; font-weight: bold;'
     html = (
         '<table style="border-collapse: collapse; width: 100%; margin-bottom: 1em;">'
         f'<thead><tr><th style="{th_style}">Quantity</th>'
-        f'<th style="{th_style}">Rounded</th>'
-        f'<th style="{th_style}">Full Precision</th></tr></thead>'
+        f'<th style="{th_style}">Rounded (val \u00b1 \u03c3)</th>'
+        f'<th style="{th_style}">Full Precision (val \u00b1 \u03c3)</th></tr></thead>'
         '<tbody>' + ''.join(rows_html) + '</tbody></table>'
     )
     return html
@@ -86,7 +87,7 @@ def _inject_analysis_context(lines: list, analysis_data: dict) -> None:
                 name = p.get("name", "?")
                 value = p.get("value", "?")
                 uncertainty = p.get("uncertainty", "?")
-                rounded = p.get("rounded", f"{value} +/- {uncertainty}")
+                rounded = p.get("rounded", f"{value} \u00b1 {uncertainty}")
                 lines.append(f"  {name} = {value} +/- {uncertainty}  (rounded: {rounded})")
 
         gof = fit.get("goodnessOfFit", {})
