@@ -105,10 +105,11 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260405-n1p | rename copy results as lab report button to copy results as table in AutoLab | 2026-04-05 | 1d40f4a | [260405-n1p-rename-copy-results-as-lab-report-button](.planning/quick/260405-n1p-rename-copy-results-as-lab-report-button/) |
+| 260405-na0 | add results section to lab report with HTML parameter table | 2026-04-05 | 75e25bb | [260405-na0-add-results-section-to-lab-report-with-h](.planning/quick/260405-na0-add-results-section-to-lab-report-with-h/) |
 
 ## Session Continuity
 
-Last activity: 2026-04-05 - Completed quick task 260405-n1p: rename copy results as lab report button to copy results as table in AutoLab
-Last session: 2026-04-05T12:30:00.472Z
+Last activity: 2026-04-05 - Completed quick task 260405-na0: add results section to lab report with HTML parameter table
+Last session: 2026-04-05T15:28:00Z
 Stopped at: Completed 16-02-PLAN.md
 Resume file: None
