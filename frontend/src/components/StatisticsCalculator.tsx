@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Plot from './PlotWrapper';
+import DataPreview from './DataPreview';
 import { useAnalysis } from '../context/AnalysisContext';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
@@ -115,6 +116,9 @@ function StatisticsCalculator() {
     const [selectedColumn, setSelectedColumn] = useState('');
     const [fileName, setFileName] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [sheetNames, setSheetNames] = useState<string[]>([]);
+    const [selectedSheetIdx, setSelectedSheetIdx] = useState(0);
+    const workbookRef = useRef<XLSX.WorkBook | null>(null);
 
     const { setCurrentTool } = useAnalysis();
 
@@ -157,6 +161,31 @@ function StatisticsCalculator() {
         setError('');
     };
 
+    const loadSheetFromWorkbook = (workbook: XLSX.WorkBook, sheetName: string) => {
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: '' });
+        if (jsonData.length === 0) {
+            setError('Sheet appears empty.');
+            return;
+        }
+        const columns = Object.keys(jsonData[0]);
+        setFileData({ columns, rows: jsonData.map(row => {
+            const out: Record<string, string> = {};
+            columns.forEach(c => out[c] = String(row[c] ?? ''));
+            return out;
+        })});
+        setSelectedColumn('');
+        const firstNumCol = columns.find(col =>
+            jsonData.some(row => !isNaN(Number(row[col])) && String(row[col]).trim() !== '')
+        );
+        if (firstNumCol) setSelectedColumn(firstNumCol);
+    };
+
+    const loadSelectedSheet = () => {
+        if (!workbookRef.current || sheetNames.length === 0) return;
+        loadSheetFromWorkbook(workbookRef.current, sheetNames[selectedSheetIdx]);
+    };
+
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -166,6 +195,9 @@ function StatisticsCalculator() {
         setStats(null);
         setData([]);
         setSelectedColumn('');
+        setSheetNames([]);
+        setSelectedSheetIdx(0);
+        workbookRef.current = null;
 
         const ext = file.name.split('.').pop()?.toLowerCase();
 
@@ -192,23 +224,16 @@ function StatisticsCalculator() {
             reader.onload = (evt) => {
                 const arrayBuf = evt.target?.result;
                 const workbook = XLSX.read(arrayBuf, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: '' });
-                if (jsonData.length === 0) {
-                    setError('Spreadsheet appears empty.');
+                workbookRef.current = workbook;
+
+                if (workbook.SheetNames.length > 1) {
+                    setSheetNames(workbook.SheetNames);
+                    setSelectedSheetIdx(0);
+                    // Don't auto-load -- user picks sheet first
                     return;
                 }
-                const columns = Object.keys(jsonData[0]);
-                setFileData({ columns, rows: jsonData.map(row => {
-                    const out: Record<string, string> = {};
-                    columns.forEach(c => out[c] = String(row[c] ?? ''));
-                    return out;
-                })});
-                const firstNumCol = columns.find(col =>
-                    jsonData.some(row => !isNaN(Number(row[col])) && String(row[col]).trim() !== '')
-                );
-                if (firstNumCol) setSelectedColumn(firstNumCol);
+                // Single sheet -- load directly
+                loadSheetFromWorkbook(workbook, workbook.SheetNames[0]);
             };
             reader.readAsArrayBuffer(file);
         } else {
@@ -398,6 +423,32 @@ function StatisticsCalculator() {
                             </div>
                         )}
                     </div>
+
+                    {/* Sheet selector for multi-sheet Excel */}
+                    {sheetNames.length > 1 && (
+                        <div className="form-group" style={{ marginTop: '1rem' }}>
+                            <label style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block' }}>
+                                Select sheet
+                            </label>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <select
+                                    value={selectedSheetIdx}
+                                    onChange={e => setSelectedSheetIdx(Number(e.target.value))}
+                                    style={{ flex: 1 }}
+                                >
+                                    {sheetNames.map((s, i) => <option key={s} value={i}>{s}</option>)}
+                                </select>
+                                <button onClick={loadSelectedSheet} className="btn-primary">Load</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Data preview table */}
+                    {fileData && (
+                        <div style={{ marginTop: '1rem' }}>
+                            <DataPreview columns={fileData.columns} rows={fileData.rows} defaultOpen={false} />
+                        </div>
+                    )}
 
                     {/* Column picker */}
                     {fileData && fileData.columns.length > 0 && (
