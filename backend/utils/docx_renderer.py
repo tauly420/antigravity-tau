@@ -330,7 +330,24 @@ def _add_results_section(doc, analysis_data, plots, language, is_rtl):
             run.bold = True
             _set_run_font(run)
 
-        params = fit.get('parameters', [])
+        raw_params = fit.get('parameters', [])
+        param_names = fit.get('parameterNames', fit.get('parameter_names', []))
+        raw_uncs = fit.get('uncertainties', [])
+        raw_rounded = fit.get('rounded', [])
+
+        # Normalize: params can be list of dicts or list of numbers
+        if raw_params and isinstance(raw_params[0], dict):
+            params = raw_params
+        elif raw_params and param_names:
+            params = []
+            for i, name in enumerate(param_names):
+                val = raw_params[i] if i < len(raw_params) else 0
+                unc = raw_uncs[i] if i < len(raw_uncs) else 0
+                rd = raw_rounded[i] if i < len(raw_rounded) else f'{val} +/- {unc}'
+                params.append({'name': name, 'value': val, 'uncertainty': unc, 'rounded': rd})
+        else:
+            params = []
+
         if params:
             param_lbl = 'פרמטר' if language == 'he' else 'Parameter'
             value_lbl = 'ערך' if language == 'he' else 'Value'
@@ -345,30 +362,35 @@ def _add_results_section(doc, analysis_data, plots, language, is_rtl):
 
             for p in params:
                 row = table.add_row().cells
-                row[0].text = p.get('name', '')
-                rounded = p.get('rounded', '')
-                if rounded:
-                    # Split rounded "value +/- unc" format
+                row[0].text = str(p.get('name', ''))
+                rounded = str(p.get('rounded', ''))
+                if '+/-' in rounded:
                     parts = rounded.split('+/-')
-                    if len(parts) == 2:
-                        row[1].text = parts[0].strip()
-                        row[2].text = parts[1].strip()
-                    else:
-                        row[1].text = rounded
-                        row[2].text = ''
+                    row[1].text = parts[0].strip()
+                    row[2].text = parts[1].strip()
+                elif '±' in rounded:
+                    parts = rounded.split('±')
+                    row[1].text = parts[0].strip()
+                    row[2].text = parts[1].strip()
                 else:
                     row[1].text = str(p.get('value', ''))
                     row[2].text = str(p.get('uncertainty', ''))
 
-        # Goodness of fit stats
-        gof = fit.get('goodnessOfFit', {})
+        # Goodness of fit stats — check both nested goodnessOfFit and flat keys
+        gof = fit.get('goodnessOfFit', {}) or {}
+        chi_r = gof.get('chiSquaredReduced') or fit.get('chiSquared')
+        r_sq = gof.get('rSquared') or fit.get('rSquared')
+        p_val = gof.get('pValue') or fit.get('pValue')
+        dof = gof.get('dof') or fit.get('degreesOfFreedom')
         gof_parts = []
-        if gof.get('chiSquaredReduced') is not None:
-            gof_parts.append(f"chi^2/dof = {gof['chiSquaredReduced']:.4f}")
-        if gof.get('rSquared') is not None:
-            gof_parts.append(f"R^2 = {gof['rSquared']:.6f}")
-        if gof.get('pValue') is not None:
-            gof_parts.append(f"P = {gof['pValue']:.4f}")
+        if chi_r is not None and dof is not None:
+            gof_parts.append(f"chi^2/dof = {float(chi_r) / float(dof):.4f}")
+        elif chi_r is not None:
+            gof_parts.append(f"chi^2 = {float(chi_r):.4f}")
+        if r_sq is not None:
+            gof_parts.append(f"R^2 = {float(r_sq):.6f}")
+        if p_val is not None:
+            gof_parts.append(f"P = {float(p_val):.4f}")
         if gof_parts:
             para = doc.add_paragraph(', '.join(gof_parts))
             if is_rtl:

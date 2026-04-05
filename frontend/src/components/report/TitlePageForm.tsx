@@ -22,10 +22,12 @@ const INPUT_STYLE: React.CSSProperties = {
   borderRadius: '8px',
   padding: '16px',
   background: 'var(--surface, #ffffff)',
+  color: 'var(--text, #1a1a2e)',
   fontSize: '0.875rem',
   width: '100%',
   boxSizing: 'border-box',
   fontFamily: 'inherit',
+  colorScheme: 'auto',
 };
 
 // UI labels are always in English — language setting only affects the generated report content

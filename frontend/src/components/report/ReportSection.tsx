@@ -781,7 +781,7 @@ export default function ReportSection({
               onClick={handleExport}
               disabled={exportStatus === 'exporting'}
               style={{
-                flex: 1,
+                flex: 1, minWidth: '200px',
                 padding: '12px 24px',
                 height: '48px',
                 border: 'none',
