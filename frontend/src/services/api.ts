@@ -141,7 +141,7 @@ export const parseFileInfo = async (file: File): Promise<{
     return response.data;
 };
 
-export const parseFileData = async (file: File, sheetName?: string): Promise<{
+export const parseFileData = async (file: File, sheetName?: string, maxRows?: number): Promise<{
     columns: string[];
     rows: Record<string, any>[];
     sheet_names: string[];
@@ -150,6 +150,7 @@ export const parseFileData = async (file: File, sheetName?: string): Promise<{
     const formData = new FormData();
     formData.append('file', file);
     if (sheetName) formData.append('sheet_name', sheetName);
+    if (maxRows != null) formData.append('max_rows', String(maxRows));
     const response = await api.post('/fitting/parse', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
     });

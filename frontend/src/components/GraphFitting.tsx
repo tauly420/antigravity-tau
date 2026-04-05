@@ -107,8 +107,8 @@ function GraphFitting() {
                 const info = await api.parseFileInfo(f);
                 setFileInfo({ sheetNames: info.sheet_names, sheetsInfo: info.sheets_info });
                 if (info.sheet_names.length > 0) setSelectedSheet(info.sheet_names[0]);
-                // If only one sheet, auto-load
-                if (info.sheet_names.length === 1) {
+                // Auto-load first sheet (single or multi)
+                if (info.sheet_names.length >= 1) {
                     const data = await api.parseFileData(f, info.sheet_names[0]);
                     if (data.columns && data.rows) {
                         setParsedData({ columns: data.columns, rows: data.rows, sheetNames: info.sheet_names });
@@ -129,11 +129,11 @@ function GraphFitting() {
         }
     };
 
-    const loadSheet = async () => {
-        if (!file || !selectedSheet) return;
+    const loadSheet = async (sheet: string) => {
+        if (!file || !sheet) return;
         setUploading(true);
         try {
-            const data = await api.parseFileData(file, selectedSheet);
+            const data = await api.parseFileData(file, sheet);
             if (!data.columns || !data.rows) throw new Error('Invalid data returned from server');
             setParsedData({ columns: data.columns, rows: data.rows, sheetNames: fileInfo?.sheetNames || [] });
             autoSelectCols(data.columns);
@@ -142,6 +142,11 @@ function GraphFitting() {
         } finally {
             setUploading(false);
         }
+    };
+
+    const handleSheetChange = (sheet: string) => {
+        setSelectedSheet(sheet);
+        loadSheet(sheet);
     };
 
     const autoSelectCols = (cols: string[]) => {
@@ -250,12 +255,9 @@ function GraphFitting() {
                 {fileInfo && fileInfo.sheetNames.length > 1 && (
                     <div className="form-group">
                         <label>Select sheet</label>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <select value={selectedSheet} onChange={e => setSelectedSheet(e.target.value)} style={{ flex: 1 }}>
-                                {fileInfo.sheetNames.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                            <button onClick={loadSheet} className="btn-primary">Load</button>
-                        </div>
+                        <select value={selectedSheet} onChange={e => handleSheetChange(e.target.value)} style={{ width: '100%' }}>
+                            {fileInfo.sheetNames.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
                     </div>
                 )}
             </div>

@@ -181,9 +181,10 @@ function StatisticsCalculator() {
         if (firstNumCol) setSelectedColumn(firstNumCol);
     };
 
-    const loadSelectedSheet = () => {
+    const handleSheetChange = (idx: number) => {
+        setSelectedSheetIdx(idx);
         if (!workbookRef.current || sheetNames.length === 0) return;
-        loadSheetFromWorkbook(workbookRef.current, sheetNames[selectedSheetIdx]);
+        loadSheetFromWorkbook(workbookRef.current, sheetNames[idx]);
     };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -229,7 +230,8 @@ function StatisticsCalculator() {
                 if (workbook.SheetNames.length > 1) {
                     setSheetNames(workbook.SheetNames);
                     setSelectedSheetIdx(0);
-                    // Don't auto-load -- user picks sheet first
+                    // Auto-load first sheet
+                    loadSheetFromWorkbook(workbook, workbook.SheetNames[0]);
                     return;
                 }
                 // Single sheet -- load directly
@@ -430,16 +432,13 @@ function StatisticsCalculator() {
                             <label style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block' }}>
                                 Select sheet
                             </label>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <select
-                                    value={selectedSheetIdx}
-                                    onChange={e => setSelectedSheetIdx(Number(e.target.value))}
-                                    style={{ flex: 1 }}
-                                >
-                                    {sheetNames.map((s, i) => <option key={s} value={i}>{s}</option>)}
-                                </select>
-                                <button onClick={loadSelectedSheet} className="btn-primary">Load</button>
-                            </div>
+                            <select
+                                value={selectedSheetIdx}
+                                onChange={e => handleSheetChange(Number(e.target.value))}
+                                style={{ width: '100%' }}
+                            >
+                                {sheetNames.map((s, i) => <option key={s} value={i}>{s}</option>)}
+                            </select>
                         </div>
                     )}
 

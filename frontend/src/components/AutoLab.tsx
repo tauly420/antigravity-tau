@@ -212,6 +212,9 @@ function AutoLab() {
         }
     }, [fitData, plotImages.fit]);
 
+    /** Preview-limited row count (only first N rows sent from backend) */
+    const PREVIEW_MAX_ROWS = 15;
+
     /* Parse file for preview when user selects one */
     const handleFileChange = async (f: File) => {
         setFile(f);
@@ -226,16 +229,17 @@ function AutoLab() {
                 if (info.sheet_names.length > 1) {
                     setSheetNames(info.sheet_names);
                     setSelectedSheet(info.sheet_names[0]);
-                    // Don't auto-load preview -- user picks sheet first
+                    // Auto-load first sheet preview
+                    await loadPreviewForSheet(f, info.sheet_names[0]);
                     return;
                 }
                 // Single sheet Excel -- load it directly
-                const data = await api.parseFileData(f, info.sheet_names[0]);
+                const data = await api.parseFileData(f, info.sheet_names[0], PREVIEW_MAX_ROWS);
                 if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows)) {
                     setPreviewData({ columns: data.columns.map(String), rows: data.rows });
                 }
             } else {
-                const data = await api.parseFileData(f);
+                const data = await api.parseFileData(f, undefined, PREVIEW_MAX_ROWS);
                 if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows)) {
                     setPreviewData({ columns: data.columns.map(String), rows: data.rows });
                 }
@@ -246,17 +250,23 @@ function AutoLab() {
     };
 
     /* Load a specific sheet for preview (multi-sheet Excel) */
-    const loadPreviewSheet = async () => {
-        if (!file || !selectedSheet) return;
+    const loadPreviewForSheet = async (f: File, sheet: string) => {
         setPreviewError('');
+        setPreviewData(null);
         try {
-            const data = await api.parseFileData(file, selectedSheet);
+            const data = await api.parseFileData(f, sheet, PREVIEW_MAX_ROWS);
             if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows)) {
                 setPreviewData({ columns: data.columns.map(String), rows: data.rows });
             }
         } catch {
             setPreviewError('Could not load sheet preview.');
         }
+    };
+
+    /* Auto-load preview when sheet selection changes */
+    const handleSheetChange = (sheet: string) => {
+        setSelectedSheet(sheet);
+        if (file) loadPreviewForSheet(file, sheet);
     };
 
     /* Load example dataset */
@@ -593,12 +603,9 @@ function AutoLab() {
                 {sheetNames.length > 1 && (
                     <div className="form-group">
                         <label>Select sheet</label>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <select value={selectedSheet} onChange={e => setSelectedSheet(e.target.value)} style={{ flex: 1 }}>
-                                {sheetNames.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                            <button onClick={loadPreviewSheet} className="btn-primary">Load</button>
-                        </div>
+                        <select value={selectedSheet} onChange={e => handleSheetChange(e.target.value)} style={{ width: '100%' }}>
+                            {sheetNames.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
                     </div>
                 )}
 

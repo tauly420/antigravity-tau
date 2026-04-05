@@ -159,12 +159,13 @@ function Workflow() {
         }
     };
 
-    const loadSheet = async () => {
-        if (!file || !selectedSheet) return;
+    const loadSheet = async (sheet?: string) => {
+        const sheetToLoad = sheet || selectedSheet;
+        if (!file || !sheetToLoad) return;
         setUploading(true);
         setUploadError('');
         try {
-            const data = await api.parseFileData(file, selectedSheet);
+            const data = await api.parseFileData(file, sheetToLoad);
             setParsedData({ columns: data.columns, rows: data.rows });
             if (data.columns.length >= 2) {
                 setXCol(data.columns[0]);
@@ -399,7 +400,7 @@ function Workflow() {
                     {fileInfo && fileInfo.sheetNames.length > 1 && (
                         <div className="form-group">
                             <label>Select sheet</label>
-                            <select value={selectedSheet} onChange={e => setSelectedSheet(e.target.value)}>
+                            <select value={selectedSheet} onChange={e => { setSelectedSheet(e.target.value); loadSheet(e.target.value); }}>
                                 {fileInfo.sheetNames.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
@@ -411,7 +412,7 @@ function Workflow() {
                                     <> — <strong>Columns:</strong> {fileInfo.sheetsInfo[selectedSheet].join(', ')}</>
                                 )}
                             </p>
-                            <button onClick={loadSheet} disabled={uploading} className="btn-primary">Load Data & Continue ↓</button>
+                            <button onClick={() => loadSheet()} disabled={uploading} className="btn-primary">Load Data & Continue ↓</button>
                         </div>
                     )}
                     {parsedData && (

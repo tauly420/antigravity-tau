@@ -41,6 +41,8 @@ def parse_file():
 
         sheet_name = request.form.get('sheet_name', None)
         info_only = request.form.get('info_only', 'false').lower() == 'true'
+        max_rows_str = request.form.get('max_rows', None)
+        max_rows = int(max_rows_str) if max_rows_str else None
 
         if is_csv:
             df = pd.read_csv(file)
@@ -78,10 +80,15 @@ def parse_file():
             target_sheet = sheet_name if sheet_name else sheet_names[0]
             df = xl.parse(target_sheet)
 
-        # Return all columns and data as rows
+        # Return columns and data as rows
         df = df.dropna(how='all')
+        total_rows = len(df)
         columns = list(df.columns)
-        
+
+        # Optionally limit rows (for preview)
+        if max_rows is not None and max_rows > 0:
+            df = df.head(max_rows)
+
         rows = []
         for _, row in df.iterrows():
             row_dict = {}
@@ -97,7 +104,7 @@ def parse_file():
             "columns": columns,
             "rows": rows,
             "sheet_names": sheet_names,
-            "row_count": len(rows)
+            "row_count": total_rows
         })
 
     except Exception as e:
