@@ -46,7 +46,7 @@ const EXAMPLE_DATASETS = [
             title: 'Free Fall Experiment',
             subject: 'Classical Mechanics',
             equipment: 'Timer, meter stick, metal ball, photogate sensor',
-            notes: 'Measured the height of a falling ball at regular time intervals. The ball was released from rest and fell under gravity.',
+            notes: 'Goal: Verify the free-fall acceleration g by dropping a metal ball from rest and measuring its height h as a function of time t. According to kinematics, h(t) = ½gt² + v₀t + h₀. Since the ball starts from rest (v₀ ≈ 0), fitting a quadratic h = at² + bt + c gives g = 2a. A photogate sensor recorded times at 0.1 s intervals while the ball fell ~11 m. Height uncertainty grows with distance due to parallax. Compare the extracted g to the accepted value 9.81 ± 0.01 m/s² using an n-sigma test.',
         },
         titlePage: {
             studentName: 'Demo User',
