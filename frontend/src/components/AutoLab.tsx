@@ -7,7 +7,7 @@ import { roundWithUncertainty, smartFormat, formatPValue } from '../utils/format
 import ReportSection from './report/ReportSection';
 import ReportExpander from './report/ReportExpander';
 import { normalizeAnalysisData } from '../utils/normalize';
-import { exportResultsPdf } from '../services/api';
+import { exportResultsPdf, exportResultsDocx } from '../services/api';
 // @ts-ignore - plotly.js-dist-min has no types
 import Plotly from 'plotly.js-dist-min';
 
@@ -172,6 +172,7 @@ function AutoLab() {
     const [plotImages, setPlotImages] = useState<{ fit: string | null; residuals: string | null }>({ fit: null, residuals: null });
     const [resultsExporting, setResultsExporting] = useState(false);
     const [resultsExportError, setResultsExportError] = useState<string | null>(null);
+    const [exportFormat, setExportFormat] = useState<'docx' | 'pdf'>('docx');
 
     const fileRef = useRef<HTMLInputElement>(null);
     const fitPlotRef = useRef<HTMLDivElement>(null);
@@ -314,26 +315,29 @@ function AutoLab() {
         }
     };
 
-    /* Results-only PDF export handler */
-    const handleExportResultsPdf = async () => {
+    /* Results export handler (DOCX or PDF) */
+    const handleExportResults = async () => {
         setResultsExporting(true);
         setResultsExportError(null);
         try {
             const normalized = analysisState ? normalizeAnalysisData(analysisState) : {};
-            const blob = await exportResultsPdf({
+            const exportData = {
                 analysis_data: normalized,
                 plots: plotImages,
                 summary: summaryStep?.message || '',
                 language: 'en',
-            });
+            };
+            const blob = exportFormat === 'docx'
+                ? await exportResultsDocx(exportData)
+                : await exportResultsPdf(exportData);
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'analysis-results.pdf';
+            a.download = exportFormat === 'docx' ? 'analysis-results.docx' : 'analysis-results.pdf';
             a.click();
             URL.revokeObjectURL(url);
         } catch (e: any) {
-            setResultsExportError(e?.response?.data?.error || e?.message || 'PDF generation failed');
+            setResultsExportError(e?.response?.data?.error || e?.message || 'Export failed');
         } finally {
             setResultsExporting(false);
         }
@@ -995,26 +999,45 @@ function AutoLab() {
                             >
                                 {reportCopied ? '✅ Report Copied to Clipboard!' : '📋 Copy Results as Lab Report'}
                             </button>
-                            <button
-                                onClick={handleExportResultsPdf}
-                                disabled={resultsExporting}
-                                style={{
-                                    padding: '0.6rem 1.5rem', fontSize: '0.95rem',
-                                    border: '2px solid var(--primary)', borderRadius: '8px',
-                                    background: resultsExporting ? 'var(--surface-alt)' : 'var(--surface)',
-                                    color: 'var(--primary)',
-                                    cursor: resultsExporting ? 'wait' : 'pointer',
-                                    fontWeight: 600, transition: 'all 0.2s',
-                                    fontFamily: "'Inter', sans-serif",
-                                }}
-                            >
-                                {resultsExporting ? '⏳ Generating PDF...' : '📄 Export Results PDF'}
-                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <select
+                                    value={exportFormat}
+                                    onChange={e => setExportFormat(e.target.value as 'docx' | 'pdf')}
+                                    style={{
+                                        padding: '0.6rem 0.8rem', fontSize: '0.95rem',
+                                        border: '2px solid var(--primary)', borderRadius: '8px',
+                                        background: 'var(--surface)', color: 'var(--primary)',
+                                        fontWeight: 600, fontFamily: "'Inter', sans-serif",
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    <option value="docx">DOCX (Recommended)</option>
+                                    <option value="pdf">PDF</option>
+                                </select>
+                                <button
+                                    onClick={handleExportResults}
+                                    disabled={resultsExporting}
+                                    style={{
+                                        padding: '0.6rem 1.5rem', fontSize: '0.95rem',
+                                        border: '2px solid var(--primary)', borderRadius: '8px',
+                                        background: resultsExporting ? 'var(--surface-alt)' : 'var(--surface)',
+                                        color: 'var(--primary)',
+                                        cursor: resultsExporting ? 'wait' : 'pointer',
+                                        fontWeight: 600, transition: 'all 0.2s',
+                                        fontFamily: "'Inter', sans-serif",
+                                    }}
+                                >
+                                    {resultsExporting ? '⏳ Exporting...' : exportFormat === 'docx' ? '📄 Export as DOCX' : '📄 Export as PDF'}
+                                </button>
+                            </div>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0', textAlign: 'center' }}>
+                                DOCX recommended — editable equations, better Word compatibility
+                            </p>
                         </div>
                     )}
                     {resultsExportError && (
                         <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '8px', textAlign: 'center' }}>
-                            PDF generation failed: {resultsExportError}. Please try again.
+                            Export failed: {resultsExportError}. Please try again.
                         </p>
                     )}
 

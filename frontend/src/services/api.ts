@@ -319,3 +319,28 @@ export const exportResultsPdf = async (data: {
     });
     return response.data;
 };
+
+export const exportReportDocx = async (data: {
+    sections: Record<string, string>;
+    title_page: Record<string, string>;
+    plots: Record<string, string | null>;
+    language: string;
+    analysis_data: Record<string, unknown>;
+}): Promise<Blob> => {
+    const response = await api.post('/report/export-docx', data, {
+        responseType: 'blob',
+    });
+    return response.data;
+};
+
+export const exportResultsDocx = async (data: {
+    analysis_data: Record<string, unknown>;
+    plots: Record<string, string | null>;
+    summary: string;
+    language: string;
+}): Promise<Blob> => {
+    const response = await api.post('/report/export-results-docx', data, {
+        responseType: 'blob',
+    });
+    return response.data;
+};

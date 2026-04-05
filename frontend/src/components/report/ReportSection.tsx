@@ -4,6 +4,7 @@ import {
   analyzeReportContext,
   generateReport,
   exportReportPdf,
+  exportReportDocx,
   type ContextForm,
   type FollowUpQuestion,
   type GeneratedSections,
@@ -104,8 +105,8 @@ export default function ReportSection({
     experimentTitle: '', date: new Date().toISOString().split('T')[0],
   });
 
-  // Template + export
-  const [selectedTemplate, setSelectedTemplate] = useState<'israeli' | 'minimal' | 'academic'>('israeli');
+  // Export format + status
+  const [exportFormat, setExportFormat] = useState<'docx' | 'pdf'>('docx');
   const [exportStatus, setExportStatus] = useState<'idle' | 'exporting' | 'error'>('idle');
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -282,38 +283,56 @@ export default function ReportSection({
     }
   };
 
-  const handleExportPdf = async () => {
+  const handleExport = async () => {
     setExportStatus('exporting');
     setExportError(null);
     try {
       const rawData = analysisData ? analysisData : {};
       const normalized = normalizeAnalysisData(rawData);
 
-      const blob = await exportReportPdf({
-        sections: editableSections,
-        title_page: {
-          studentName: titlePageData.studentName,
-          studentId: titlePageData.studentId,
-          labPartner: titlePageData.labPartner,
-          labPartnerId: titlePageData.labPartnerId,
-          courseName: titlePageData.courseName,
-          experimentTitle: titlePageData.experimentTitle,
-          date: titlePageData.date,
-        },
-        plots: {
-          fit: plotImages.fit,
-          residuals: plotImages.residuals,
-        },
-        template: selectedTemplate,
-        language: language,
-        analysis_data: normalized,
-      });
+      const titlePage = {
+        studentName: titlePageData.studentName,
+        studentId: titlePageData.studentId,
+        labPartner: titlePageData.labPartner,
+        labPartnerId: titlePageData.labPartnerId,
+        courseName: titlePageData.courseName,
+        experimentTitle: titlePageData.experimentTitle,
+        date: titlePageData.date,
+      };
+      const plots = {
+        fit: plotImages.fit,
+        residuals: plotImages.residuals,
+      };
+
+      let blob: Blob;
+      let filename: string;
+
+      if (exportFormat === 'docx') {
+        blob = await exportReportDocx({
+          sections: editableSections,
+          title_page: titlePage,
+          plots,
+          language: language,
+          analysis_data: normalized,
+        });
+        filename = 'lab-report.docx';
+      } else {
+        blob = await exportReportPdf({
+          sections: editableSections,
+          title_page: titlePage,
+          plots,
+          template: 'israeli',
+          language: language,
+          analysis_data: normalized,
+        });
+        filename = 'lab-report.pdf';
+      }
 
       // Trigger browser download
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'lab-report.pdf';
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -323,7 +342,7 @@ export default function ReportSection({
     } catch (err: unknown) {
       const msg = err instanceof Error
         ? err.message
-        : 'PDF generation failed. Check that all required fields are filled and try again.';
+        : 'Export failed. Check that all required fields are filled and try again.';
       setExportError(msg);
       setExportStatus('error');
     }
@@ -737,73 +756,59 @@ export default function ReportSection({
         />
       )}
 
-      {/* Template Selector */}
-      {hasGeneratedSections && (
-        <div style={CARD_STYLE}>
-          <h3 style={{
-            margin: '0 0 16px 0',
-            fontSize: '1.125rem',
-            fontWeight: 700,
-            color: 'var(--text, #1a1a2e)',
-            lineHeight: 1.3,
-          }}>
-            PDF Template
-          </h3>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {(['israeli', 'minimal', 'academic'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setSelectedTemplate(t)}
-                style={{
-                  padding: '8px 20px',
-                  borderRadius: '8px',
-                  border: selectedTemplate === t
-                    ? '2px solid var(--primary, #1565c0)'
-                    : '1.5px solid var(--border, #e0e0e0)',
-                  background: selectedTemplate === t
-                    ? 'var(--primary-light, #e3f2fd)'
-                    : 'var(--surface, #ffffff)',
-                  color: selectedTemplate === t
-                    ? 'var(--primary, #1565c0)'
-                    : 'var(--text, #1a1a2e)',
-                  fontSize: '0.875rem',
-                  fontWeight: selectedTemplate === t ? 700 : 400,
-                  cursor: 'pointer',
-                  textTransform: 'capitalize' as const,
-                  fontFamily: 'inherit',
-                }}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Export Full Report PDF */}
+      {/* Export Format Selector + Export Button */}
       {hasGeneratedSections && (
         <div style={{ marginBottom: '32px' }}>
-          <button
-            onClick={handleExportPdf}
-            disabled={exportStatus === 'exporting'}
-            style={{
-              width: '100%',
-              padding: '12px 24px',
-              height: '48px',
-              border: 'none',
-              borderRadius: '8px',
-              background: exportStatus === 'exporting'
-                ? 'var(--text-secondary, #999)'
-                : 'linear-gradient(135deg, var(--primary, #1565c0) 0%, #1976d2 100%)',
-              color: 'white',
-              fontSize: '1rem',
-              fontWeight: 700,
-              cursor: exportStatus === 'exporting' ? 'not-allowed' : 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            {exportStatus === 'exporting' ? 'Generating PDF...' : 'Export Full Report PDF'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+            <select
+              value={exportFormat}
+              onChange={e => setExportFormat(e.target.value as 'docx' | 'pdf')}
+              style={{
+                padding: '10px 16px',
+                border: '1.5px solid var(--border, #e0e0e0)',
+                borderRadius: '8px',
+                background: 'var(--surface, #ffffff)',
+                fontSize: '0.9375rem',
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+                color: 'var(--text, #1a1a2e)',
+              }}
+            >
+              <option value="docx">DOCX (Recommended)</option>
+              <option value="pdf">PDF</option>
+            </select>
+            <button
+              onClick={handleExport}
+              disabled={exportStatus === 'exporting'}
+              style={{
+                flex: 1,
+                padding: '12px 24px',
+                height: '48px',
+                border: 'none',
+                borderRadius: '8px',
+                background: exportStatus === 'exporting'
+                  ? 'var(--text-secondary, #999)'
+                  : 'linear-gradient(135deg, var(--primary, #1565c0) 0%, #1976d2 100%)',
+                color: 'white',
+                fontSize: '1rem',
+                fontWeight: 700,
+                cursor: exportStatus === 'exporting' ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {exportStatus === 'exporting'
+                ? 'Exporting...'
+                : exportFormat === 'docx' ? 'Export as DOCX' : 'Export as PDF'}
+            </button>
+          </div>
+          <p style={{
+            fontSize: '0.8125rem',
+            color: 'var(--text-secondary, #666)',
+            margin: '0',
+            lineHeight: 1.4,
+          }}>
+            DOCX recommended — editable equations, better Word compatibility
+          </p>
           {exportError && (
             <p style={{
               color: 'var(--danger, #d32f2f)',
@@ -811,7 +816,7 @@ export default function ReportSection({
               margin: '8px 0 0 0',
               lineHeight: 1.4,
             }}>
-              PDF generation failed: {exportError}. Please try again. If the problem persists, try a different template.
+              Export failed: {exportError}. Please try again.
             </p>
           )}
         </div>
