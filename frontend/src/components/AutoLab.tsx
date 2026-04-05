@@ -165,6 +165,8 @@ function AutoLab() {
     /* Data preview state */
     const [previewData, setPreviewData] = useState<{ columns: string[]; rows: Record<string, any>[] } | null>(null);
     const [previewError, setPreviewError] = useState('');
+    const [sheetNames, setSheetNames] = useState<string[]>([]);
+    const [selectedSheet, setSelectedSheet] = useState('');
 
     const [tableCopied, setTableCopied] = useState(false);
     const [reportCopied, setReportCopied] = useState(false);
@@ -215,13 +217,45 @@ function AutoLab() {
         setFile(f);
         setPreviewData(null);
         setPreviewError('');
+        setSheetNames([]);
+        setSelectedSheet('');
         try {
-            const data = await api.parseFileData(f);
+            const isExcel = f.name.endsWith('.xlsx') || f.name.endsWith('.xls') || f.name.endsWith('.xlsm') || f.name.endsWith('.xlsb');
+            if (isExcel) {
+                const info = await api.parseFileInfo(f);
+                if (info.sheet_names.length > 1) {
+                    setSheetNames(info.sheet_names);
+                    setSelectedSheet(info.sheet_names[0]);
+                    // Don't auto-load preview -- user picks sheet first
+                    return;
+                }
+                // Single sheet Excel -- load it directly
+                const data = await api.parseFileData(f, info.sheet_names[0]);
+                if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows)) {
+                    setPreviewData({ columns: data.columns.map(String), rows: data.rows });
+                }
+            } else {
+                const data = await api.parseFileData(f);
+                if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows)) {
+                    setPreviewData({ columns: data.columns.map(String), rows: data.rows });
+                }
+            }
+        } catch {
+            setPreviewError('Could not preview file -- analysis will still work when you click Run.');
+        }
+    };
+
+    /* Load a specific sheet for preview (multi-sheet Excel) */
+    const loadPreviewSheet = async () => {
+        if (!file || !selectedSheet) return;
+        setPreviewError('');
+        try {
+            const data = await api.parseFileData(file, selectedSheet);
             if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows)) {
                 setPreviewData({ columns: data.columns.map(String), rows: data.rows });
             }
         } catch {
-            setPreviewError('Could not preview file -- analysis will still work when you click Run.');
+            setPreviewError('Could not load sheet preview.');
         }
     };
 
@@ -234,6 +268,8 @@ function AutoLab() {
         setTheoUnc(ex.theoUnc || '');
         setPreviewData({ columns: ex.columns, rows: ex.rows });
         setPreviewError('');
+        setSheetNames([]);
+        setSelectedSheet('');
         setSteps([]);
         setFitData(null);
         setAnalysisState(null);
@@ -552,6 +588,19 @@ function AutoLab() {
                         </p>
                     )}
                 </div>
+
+                {/* Sheet selector for multi-sheet Excel */}
+                {sheetNames.length > 1 && (
+                    <div className="form-group">
+                        <label>Select sheet</label>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <select value={selectedSheet} onChange={e => setSelectedSheet(e.target.value)} style={{ flex: 1 }}>
+                                {sheetNames.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            <button onClick={loadPreviewSheet} className="btn-primary">Load</button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Data preview */}
                 {previewData && (

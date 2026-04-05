@@ -414,6 +414,9 @@ function Workflow() {
                             <button onClick={loadSheet} disabled={uploading} className="btn-primary">Load Data & Continue ↓</button>
                         </div>
                     )}
+                    {parsedData && (
+                        <DataPreview columns={parsedData.columns} rows={parsedData.rows} defaultOpen={false} />
+                    )}
                 </div>
             </div>
 
