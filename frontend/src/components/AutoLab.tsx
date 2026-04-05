@@ -931,8 +931,8 @@ function AutoLab() {
                                 ]}
                                 layout={{
                                     title: { text: `Fit -- ${fitData.model_name}`, font: { color: '#333' } },
-                                    xaxis: { title: { text: xLabel }, gridcolor: '#ddd', tickfont: { color: '#333' }, titlefont: { color: '#333' } },
-                                    yaxis: { title: { text: yLabel }, gridcolor: '#ddd', tickfont: { color: '#333' }, titlefont: { color: '#333' } },
+                                    xaxis: { title: { text: xLabel, font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
+                                    yaxis: { title: { text: yLabel, font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
                                     height: 420, margin: { l: 60, r: 30, t: 55, b: 55 },
                                     legend: { x: 0, y: 1.15, orientation: 'h' as const, font: { color: '#333' } },
                                     plot_bgcolor: '#ffffff', paper_bgcolor: '#ffffff',
@@ -966,8 +966,8 @@ function AutoLab() {
                                     }]}
                                     layout={{
                                         title: { text: 'Residuals (data \u2212 fit)', font: { color: '#333' } },
-                                        xaxis: { title: { text: xLabel }, gridcolor: '#ddd', tickfont: { color: '#333' }, titlefont: { color: '#333' } },
-                                        yaxis: { title: { text: `${yLabel} \u2212 f(${xLabel})` }, gridcolor: '#ddd', tickfont: { color: '#333' }, titlefont: { color: '#333' } },
+                                        xaxis: { title: { text: xLabel, font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
+                                        yaxis: { title: { text: `${yLabel} \u2212 f(${xLabel})`, font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
                                         height: 280, margin: { l: 60, r: 30, t: 45, b: 45 },
                                         plot_bgcolor: '#ffffff', paper_bgcolor: '#ffffff',
                                     }}
