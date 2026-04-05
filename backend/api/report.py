@@ -15,6 +15,7 @@ import traceback
 
 from flask import Blueprint, Response, request, jsonify
 from utils.pdf_renderer import assemble_report_html, assemble_results_html, generate_pdf, process_text_with_math, _cleanup_temp_images
+from utils.docx_renderer import generate_docx as generate_docx_report, generate_results_docx
 from openai import OpenAI
 from utils.file_parser import extract_pdf_text, extract_docx_text
 
@@ -419,4 +420,94 @@ def export_results_pdf():
 
     except Exception as e:
         _cleanup_temp_images()
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@report_bp.route('/export-docx', methods=['POST'])
+def export_docx():
+    """Generate and return a DOCX lab report.
+
+    Accepts JSON with:
+        sections: {theory, method, discussion, conclusions} - raw text with LaTeX
+        title_page: {studentName, studentId, labPartner, labPartnerId, courseName, experimentTitle, date}
+        plots: {fit: "data:image/png;base64,...", residuals: "data:image/png;base64,..."}
+        language: 'he' | 'en' (default: 'he')
+        analysis_data: {fit: {...}, formula: {...}, nsigma: {...}} - normalized report data
+
+    Returns: DOCX bytes with Content-Disposition attachment header.
+    """
+    try:
+        body = request.get_json(silent=True)
+        if not body:
+            return jsonify({"error": "Request body is required"}), 400
+
+        sections = body.get('sections', {})
+        title_page = body.get('title_page', {})
+        plots = body.get('plots', {})
+        language = body.get('language', 'he')
+        analysis_data = body.get('analysis_data', {})
+
+        if not title_page.get('experimentTitle', '').strip():
+            return jsonify({"error": "Experiment title is required"}), 400
+
+        docx_bytes = generate_docx_report(
+            sections=sections,
+            title_page=title_page,
+            plots=plots,
+            analysis_data=analysis_data,
+            language=language,
+        )
+
+        return Response(
+            docx_bytes,
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            headers={
+                'Content-Disposition': 'attachment; filename="lab-report.docx"',
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            }
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@report_bp.route('/export-results-docx', methods=['POST'])
+def export_results_docx_endpoint():
+    """Generate results-only DOCX (no AI sections, no title page).
+
+    Accepts JSON with:
+        analysis_data: {fit: {...}, formula: {...}, nsigma: {...}}
+        plots: {fit: "data:image/png;base64,...", residuals: "data:image/png;base64,..."}
+        summary: AI-generated summary text
+        language: 'he' | 'en' (default: 'he')
+
+    Returns: DOCX bytes with Content-Disposition attachment header.
+    """
+    try:
+        body = request.get_json(silent=True)
+        if not body:
+            return jsonify({"error": "Request body is required"}), 400
+
+        analysis_data = body.get('analysis_data', {})
+        plots = body.get('plots', {})
+        summary = body.get('summary', '')
+        language = body.get('language', 'he')
+
+        docx_bytes = generate_results_docx(
+            analysis_data=analysis_data,
+            plots=plots,
+            summary=summary,
+            language=language,
+        )
+
+        return Response(
+            docx_bytes,
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            headers={
+                'Content-Disposition': 'attachment; filename="analysis-results.docx"',
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            }
+        )
+
+    except Exception as e:
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
