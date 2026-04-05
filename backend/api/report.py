@@ -19,7 +19,7 @@ from utils.docx_renderer import generate_docx as generate_docx_report, generate_
 from openai import OpenAI
 from utils.file_parser import extract_pdf_text, extract_docx_text
 
-from prompts.report_system import build_report_system_prompt
+from prompts.report_system import build_report_system_prompt, build_results_table_html
 from prompts.report_followup import build_followup_system_prompt
 
 report_bp = Blueprint('report', __name__)
@@ -273,17 +273,23 @@ def generate():
         sections = json.loads(response.choices[0].message.content)
 
         # Validate required keys
-        required_keys = {"theory", "method", "discussion", "conclusions"}
+        required_keys = {"theory", "method", "results", "discussion", "conclusions"}
         missing = required_keys - set(sections.keys())
         if missing:
             return jsonify({
                 "error": f"AI returned incomplete response. Missing sections: {', '.join(sorted(missing))}"
             }), 500
 
+        # Inject HTML parameter table at top of results section
+        table_html = build_results_table_html(analysis_data)
+        if table_html:
+            sections["results"] = table_html + "\n" + sections.get("results", "")
+
         return jsonify({
             "sections": {
                 "theory": sections["theory"],
                 "method": sections["method"],
+                "results": sections["results"],
                 "discussion": sections["discussion"],
                 "conclusions": sections["conclusions"],
                 "warnings": sections.get("warnings", []),
