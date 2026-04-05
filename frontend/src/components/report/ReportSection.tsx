@@ -516,8 +516,8 @@ export default function ReportSection({
               style={{
                 padding: '8px 20px',
                 borderRadius: '8px',
-                border: language === 'he' ? '2px solid var(--primary, #1565c0)' : '1.5px solid var(--border, #e0e0e0)',
-                background: language === 'he' ? 'var(--primary, #1565c0)' : 'var(--surface, #ffffff)',
+                border: language === 'he' ? '2px solid var(--primary-dark, #0d47a1)' : '1.5px solid var(--border, #e0e0e0)',
+                background: language === 'he' ? 'var(--primary-dark, #0d47a1)' : 'var(--surface, #ffffff)',
                 color: language === 'he' ? '#ffffff' : 'var(--text, #1a1a2e)',
                 fontSize: '0.875rem',
                 fontWeight: language === 'he' ? 700 : 400,
@@ -532,8 +532,8 @@ export default function ReportSection({
               style={{
                 padding: '8px 20px',
                 borderRadius: '8px',
-                border: language === 'en' ? '2px solid var(--primary, #1565c0)' : '1.5px solid var(--border, #e0e0e0)',
-                background: language === 'en' ? 'var(--primary, #1565c0)' : 'var(--surface, #ffffff)',
+                border: language === 'en' ? '2px solid var(--primary-dark, #0d47a1)' : '1.5px solid var(--border, #e0e0e0)',
+                background: language === 'en' ? 'var(--primary-dark, #0d47a1)' : 'var(--surface, #ffffff)',
                 color: language === 'en' ? '#ffffff' : 'var(--text, #1a1a2e)',
                 fontSize: '0.875rem',
                 fontWeight: language === 'en' ? 700 : 400,
