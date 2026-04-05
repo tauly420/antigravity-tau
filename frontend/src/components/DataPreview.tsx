@@ -19,6 +19,7 @@ interface DataPreviewProps {
 
 function DataPreview({ columns, rows, maxRows = 10, defaultOpen = true }: DataPreviewProps) {
     const [open, setOpen] = useState(defaultOpen);
+    if (!columns?.length || !rows) return null;
     const displayRows = rows.slice(0, maxRows);
 
     return (

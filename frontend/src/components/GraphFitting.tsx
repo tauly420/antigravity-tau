@@ -110,13 +110,17 @@ function GraphFitting() {
                 // If only one sheet, auto-load
                 if (info.sheet_names.length === 1) {
                     const data = await api.parseFileData(f, info.sheet_names[0]);
-                    setParsedData({ columns: data.columns, rows: data.rows, sheetNames: info.sheet_names });
-                    autoSelectCols(data.columns);
+                    if (data.columns && data.rows) {
+                        setParsedData({ columns: data.columns, rows: data.rows, sheetNames: info.sheet_names });
+                        autoSelectCols(data.columns);
+                    }
                 }
             } else {
                 const data = await api.parseFileData(f);
-                setParsedData({ columns: data.columns, rows: data.rows, sheetNames: ['Sheet1'] });
-                autoSelectCols(data.columns);
+                if (data.columns && data.rows) {
+                    setParsedData({ columns: data.columns, rows: data.rows, sheetNames: ['Sheet1'] });
+                    autoSelectCols(data.columns);
+                }
             }
         } catch (err: any) {
             setError(err.response?.data?.error || err.message || 'Upload failed');
@@ -130,6 +134,7 @@ function GraphFitting() {
         setUploading(true);
         try {
             const data = await api.parseFileData(file, selectedSheet);
+            if (!data.columns || !data.rows) throw new Error('Invalid data returned from server');
             setParsedData({ columns: data.columns, rows: data.rows, sheetNames: fileInfo?.sheetNames || [] });
             autoSelectCols(data.columns);
         } catch (err: any) {
