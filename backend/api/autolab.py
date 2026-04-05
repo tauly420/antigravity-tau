@@ -139,6 +139,10 @@ def tool_fit_data(x_data, y_data, y_errors=None, x_errors=None, model='linear',
         'exponential': (lambda x, a, b, c: a * np.exp(b * x) + c, ['a', 'b', 'c'], [1.0, 0.1, 0.0]),
         'sinusoidal': (lambda x, A, omega, phi, D: A * np.sin(omega * x + phi) + D,
                        ['A', 'omega', 'phi', 'D'], [1.0, 1.0, 0.0, 0.0]),
+        'fractional': (lambda x, a, b, c, d: a / (b * x + c) + d,
+                       ['a', 'b', 'c', 'd'], [1.0, 1.0, 1.0, 0.0]),
+        'gaussian': (lambda x, A, mu, sigma, D: A * np.exp(-((x - mu)**2) / (2 * sigma**2)) + D,
+                     ['A', 'mu', 'sigma', 'D'], [1.0, 0.0, 1.0, 0.0]),
     }
 
     if model == 'custom' and custom_expr:
@@ -353,7 +357,7 @@ SYSTEM_PROMPT = (
     "   - Lorentzian: custom_expr='A * gamma**2 / ((x-x0)**2 + gamma**2)', initial_guess=[<y_max>, <x_mid>, 1.0]\n"
     "   - Damped oscillation: custom_expr='A * exp(-b*x) * sin(omega*x + phi)', initial_guess=[1.0, 0.1, 1.0, 0.0]\n"
     "   - Always estimate initial_guess from the data range to help convergence.\n"
-    "   - For standard named models (linear, quadratic, cubic, power, exponential, sinusoidal), "
+    "   - For standard named models (linear, quadratic, cubic, power, exponential, sinusoidal, fractional, gaussian), "
     "use those model names directly — no custom needed.\n"
     "9. FORMULA INTELLIGENCE — Derive quantities smartly from fit parameters:\n"
     "   - Quadratic fit (a, b, c): to extract g from free-fall, evaluate '2*a'\n"
@@ -448,11 +452,11 @@ def _run_orchestrator(file_bytes, filename, instructions, theoretical_value=None
             "type": "function",
             "function": {
                 "name": "fit_data",
-                "description": "Fit the parsed data with a model. Available models: linear, quadratic, cubic, power, exponential, sinusoidal, custom. For custom: provide custom_expr using 'x' as variable and initial_guess.",
+                "description": "Fit the parsed data with a model. Available models: linear, quadratic, cubic, power, exponential, sinusoidal, fractional, gaussian, custom. For custom: provide custom_expr using 'x' as variable and initial_guess.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "model": {"type": "string", "description": "Model name: linear, quadratic, cubic, power, exponential, sinusoidal, or custom"},
+                        "model": {"type": "string", "description": "Model name: linear, quadratic, cubic, power, exponential, sinusoidal, fractional, gaussian, or custom"},
                         "custom_expr": {"type": "string", "description": "Custom expression (e.g. 'A*sin(omega*x+phi)+D'). Only needed if model='custom'."},
                         "initial_guess": {"type": "array", "items": {"type": "number"}, "description": "Initial parameter guesses — required for custom models, optional otherwise"},
                         "fixed_params": {"type": "object", "description": "Dict mapping parameter names to fixed values. E.g. {'c': 0} to fix the constant term at zero. Parameters not in this dict will be fitted freely."},

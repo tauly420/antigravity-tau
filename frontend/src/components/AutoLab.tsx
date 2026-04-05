@@ -86,6 +86,8 @@ const MODEL_FORMULAS: Record<string, string> = {
     power: 'y = ax\u1D47 + c',
     exponential: 'y = ae^(bx) + c',
     sinusoidal: 'y = A\u00B7sin(\u03C9x + \u03C6) + D',
+    fractional: 'y = a/(b\u00B7x+c) + d',
+    gaussian: 'y = A\u00B7exp(-(x-\u03BC)\u00B2/(2\u03C3\u00B2)) + D',
 };
 
 /** Parameter names for each model (used for fixing constants) */
@@ -96,6 +98,8 @@ const MODEL_PARAMS: Record<string, string[]> = {
     power: ['a', 'b', 'c'],
     exponential: ['a', 'b', 'c'],
     sinusoidal: ['A', 'omega', 'phi', 'D'],
+    fractional: ['a', 'b', 'c', 'd'],
+    gaussian: ['A', 'mu', 'sigma', 'D'],
 };
 
 /** Fit model options for the dropdown */
@@ -106,8 +110,10 @@ const FIT_MODEL_OPTIONS = [
     { value: 'cubic', label: '🔣 Cubic', desc: 'y = ax³ + bx² + cx + d' },
     { value: 'power', label: '⚡ Power', desc: 'y = axᵇ + c' },
     { value: 'exponential', label: '📈 Exponential', desc: 'y = ae^(bx) + c' },
-    { value: 'sinusoidal', label: '🌊 Sinusoidal', desc: 'y = A·sin(ωx + φ) + D' },
-    { value: 'custom', label: '✏️ Custom', desc: 'Enter your own expression' },
+    { value: 'sinusoidal', label: '\uD83C\uDF0A Sinusoidal', desc: 'y = A\u00B7sin(\u03C9x + \u03C6) + D' },
+    { value: 'fractional', label: '\u2797 Fractional', desc: 'y = a/(b\u00B7x+c) + d' },
+    { value: 'gaussian', label: '\uD83D\uDD14 Gaussian', desc: 'y = A\u00B7exp(-(x-\u03BC)\u00B2/(2\u03C3\u00B2)) + D' },
+    { value: 'custom', label: '\u270F\uFE0F Custom', desc: 'Enter your own expression' },
 ];
 
 /** N-sigma colour: green <= 2, orange 2-3, red > 3 */

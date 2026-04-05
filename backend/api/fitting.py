@@ -108,7 +108,7 @@ def parse_file():
 def fit():
     """
     Perform curve fitting on data.
-    Supports: linear, quadratic, cubic, power, exponential, sinusoidal, custom
+    Supports: linear, quadratic, cubic, power, exponential, sinusoidal, fractional, gaussian, custom
 
     Returns chi_squared, reduced_chi_squared, p_value, dof alongside parameters.
     """
@@ -179,6 +179,20 @@ def fit():
             amp_guess = (np.max(y_data) - np.min(y_data)) / 2
             freq_guess = 2 * np.pi / (np.max(x_data) - np.min(x_data)) if np.max(x_data) != np.min(x_data) else 1
             p0 = [amp_guess, freq_guess, 0, np.mean(y_data)]
+
+        elif model_type == 'fractional':
+            def model(x, a, b, c, d):
+                return a / (b * x + c) + d
+            param_names = ['a', 'b', 'c', 'd']
+            model_name = "y = a/(b\u00b7x+c) + d"
+            p0 = [1.0, 1.0, 1.0, 0.0]
+
+        elif model_type == 'gaussian':
+            def model(x, A, mu, sigma, D):
+                return A * np.exp(-((x - mu)**2) / (2 * sigma**2)) + D
+            param_names = ['A', 'mu', 'sigma', 'D']
+            model_name = "y = A\u00b7exp(-(x-\u03bc)\u00b2/(2\u03c3\u00b2)) + D"
+            p0 = [1.0, 0.0, 1.0, 0.0]
 
         elif model_type == 'custom':
             if not custom_expr:
