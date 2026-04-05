@@ -46,10 +46,10 @@ Requirements for AI-powered academic lab report export. Each maps to roadmap pha
 
 ### DOCX Export
 
-- [ ] **DOCX-01**: User can download a DOCX lab report with the same sections, title page, and content as the PDF export
-- [ ] **DOCX-02**: Math equations in DOCX are rendered as OMML (Office Math Markup) where possible, with LaTeX text fallback for unsupported expressions
-- [ ] **DOCX-03**: DOCX export supports Hebrew RTL text direction with English LTR math
-- [ ] **DOCX-04**: Fit and residuals plots from AutoLab are embedded as images in the DOCX report
+- [x] **DOCX-01**: User can download a DOCX lab report with the same sections, title page, and content as the PDF export
+- [x] **DOCX-02**: Math equations in DOCX are rendered as OMML (Office Math Markup) where possible, with LaTeX text fallback for unsupported expressions
+- [x] **DOCX-03**: DOCX export supports Hebrew RTL text direction with English LTR math
+- [x] **DOCX-04**: Fit and residuals plots from AutoLab are embedded as images in the DOCX report
 - [ ] **DOCX-05**: User can choose between PDF and DOCX export format from the export UI
 
 ## Future Requirements
@@ -132,10 +132,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-02 | Phase 11: Preview, Editing, and PDF Assembly | Pending |
 | UI-03 | Phase 11: Preview, Editing, and PDF Assembly | Pending |
 | UI-04 | Phase 12: Integration and Polish | Pending |
-| DOCX-01 | Phase 16: DOCX Export | Pending |
-| DOCX-02 | Phase 16: DOCX Export | Pending |
-| DOCX-03 | Phase 16: DOCX Export | Pending |
-| DOCX-04 | Phase 16: DOCX Export | Pending |
+| DOCX-01 | Phase 16: DOCX Export | Complete |
+| DOCX-02 | Phase 16: DOCX Export | Complete |
+| DOCX-03 | Phase 16: DOCX Export | Complete |
+| DOCX-04 | Phase 16: DOCX Export | Complete |
 | DOCX-05 | Phase 16: DOCX Export | Pending |
 
 **Coverage:**
