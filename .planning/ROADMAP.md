@@ -214,11 +214,11 @@ Plans:
   3. DOCX body text flows right-to-left for Hebrew with left-to-right math runs
   4. Fit and residuals plots appear as embedded images in the DOCX with figure captions
   5. Export UI offers a PDF/DOCX selector and both formats produce downloadable files
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 16-01-PLAN.md -- Backend DOCX renderer (docx_renderer.py, MML2OMML.XSL, latex2mathml dep), export endpoints, test suite
-- [ ] 16-02-PLAN.md -- Frontend format selector (DOCX default), API functions, remove template selector, visual verification
+- [x] 16-02-PLAN.md -- Frontend format selector (DOCX default), API functions, remove template selector, visual verification
 
 ### Phase 17: AutoLab structured input — upfront column/sheet/axis/formula/theory selection, all-at-once analysis, post-analysis report flow
 

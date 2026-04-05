@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: AI-Powered Academic Lab Report Export
 status: Phase complete — ready for verification
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-04-05T12:25:54.661Z"
+stopped_at: Completed 16-02-PLAN.md
+last_updated: "2026-04-05T12:30:00.476Z"
 progress:
   total_phases: 10
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 22
-  completed_plans: 16
+  completed_plans: 17
 ---
 
 # Project State
@@ -55,6 +55,7 @@ Plan: 2 of 2
 | Phase 14 P01 | 3min | 2 tasks | 4 files |
 | Phase 14 P02 | 5min | 2 tasks | 5 files |
 | Phase 16 P01 | 7min | 2 tasks | 5 files |
+| Phase 16 P02 | 3min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,7 @@ Recent decisions affecting current work:
 - [Phase 14]: Results-only PDF uses template-minimal class and same generate_pdf pipeline as full report
 - [Phase 14]: ReportSection receives analysisData as props (not from context) for explicit data flow control
 - [Phase 16]: DOCX math pipeline: LaTeX -> latex2mathml -> MathML -> XSLT(MML2OMML.XSL) -> OMML
+- [Phase 16]: DOCX set as default export format; template selector removed from ReportSection
 
 ### Roadmap Evolution
 
@@ -100,6 +102,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-05T12:25:54.658Z
-Stopped at: Completed 16-01-PLAN.md
+Last session: 2026-04-05T12:30:00.472Z
+Stopped at: Completed 16-02-PLAN.md
 Resume file: None
