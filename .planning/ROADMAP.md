@@ -222,10 +222,20 @@ Plans:
 
 ### Phase 17: AutoLab structured input — upfront column/sheet/axis/formula/theory selection, all-at-once analysis, post-analysis report flow
 
-**Goal:** Replace AutoLab's current flow with a structured input experience where users select columns, sheets, axis names, formula, and theoretical value upfront (like Lab Workflow but without dropdown menus); run all analysis stages at once; add post-analysis report flow with context and instructions. Ultimate goal: make Lab Workflow page redundant (removal deferred to future phase).
-**Requirements**: TBD
+**Goal:** Replace AutoLab's current flow with a structured input experience where users select columns, sheets, axis names, formula, and theoretical value upfront; run all analysis stages at once via direct backend API calls (no AI orchestrator); add post-analysis report flow with context and instructions. Make Lab Workflow page functionally redundant (removal deferred to future phase).
+**Requirements**: SI-01, SI-02, SI-03, SI-04, SI-05, SI-06, SI-07, SI-08
 **Depends on:** Phase 16
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. Free-text instructions textarea is removed from AutoLab page
+  2. Column picker dropdowns (X, Y, X-error, Y-error) with smart auto-detect defaults appear after file upload
+  3. Axis label text inputs appear alongside column pickers
+  4. Model dropdown has no "Auto (AI chooses)" option and defaults to "linear"
+  5. All inputs shown upfront in single form (upload+sheet -> columns -> axis labels -> model -> formula -> theory -> Run)
+  6. Clicking Run calls /api/fitting/fit, /api/formula/evaluate, /api/nsigma/calculate directly (not /api/autolab/run)
+  7. Report context form appears below results after analysis completes
+  8. Example datasets pre-fill all structured form fields
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 17 to break down)
+- [ ] 17-01-PLAN.md -- Structured form UI + direct API pipeline (replace instructions with column pickers, axis labels, model selector, formula/theory inputs; wire handleRunAnalysis to direct backend calls)
+- [ ] 17-02-PLAN.md -- Example datasets pre-fill structured fields, report section positioning, visual verification checkpoint
