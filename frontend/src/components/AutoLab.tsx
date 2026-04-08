@@ -3,6 +3,7 @@ import Plot from './PlotWrapper';
 import DataPreview from './DataPreview';
 import { useAnalysis } from '../context/AnalysisContext';
 import * as api from '../services/api';
+import { fitData, evaluateFormula, calculateNSigma, autolabChat } from '../services/api';
 import { roundWithUncertainty, smartFormat, formatPValue } from '../utils/format';
 import ReportSection from './report/ReportSection';
 import ReportExpander from './report/ReportExpander';
@@ -12,15 +13,22 @@ import { exportResultsPdf, exportResultsDocx } from '../services/api';
 import Plotly from 'plotly.js-dist-min';
 
 /* ===================================================================
-   AutoLab -- AI-Powered Automated Analysis
-   Upload data + give instructions -> get complete results
+   AutoLab -- Automated Analysis
+   Upload data + configure form -> get complete results
    =================================================================== */
 
 /* -- Built-in example datasets -- */
 const EXAMPLE_DATASETS = [
     {
         label: 'Free Fall (Quadratic)',
-        instructions: 'First sheet. "Time_s" is x, "Height_m" is y, "Height_Error_m" is y error. Fit a quadratic model. Extract g = 2*a and compare to the theoretical value I provided.',
+        xCol: 'Time_s',
+        yCol: 'Height_m',
+        xErrCol: 'Time_Error_s',
+        yErrCol: 'Height_Error_m',
+        xLabel: 'Time [s]',
+        yLabel: 'Height [m]',
+        model: 'quadratic',
+        formulaExpr: '2*a',
         theoVal: '9.81',
         theoUnc: '0.01',
         columns: ['Time_s', 'Height_m', 'Height_Error_m', 'Time_Error_s'],
@@ -46,7 +54,7 @@ const EXAMPLE_DATASETS = [
             title: 'Free Fall Experiment',
             subject: 'Classical Mechanics',
             equipment: 'Timer, meter stick, metal ball, photogate sensor',
-            notes: 'Goal: Verify the free-fall acceleration g by dropping a metal ball from rest and measuring its height h as a function of time t. According to kinematics, h(t) = ½gt² + v₀t + h₀. Since the ball starts from rest (v₀ ≈ 0), fitting a quadratic h = at² + bt + c gives g = 2a. A photogate sensor recorded times at 0.1 s intervals while the ball fell ~11 m. Height uncertainty grows with distance due to parallax. Compare the extracted g to the accepted value 9.81 ± 0.01 m/s² using an n-sigma test.',
+            notes: 'Goal: Verify the free-fall acceleration g by dropping a metal ball from rest and measuring its height h as a function of time t. According to kinematics, h(t) = \u00BDgt\u00B2 + v\u2080t + h\u2080. Since the ball starts from rest (v\u2080 \u2248 0), fitting a quadratic h = at\u00B2 + bt + c gives g = 2a. A photogate sensor recorded times at 0.1 s intervals while the ball fell ~11 m. Height uncertainty grows with distance due to parallax. Compare the extracted g to the accepted value 9.81 \u00B1 0.01 m/s\u00B2 using an n-sigma test.',
         },
         titlePage: {
             studentName: 'Demo User',
@@ -67,16 +75,6 @@ function rowsToFile(columns: string[], rows: Record<string, any>[], filename: st
     const blob = new Blob([header + '\n' + body], { type: 'text/csv' });
     return new File([blob], filename, { type: 'text/csv' });
 }
-
-interface StepResult {
-    step: string;
-    tool?: string;
-    args?: Record<string, any>;
-    result?: Record<string, any>;
-    success?: boolean;
-    message?: string;
-}
-
 
 /** Model formula map for display */
 const MODEL_FORMULAS: Record<string, string> = {
@@ -102,14 +100,13 @@ const MODEL_PARAMS: Record<string, string[]> = {
     gaussian: ['A', 'mu', 'sigma', 'D'],
 };
 
-/** Fit model options for the dropdown */
+/** Fit model options for the dropdown (no Auto option -- D-05) */
 const FIT_MODEL_OPTIONS = [
-    { value: 'auto', label: '🤖 Auto (AI chooses)', desc: 'Let the AI pick the best model' },
-    { value: 'linear', label: '📏 Linear', desc: 'y = ax + b' },
-    { value: 'quadratic', label: '📐 Quadratic', desc: 'y = ax² + bx + c' },
-    { value: 'cubic', label: '🔣 Cubic', desc: 'y = ax³ + bx² + cx + d' },
-    { value: 'power', label: '⚡ Power', desc: 'y = axᵇ + c' },
-    { value: 'exponential', label: '📈 Exponential', desc: 'y = ae^(bx) + c' },
+    { value: 'linear', label: '\uD83D\uDCCF Linear', desc: 'y = ax + b' },
+    { value: 'quadratic', label: '\uD83D\uDCD0 Quadratic', desc: 'y = ax\u00B2 + bx + c' },
+    { value: 'cubic', label: '\uD83D\uDD23 Cubic', desc: 'y = ax\u00B3 + bx\u00B2 + cx + d' },
+    { value: 'power', label: '\u26A1 Power', desc: 'y = ax\u1D47 + c' },
+    { value: 'exponential', label: '\uD83D\uDCC8 Exponential', desc: 'y = ae^(bx) + c' },
     { value: 'sinusoidal', label: '\uD83C\uDF0A Sinusoidal', desc: 'y = A\u00B7sin(\u03C9x + \u03C6) + D' },
     { value: 'fractional', label: '\u2797 Fractional', desc: 'y = a/(b\u00B7x+c) + d' },
     { value: 'gaussian', label: '\uD83D\uDD14 Gaussian', desc: 'y = A\u00B7exp(-(x-\u03BC)\u00B2/(2\u03C3\u00B2)) + D' },
@@ -121,6 +118,34 @@ function nsigmaColor(ns: number): string {
     if (ns <= 2) return '#2e7d32';
     if (ns <= 3) return '#e65100';
     return '#c62828';
+}
+
+/** Auto-detect column assignments from column names */
+function autoDetectColumns(columns: string[]): { xCol: string; yCol: string; xErrCol: string; yErrCol: string } {
+    const errPattern = /error|err|uncertainty|unc|delta|sigma/i;
+    const errorCols = columns.filter(c => errPattern.test(c));
+    const dataCols = columns.filter(c => !errPattern.test(c));
+
+    const xCol = dataCols[0] || '';
+    const yCol = dataCols[1] || '';
+
+    // Try to match error columns to their data columns
+    let xErrCol = 'None';
+    let yErrCol = 'None';
+    for (const ec of errorCols) {
+        const ecLower = ec.toLowerCase();
+        if (xCol && ecLower.includes(xCol.toLowerCase().replace(/[_\s]/g, '').substring(0, 4))) {
+            xErrCol = ec;
+        } else if (yCol && ecLower.includes(yCol.toLowerCase().replace(/[_\s]/g, '').substring(0, 4))) {
+            yErrCol = ec;
+        } else if (yErrCol === 'None') {
+            yErrCol = ec;
+        } else if (xErrCol === 'None') {
+            xErrCol = ec;
+        }
+    }
+
+    return { xCol, yCol, xErrCol, yErrCol };
 }
 
 /* -- Table cell styles -- */
@@ -147,19 +172,37 @@ function buildHtmlTable(names: string[], params: number[], uncs: number[], round
 
 function AutoLab() {
     const [file, setFile] = useState<File | null>(null);
-    const [instructions, setInstructions] = useState('');
     const [theoVal, setTheoVal] = useState('');
     const [theoUnc, setTheoUnc] = useState('');
 
     /* Fit model selection */
-    const [selectedModel, setSelectedModel] = useState('auto');
+    const [selectedModel, setSelectedModel] = useState('linear');
     const [customExpr, setCustomExpr] = useState('');
     const [fixedParams, setFixedParams] = useState<Record<string, string>>({});
 
+    /* Column assignment (D-03) */
+    const [xCol, setXCol] = useState('');
+    const [yCol, setYCol] = useState('');
+    const [xErrCol, setXErrCol] = useState('None');
+    const [yErrCol, setYErrCol] = useState('None');
+    const [xLabel, setXLabel] = useState('');
+    const [yLabel, setYLabel] = useState('');
+    const [formulaExpr, setFormulaExpr] = useState('');
+    const [extraParams, setExtraParams] = useState<{ name: string; value: string; uncertainty: string }[]>([]);
+
+    /* Analysis data for plot rendering */
+    const [analysisXData, setAnalysisXData] = useState<number[]>([]);
+    const [analysisYData, setAnalysisYData] = useState<number[]>([]);
+    const [analysisYErrors, setAnalysisYErrors] = useState<number[] | null>(null);
+    const [analysisXErrors, setAnalysisXErrors] = useState<number[] | null>(null);
+
+    /* Direct result state (replaces steps/fitData/analysisState) */
+    const [fitResult, setFitResult] = useState<any>(null);
+    const [formulaResult, setFormulaResult] = useState<any>(null);
+    const [nsigmaResult, setNsigmaResult] = useState<any>(null);
+    const [summaryText, setSummaryText] = useState<string | null>(null);
+
     const [running, setRunning] = useState(false);
-    const [steps, setSteps] = useState<StepResult[]>([]);
-    const [fitData, setFitData] = useState<any>(null);
-    const [analysisState, setAnalysisState] = useState<any>(null);
     const [error, setError] = useState('');
 
     /* Data preview state */
@@ -206,14 +249,25 @@ function AutoLab() {
                 console.warn('Could not capture plot images:', e);
             }
         };
-        if (fitData && !plotImages.fit) {
+        if (fitResult && !plotImages.fit) {
             const timer = setTimeout(capturePlots, 500);
             return () => clearTimeout(timer);
         }
-    }, [fitData, plotImages.fit]);
+    }, [fitResult, plotImages.fit]);
 
     /** Preview-limited row count (only first N rows sent from backend) */
     const PREVIEW_MAX_ROWS = 15;
+
+    /* Apply auto-detect when preview data changes */
+    const applyAutoDetect = (columns: string[]) => {
+        const detected = autoDetectColumns(columns);
+        setXCol(detected.xCol);
+        setYCol(detected.yCol);
+        setXErrCol(detected.xErrCol);
+        setYErrCol(detected.yErrCol);
+        if (detected.xCol) setXLabel(detected.xCol.replace(/[_]/g, ' '));
+        if (detected.yCol) setYLabel(detected.yCol.replace(/[_]/g, ' '));
+    };
 
     /* Parse file for preview when user selects one */
     const handleFileChange = async (f: File) => {
@@ -229,19 +283,21 @@ function AutoLab() {
                 if (info.sheet_names.length > 1) {
                     setSheetNames(info.sheet_names);
                     setSelectedSheet(info.sheet_names[0]);
-                    // Auto-load first sheet preview
                     await loadPreviewForSheet(f, info.sheet_names[0]);
                     return;
                 }
-                // Single sheet Excel -- load it directly
                 const data = await api.parseFileData(f, info.sheet_names[0], PREVIEW_MAX_ROWS);
                 if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows)) {
-                    setPreviewData({ columns: data.columns.map(String), rows: data.rows });
+                    const cols = data.columns.map(String);
+                    setPreviewData({ columns: cols, rows: data.rows });
+                    applyAutoDetect(cols);
                 }
             } else {
                 const data = await api.parseFileData(f, undefined, PREVIEW_MAX_ROWS);
                 if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows)) {
-                    setPreviewData({ columns: data.columns.map(String), rows: data.rows });
+                    const cols = data.columns.map(String);
+                    setPreviewData({ columns: cols, rows: data.rows });
+                    applyAutoDetect(cols);
                 }
             }
         } catch {
@@ -256,7 +312,9 @@ function AutoLab() {
         try {
             const data = await api.parseFileData(f, sheet, PREVIEW_MAX_ROWS);
             if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows)) {
-                setPreviewData({ columns: data.columns.map(String), rows: data.rows });
+                const cols = data.columns.map(String);
+                setPreviewData({ columns: cols, rows: data.rows });
+                applyAutoDetect(cols);
             }
         } catch {
             setPreviewError('Could not load sheet preview.');
@@ -269,26 +327,38 @@ function AutoLab() {
         if (file) loadPreviewForSheet(file, sheet);
     };
 
-    /* Load example dataset */
+    /* Load example dataset -- pre-fills structured form fields (D-08) */
     const loadExample = (ex: typeof EXAMPLE_DATASETS[0]) => {
-        const f = rowsToFile(ex.columns, ex.rows, 'autolab_example.csv');
+        const f = rowsToFile(ex.columns, ex.rows, `${ex.label.replace(/\s+/g, '_')}.csv`);
         setFile(f);
-        setInstructions(ex.instructions);
-        setTheoVal(ex.theoVal || '');
-        setTheoUnc(ex.theoUnc || '');
         setPreviewData({ columns: ex.columns, rows: ex.rows });
-        setPreviewError('');
         setSheetNames([]);
         setSelectedSheet('');
-        setSteps([]);
-        setFitData(null);
-        setAnalysisState(null);
+
+        // Set structured form fields
+        setXCol(ex.xCol);
+        setYCol(ex.yCol);
+        setXErrCol(ex.xErrCol);
+        setYErrCol(ex.yErrCol);
+        setXLabel(ex.xLabel);
+        setYLabel(ex.yLabel);
+        setSelectedModel(ex.model);
+        setFormulaExpr(ex.formulaExpr);
+        setTheoVal(ex.theoVal || '');
+        setTheoUnc(ex.theoUnc || '');
+        setCustomExpr('');
+        setFixedParams({});
+        setExtraParams([]);
+
+        // Clear previous results
+        setFitResult(null);
+        setFormulaResult(null);
+        setNsigmaResult(null);
+        setSummaryText(null);
         setPlotImages({ fit: null, residuals: null });
         setReportExpanded(false);
         setError('');
-        setSelectedModel('auto');
-        setCustomExpr('');
-        setFixedParams({});
+
         if (ex.reportContext) {
             setDemoReportContext({ ...ex.reportContext, titlePage: ex.titlePage });
         } else {
@@ -296,72 +366,131 @@ function AutoLab() {
         }
     };
 
-    const handleRun = async () => {
-        if (!file || !instructions.trim()) return;
+    /* Direct API pipeline (D-02) -- replaces AI orchestrator */
+    const handleRunAnalysis = async () => {
+        if (!file || !previewData || !xCol || !yCol) return;
         setRunning(true);
-        setSteps([]);
-        setFitData(null);
-        setAnalysisState(null);
+        setFitResult(null);
+        setFormulaResult(null);
+        setNsigmaResult(null);
+        setSummaryText(null);
         setPlotImages({ fit: null, residuals: null });
         setReportExpanded(false);
         setError('');
 
         try {
-            // Build augmented instructions with model selection and fixed params
-            let augmented = instructions;
-            if (selectedModel !== 'auto') {
-                if (selectedModel === 'custom' && customExpr.trim()) {
-                    augmented += `\n\n[MODEL SELECTION: Use a custom model with expression: ${customExpr.trim()}]`;
-                } else {
-                    augmented += `\n\n[MODEL SELECTION: Use the ${selectedModel} model.]`;
-                }
+            // 1. Extract data arrays from previewData -- need FULL data, not just preview
+            // Re-parse the full file to get all rows
+            let allRows: Record<string, any>[];
+            try {
+                const fullData = await api.parseFileData(file, selectedSheet || undefined);
+                allRows = fullData.rows;
+            } catch {
+                // Fallback to preview rows if full parse fails
+                allRows = previewData.rows;
             }
+
+            const xRaw = allRows.map(r => Number(r[xCol]));
+            const yRaw = allRows.map(r => Number(r[yCol]));
+            const yErrRaw = yErrCol !== 'None' ? allRows.map(r => Number(r[yErrCol])) : null;
+            const xErrRaw = xErrCol !== 'None' ? allRows.map(r => Number(r[xErrCol])) : null;
+
+            // Filter: keep only rows where BOTH x and y are valid numbers
+            const validIndices = xRaw.map((x, i) => (!isNaN(x) && !isNaN(yRaw[i])) ? i : -1).filter(i => i >= 0);
+            const xData = validIndices.map(i => xRaw[i]);
+            const yData = validIndices.map(i => yRaw[i]);
+            const yErrors = yErrRaw ? validIndices.map(i => yErrRaw[i]) : undefined;
+            const xErrors = xErrRaw ? validIndices.map(i => xErrRaw[i]) : undefined;
+
+            setAnalysisXData(xData);
+            setAnalysisYData(yData);
+            setAnalysisYErrors(yErrors ?? null);
+            setAnalysisXErrors(xErrors ?? null);
+
+            // 2. Call /api/fitting/fit
+            const fitPayload: any = { x_data: xData, y_data: yData, model: selectedModel };
+            if (yErrors && yErrors.length === yData.length) fitPayload.y_errors = yErrors;
+            if (selectedModel === 'custom' && customExpr.trim()) fitPayload.custom_expr = customExpr.trim();
             const fixedEntries = Object.entries(fixedParams).filter(([, v]) => v.trim() !== '');
             if (fixedEntries.length > 0) {
-                const fixedStr = fixedEntries.map(([k, v]) => `${k}=${v}`).join(', ');
-                augmented += `\n[FIXED PARAMETERS: Fix these parameters to the given values: ${fixedStr}]`;
+                const paramNames = MODEL_PARAMS[selectedModel] || [];
+                const guess = paramNames.map(p => {
+                    const fixed = fixedParams[p];
+                    return fixed?.trim() ? parseFloat(fixed) : 1;
+                });
+                fitPayload.initial_guess = guess;
             }
 
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('instructions', augmented);
-            if (theoVal) formData.append('theoretical_value', theoVal);
-            if (theoUnc) formData.append('theoretical_uncertainty', theoUnc);
+            const fitRes = await fitData(fitPayload);
+            if (fitRes.error) throw new Error(fitRes.error);
+            setFitResult(fitRes);
 
-            const resp = await fetch('/api/autolab/run', { method: 'POST', body: formData });
-            if (!resp.ok) {
-                const errData = await resp.json().catch(() => ({}));
-                throw new Error(errData.error || `Server error ${resp.status}`);
-            }
-            const data = await resp.json();
-
-            if (data.error && !data.steps?.length) {
-                setError(data.error);
-            } else {
-                setSteps(data.steps || []);
-                setFitData(data.fit_data || null);
-                setAnalysisState(data.state || null);
-                // Share results with sidebar chat via context
-                if (data.state) {
-                    setAutolabResults({
-                        fit: data.state.fit ? {
-                            model_name: data.state.fit.model_name,
-                            parameter_names: data.state.fit.parameter_names,
-                            parameters: data.state.fit.parameters,
-                            uncertainties: data.state.fit.uncertainties,
-                            reduced_chi_squared: data.state.fit.reduced_chi_squared,
-                            p_value: data.state.fit.p_value,
-                            r_squared: data.state.fit.r_squared,
-                        } : undefined,
-                        formula: data.state.formula,
-                        nsigma: data.state.nsigma,
-                        instructions,
-                        filename: file?.name,
-                    });
+            // 3. If formula expression provided, call /api/formula/evaluate
+            let fResult = null;
+            if (formulaExpr.trim()) {
+                const vars: Record<string, number> = {};
+                const uncs: Record<string, number> = {};
+                fitRes.parameter_names.forEach((name: string, i: number) => {
+                    vars[name] = fitRes.parameters[i];
+                    uncs[name] = fitRes.uncertainties[i];
+                });
+                // Include user-defined extra parameters
+                for (const ep of extraParams) {
+                    if (ep.name.trim() && ep.value.trim()) {
+                        vars[ep.name.trim()] = parseFloat(ep.value);
+                        uncs[ep.name.trim()] = ep.uncertainty.trim() ? parseFloat(ep.uncertainty) : 0;
+                    }
                 }
+                fResult = await evaluateFormula({
+                    expression: formulaExpr.trim(),
+                    is_latex: false,
+                    variables: vars,
+                    uncertainties: uncs,
+                });
+                if (fResult.error) throw new Error(fResult.error);
+                setFormulaResult(fResult);
             }
+
+            // 4. If theoretical value provided AND formula result exists, call /api/nsigma/calculate
+            let nsResult = null;
+            if (theoVal.trim() && fResult && !fResult.error) {
+                nsResult = await calculateNSigma({
+                    value1: fResult.value,
+                    uncertainty1: fResult.uncertainty,
+                    value2: parseFloat(theoVal),
+                    uncertainty2: parseFloat(theoUnc) || 0,
+                });
+                if (nsResult.error) throw new Error(nsResult.error);
+                setNsigmaResult(nsResult);
+            }
+
+            // 5. AI summary via /api/autolab/chat
+            const context: any = {
+                fit: {
+                    model_name: fitRes.model_name,
+                    parameter_names: fitRes.parameter_names,
+                    parameters: fitRes.parameters,
+                    uncertainties: fitRes.uncertainties,
+                    reduced_chi_squared: fitRes.reduced_chi_squared,
+                    p_value: fitRes.p_value,
+                    r_squared: fitRes.r_squared,
+                },
+            };
+            if (fResult) context.formula = { expression: formulaExpr, ...fResult };
+            if (nsResult) context.nsigma = { ...nsResult, theoretical_value: parseFloat(theoVal), theoretical_uncertainty: parseFloat(theoUnc) || 0 };
+            try {
+                const chatRes = await autolabChat({
+                    messages: [{ role: 'user', content: 'Summarize these analysis results in 3-5 sentences for a lab report.' }],
+                    context,
+                });
+                setSummaryText(chatRes.reply);
+            } catch { /* summary is non-critical */ }
+
+            // 6. Share with sidebar context
+            setAutolabResults({ fit: context.fit, formula: context.formula, nsigma: context.nsigma, filename: file?.name });
+
         } catch (err: any) {
-            setError(err.message || 'AutoLab failed');
+            setError(err.message || 'Analysis failed');
         } finally {
             setRunning(false);
         }
@@ -372,11 +501,22 @@ function AutoLab() {
         setResultsExporting(true);
         setResultsExportError(null);
         try {
-            const normalized = analysisState ? normalizeAnalysisData(analysisState) : {};
+            const stateForNormalize: Record<string, any> = {
+                fit: fitResult ? {
+                    ...fitResult,
+                    x_data: analysisXData,
+                    y_data: analysisYData,
+                    x_errors: analysisXErrors,
+                    y_errors: analysisYErrors,
+                } : undefined,
+                formula: formulaResult ? { expression: formulaExpr, ...formulaResult } : undefined,
+                nsigma: nsigmaResult ? { ...nsigmaResult, theoretical_value: parseFloat(theoVal), theoretical_uncertainty: parseFloat(theoUnc) || 0 } : undefined,
+            };
+            const normalized = normalizeAnalysisData(stateForNormalize);
             const exportData = {
                 analysis_data: normalized,
                 plots: plotImages,
-                summary: summaryStep?.message || '',
+                summary: summaryText || '',
                 language: 'en',
             };
             const blob = exportFormat === 'docx'
@@ -402,17 +542,15 @@ function AutoLab() {
 
     /** Export results as a clean table for pasting into Docs/Word/Sheets */
     const handleExportReport = () => {
-        const names = fitStep?.result?.parameter_names as string[] || [];
-        const params = fitStep?.result?.parameters || [];
-        const uncs = fitStep?.result?.uncertainties || [];
-        const modelKey = (fitStep?.args?.model || '').toLowerCase();
-        const formula = MODEL_FORMULAS[modelKey] || fitStep?.args?.custom_expr || '';
+        const names = fitResult?.parameter_names as string[] || [];
+        const params = fitResult?.parameters || [];
+        const uncs = fitResult?.uncertainties || [];
+        const modelKey = selectedModel.toLowerCase();
+        const formula = MODEL_FORMULAS[modelKey] || customExpr || '';
 
-        // Build HTML table
         let html = '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:sans-serif;font-size:14px">';
         html += '<thead><tr style="background:#e3f2fd"><th>Quantity</th><th>Rounded</th><th>Full Precision</th></tr></thead><tbody>';
 
-        // Parameter rows
         names.forEach((name: string, j: number) => {
             const v = Number(params[j]);
             const u = Number(uncs[j]);
@@ -420,38 +558,32 @@ function AutoLab() {
             html += `<tr><td>${name}</td><td>${fmt.rounded}</td><td>${fmt.unrounded}</td></tr>`;
         });
 
-        // Chi-squared reduced
-        if (fitStep?.result?.reduced_chi_squared != null) {
-            const chi2 = Number(fitStep.result.reduced_chi_squared);
-            html += `<tr><td>χ² reduced</td><td>${isFinite(chi2) ? chi2.toFixed(3) : '—'}</td><td>${isFinite(chi2) ? chi2 : '—'}</td></tr>`;
+        if (fitResult?.reduced_chi_squared != null) {
+            const chi2 = Number(fitResult.reduced_chi_squared);
+            html += `<tr><td>\u03C7\u00B2 reduced</td><td>${isFinite(chi2) ? chi2.toFixed(3) : '\u2014'}</td><td>${isFinite(chi2) ? chi2 : '\u2014'}</td></tr>`;
         }
 
-        // P-value
-        if (fitStep?.result?.p_value != null) {
-            const pv = Number(fitStep.result.p_value);
-            html += `<tr><td>P-value</td><td>${formatPValue(pv)}</td><td>${isFinite(pv) ? pv : '—'}</td></tr>`;
+        if (fitResult?.p_value != null) {
+            const pv = Number(fitResult.p_value);
+            html += `<tr><td>P-value</td><td>${formatPValue(pv)}</td><td>${isFinite(pv) ? pv : '\u2014'}</td></tr>`;
         }
 
-        // Calculated formula result
-        if (formulaStep?.result) {
-            const val = Number(formulaStep.result.value);
-            const unc = Number(formulaStep.result.uncertainty);
-            const expr = formulaStep.args?.expression || '';
+        if (formulaResult) {
+            const val = Number(formulaResult.value);
+            const unc = Number(formulaResult.uncertainty);
             if (isFinite(val) && isFinite(unc) && unc > 0) {
                 const fmt = roundWithUncertainty(val, unc);
-                html += `<tr><td>${expr}</td><td>${fmt.rounded}</td><td>${fmt.unrounded}</td></tr>`;
+                html += `<tr><td>${formulaExpr}</td><td>${fmt.rounded}</td><td>${fmt.unrounded}</td></tr>`;
             } else {
-                html += `<tr><td>${expr}</td><td>${formulaStep.result.formatted ?? '—'}</td><td>${smartFormat(val)} ± ${smartFormat(unc)}</td></tr>`;
+                html += `<tr><td>${formulaExpr}</td><td>${formulaResult.formatted ?? '\u2014'}</td><td>${smartFormat(val)} \u00B1 ${smartFormat(unc)}</td></tr>`;
             }
         }
 
-        // N-sigma result
-        if (nsigmaStep?.result) {
-            const ns = Number(nsigmaStep.result.n_sigma);
-            html += `<tr><td>N-σ</td><td>${ns.toFixed(2)}σ — ${nsigmaStep.result.verdict}</td><td>${ns}σ</td></tr>`;
+        if (nsigmaResult) {
+            const ns = Number(nsigmaResult.n_sigma);
+            html += `<tr><td>N-\u03C3</td><td>${ns.toFixed(2)}\u03C3 \u2014 ${nsigmaResult.verdict}</td><td>${ns}\u03C3</td></tr>`;
         }
 
-        // Fit formula row
         if (formula) {
             html += `<tr><td>Fit Formula</td><td colspan="2">${formula}</td></tr>`;
         }
@@ -466,30 +598,28 @@ function AutoLab() {
             const fmt = roundWithUncertainty(v, u);
             plain += `${name}\t${fmt.rounded}\t${fmt.unrounded}\n`;
         });
-        if (fitStep?.result?.reduced_chi_squared != null) {
-            const chi2 = Number(fitStep.result.reduced_chi_squared);
-            plain += `χ² reduced\t${isFinite(chi2) ? chi2.toFixed(3) : '—'}\t${isFinite(chi2) ? chi2 : '—'}\n`;
+        if (fitResult?.reduced_chi_squared != null) {
+            const chi2 = Number(fitResult.reduced_chi_squared);
+            plain += `\u03C7\u00B2 reduced\t${isFinite(chi2) ? chi2.toFixed(3) : '\u2014'}\t${isFinite(chi2) ? chi2 : '\u2014'}\n`;
         }
-        if (fitStep?.result?.p_value != null) {
-            const pv = Number(fitStep.result.p_value);
-            plain += `P-value\t${formatPValue(pv)}\t${isFinite(pv) ? pv : '—'}\n`;
+        if (fitResult?.p_value != null) {
+            const pv = Number(fitResult.p_value);
+            plain += `P-value\t${formatPValue(pv)}\t${isFinite(pv) ? pv : '\u2014'}\n`;
         }
-        if (formulaStep?.result) {
-            const val = Number(formulaStep.result.value);
-            const unc = Number(formulaStep.result.uncertainty);
-            const expr = formulaStep.args?.expression || '';
-            const fmt = (isFinite(val) && isFinite(unc) && unc > 0) ? roundWithUncertainty(val, unc) : { rounded: String(formulaStep.result.formatted ?? '—'), unrounded: `${smartFormat(val)} ± ${smartFormat(unc)}` };
-            plain += `${expr}\t${fmt.rounded}\t${fmt.unrounded}\n`;
+        if (formulaResult) {
+            const val = Number(formulaResult.value);
+            const unc = Number(formulaResult.uncertainty);
+            const fmt = (isFinite(val) && isFinite(unc) && unc > 0) ? roundWithUncertainty(val, unc) : { rounded: String(formulaResult.formatted ?? '\u2014'), unrounded: `${smartFormat(val)} \u00B1 ${smartFormat(unc)}` };
+            plain += `${formulaExpr}\t${fmt.rounded}\t${fmt.unrounded}\n`;
         }
-        if (nsigmaStep?.result) {
-            const ns = Number(nsigmaStep.result.n_sigma);
-            plain += `N-σ\t${ns.toFixed(2)}σ — ${nsigmaStep.result.verdict}\t${ns}σ\n`;
+        if (nsigmaResult) {
+            const ns = Number(nsigmaResult.n_sigma);
+            plain += `N-\u03C3\t${ns.toFixed(2)}\u03C3 \u2014 ${nsigmaResult.verdict}\t${ns}\u03C3\n`;
         }
         if (formula) {
             plain += `Fit Formula\t${formula}\n`;
         }
 
-        // Copy as rich HTML table
         if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
             const item = new ClipboardItem({
                 'text/html': new Blob([html], { type: 'text/html' }),
@@ -503,25 +633,14 @@ function AutoLab() {
         setTimeout(() => setReportCopied(false), 2000);
     };
 
-    /* -- Derive structured result sections from steps -- */
-    const summaryStep = steps.find(s => s.step === 'summary' && s.message);
-    const fitStep = steps.find(s => s.step === 'fit' && s.success && s.result && !s.result.error);
-    const formulaStep = steps.find(s => s.step === 'formula' && s.success && s.result && !s.result.error);
-    const nsigmaStep = steps.find(s => s.step === 'nsigma' && s.success && s.result && !s.result.error);
-    const errorSteps = steps.filter(s => s.success === false || s.result?.error);
-    const hasResults = steps.length > 0;
-
-    /* -- Resolve axis labels from parsed state or AI instructions -- */
-    const xLabel = analysisState?.parsed?.x_col || 'X';
-    const yLabel = analysisState?.parsed?.y_col || 'Y';
+    const hasResults = !!fitResult;
 
     /** Copy table as rich HTML (pastes as table in Docs/Word) + plain text fallback */
     const handleCopyTable = () => {
-        const names = fitStep?.result?.parameter_names as string[] || [];
-        const params = fitStep?.result?.parameters || [];
-        const uncs = fitStep?.result?.uncertainties || [];
+        const names = fitResult?.parameter_names as string[] || [];
+        const params = fitResult?.parameters || [];
+        const uncs = fitResult?.uncertainties || [];
 
-        // Plain text (tab-separated)
         const plainLines = ['Parameter\tRounded\tFull Precision'];
         names.forEach((name: string, j: number) => {
             const fmt = roundWithUncertainty(Number(params[j]), Number(uncs[j]));
@@ -529,10 +648,8 @@ function AutoLab() {
         });
         const plainText = plainLines.join('\n');
 
-        // Rich HTML table
         const htmlStr = buildHtmlTable(names, params, uncs, roundWithUncertainty);
 
-        // Use Clipboard API with both formats
         if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
             const item = new ClipboardItem({
                 'text/html': new Blob([htmlStr], { type: 'text/html' }),
@@ -546,13 +663,20 @@ function AutoLab() {
         setTimeout(() => setTableCopied(false), 1500);
     };
 
+    /* Column dropdown style */
+    const colSelectStyle: React.CSSProperties = {
+        width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.9rem',
+        border: '1px solid var(--border)', borderRadius: '6px',
+        background: 'var(--surface)', fontFamily: 'inherit',
+    };
+
     return (
         <div className="card" style={{ maxWidth: '1100px', margin: '0 auto' }}>
             {/* -- Header -- */}
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <h2 style={{ fontSize: '1.8rem', margin: 0 }}>🤖 AutoLab</h2>
+                <h2 style={{ fontSize: '1.8rem', margin: 0 }}>🔬 AutoLab</h2>
                 <p style={{ color: 'var(--text-secondary)', marginTop: '0.4rem', fontSize: '1.05rem' }}>
-                    🔬 AI-Powered Automated Analysis — Upload, Instruct, Get Results
+                    Automated Analysis — Upload, Configure, Get Results
                 </p>
             </div>
 
@@ -614,13 +738,70 @@ function AutoLab() {
                     <DataPreview columns={previewData.columns} rows={previewData.rows} />
                 )}
 
+                {/* Column Assignment (D-03, D-04) -- shown after file upload */}
+                {previewData && (
+                    <div style={{
+                        padding: '1rem', background: 'var(--info-bg)', borderRadius: '10px',
+                        border: '1px solid var(--border)', marginBottom: '1rem',
+                    }}>
+                        <p style={{ fontWeight: 600, margin: '0 0 0.6rem', fontSize: '0.95rem' }}>
+                            📊 Column Assignment
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                            <div>
+                                <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>X Column</label>
+                                <select value={xCol} onChange={e => { setXCol(e.target.value); setXLabel(e.target.value.replace(/[_]/g, ' ')); }} style={colSelectStyle}>
+                                    <option value="">-- select --</option>
+                                    {previewData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Y Column</label>
+                                <select value={yCol} onChange={e => { setYCol(e.target.value); setYLabel(e.target.value.replace(/[_]/g, ' ')); }} style={colSelectStyle}>
+                                    <option value="">-- select --</option>
+                                    {previewData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>X Error (optional)</label>
+                                <select value={xErrCol} onChange={e => setXErrCol(e.target.value)} style={colSelectStyle}>
+                                    <option value="None">None</option>
+                                    {previewData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Y Error (optional)</label>
+                                <select value={yErrCol} onChange={e => setYErrCol(e.target.value)} style={colSelectStyle}>
+                                    <option value="None">None</option>
+                                    {previewData.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        {/* Axis labels */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginTop: '0.6rem' }}>
+                            <div>
+                                <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>X Axis Label</label>
+                                <input type="text" value={xLabel} onChange={e => setXLabel(e.target.value)}
+                                    placeholder="e.g. Time [s]"
+                                    style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.9rem', border: '1px solid var(--border)', borderRadius: '6px', boxSizing: 'border-box' }} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Y Axis Label</label>
+                                <input type="text" value={yLabel} onChange={e => setYLabel(e.target.value)}
+                                    placeholder="e.g. Height [m]"
+                                    style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.9rem', border: '1px solid var(--border)', borderRadius: '6px', boxSizing: 'border-box' }} />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Example datasets */}
                 <div style={{
                     padding: '0.8rem 1rem', background: 'var(--success-bg)', borderRadius: '10px',
                     border: '1px solid var(--success-border)', marginBottom: '1rem',
                 }}>
                     <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.9rem' }}>
-                        🧪 Try an example (loads data + instructions):
+                        🧪 Try an example (loads data + form fields):
                     </p>
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         {EXAMPLE_DATASETS.map(ex => (
@@ -631,28 +812,6 @@ function AutoLab() {
                             </button>
                         ))}
                     </div>
-                </div>
-
-                {/* Instructions */}
-                <div className="form-group">
-                    <label style={{ fontWeight: 600, fontSize: '1rem' }}>📝 Instructions</label>
-                    <textarea
-                        value={instructions}
-                        onChange={e => setInstructions(e.target.value)}
-                        rows={6}
-                        placeholder={
-                            'Tell the model about your analysis. Include:\n' +
-                            '\n' +
-                            '  - What experiment you performed (e.g. "RC discharge", "Hooke\'s law")\n' +
-                            '  - Which fit model to use (linear, quadratic, exponential, sinusoidal, custom...)\n' +
-                            '  - How your file is organized: column names for x, y, and errors\n' +
-                            '  - Which sheet to use (if Excel with multiple sheets)\n' +
-                            '  - Any formulas to calculate from fitted parameters (e.g. "period T = 2*pi/omega")\n' +
-                            '  - Axis labels if you want custom names (e.g. "label x-axis as Time [s]")\n' +
-                            '  - Theoretical values to compare against are entered below'
-                        }
-                        style={{ fontFamily: 'inherit', fontSize: '0.95rem', lineHeight: 1.5 }}
-                    />
                 </div>
 
                 {/* Fit Model Selection */}
@@ -698,7 +857,7 @@ function AutoLab() {
                     )}
 
                     {/* Fixed parameters (show when a specific model is selected) */}
-                    {selectedModel !== 'auto' && selectedModel !== 'custom' && MODEL_PARAMS[selectedModel] && (
+                    {selectedModel !== 'custom' && MODEL_PARAMS[selectedModel] && (
                         <div style={{ marginTop: '0.6rem' }}>
                             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 0.4rem' }}>
                                 🔒 Fix constants (leave blank to fit freely):
@@ -732,6 +891,62 @@ function AutoLab() {
                     )}
                 </div>
 
+                {/* Formula Expression (optional, D-06) */}
+                <div style={{
+                    padding: '1rem', background: 'var(--surface-alt)', borderRadius: '10px',
+                    border: '1px solid var(--border)', marginBottom: '1rem',
+                }}>
+                    <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.95rem' }}>
+                        🔢 Formula Expression (optional)
+                    </p>
+                    <input
+                        type="text"
+                        value={formulaExpr}
+                        onChange={e => setFormulaExpr(e.target.value)}
+                        placeholder="e.g. 2*a for g from quadratic fit"
+                        style={{
+                            width: '100%', padding: '0.5rem 0.75rem', fontSize: '0.9rem',
+                            border: '1px solid var(--border)', borderRadius: '6px', fontFamily: 'monospace',
+                            boxSizing: 'border-box',
+                        }}
+                    />
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.3rem 0 0' }}>
+                        Calculate a derived quantity from fit parameters.
+                        {selectedModel && MODEL_PARAMS[selectedModel] && (
+                            <> Fit parameters: <strong>{MODEL_PARAMS[selectedModel].join(', ')}</strong></>
+                        )}
+                    </p>
+
+                    {/* Extra user-defined parameters for formula */}
+                    {extraParams.length > 0 && (
+                        <div style={{ marginTop: '0.6rem' }}>
+                            {extraParams.map((ep, i) => (
+                                <div key={i} style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginBottom: '0.3rem' }}>
+                                    <input type="text" value={ep.name} placeholder="name"
+                                        onChange={e => { const arr = [...extraParams]; arr[i] = { ...arr[i], name: e.target.value }; setExtraParams(arr); }}
+                                        style={{ width: '5rem', padding: '0.3rem 0.5rem', fontSize: '0.85rem', fontFamily: 'monospace', border: '1px solid var(--border)', borderRadius: '5px' }} />
+                                    <span style={{ fontSize: '0.85rem' }}>=</span>
+                                    <input type="text" value={ep.value} placeholder="value"
+                                        onChange={e => { const arr = [...extraParams]; arr[i] = { ...arr[i], value: e.target.value }; setExtraParams(arr); }}
+                                        style={{ width: '6rem', padding: '0.3rem 0.5rem', fontSize: '0.85rem', fontFamily: 'monospace', border: '1px solid var(--border)', borderRadius: '5px' }} />
+                                    <span style={{ fontSize: '0.85rem' }}>±</span>
+                                    <input type="text" value={ep.uncertainty} placeholder="unc."
+                                        onChange={e => { const arr = [...extraParams]; arr[i] = { ...arr[i], uncertainty: e.target.value }; setExtraParams(arr); }}
+                                        style={{ width: '6rem', padding: '0.3rem 0.5rem', fontSize: '0.85rem', fontFamily: 'monospace', border: '1px solid var(--border)', borderRadius: '5px' }} />
+                                    <button onClick={() => setExtraParams(extraParams.filter((_, j) => j !== i))}
+                                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem', border: '1px solid var(--border)', borderRadius: '5px', background: 'var(--surface)', cursor: 'pointer' }}>
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <button onClick={() => setExtraParams([...extraParams, { name: '', value: '', uncertainty: '' }])}
+                        style={{ marginTop: '0.4rem', padding: '0.3rem 0.7rem', fontSize: '0.8rem', border: '1px solid var(--border)', borderRadius: '5px', background: 'var(--surface)', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                        + Add parameter
+                    </button>
+                </div>
+
                 {/* Theoretical value (optional) */}
                 <div style={{
                     padding: '1rem', background: 'var(--surface-alt)', borderRadius: '10px',
@@ -739,6 +954,9 @@ function AutoLab() {
                 }}>
                     <p style={{ fontWeight: 600, margin: '0 0 0.5rem', fontSize: '0.95rem' }}>
                         🎯 Theoretical Value (optional)
+                    </p>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.5rem' }}>
+                        Requires a formula expression above to specify which quantity to compare.
                     </p>
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
                         <div className="form-group" style={{ flex: 1, margin: 0 }}>
@@ -758,17 +976,17 @@ function AutoLab() {
 
                 {/* Run button */}
                 <button
-                    onClick={handleRun}
-                    disabled={running || !file || !instructions.trim()}
+                    onClick={handleRunAnalysis}
+                    disabled={running || !file || !xCol || !yCol || !selectedModel}
                     className="btn-primary"
                     style={{
                         width: '100%', fontSize: '1.15rem', padding: '0.9rem',
-                        background: running ? '#90a4ae' : 'linear-gradient(135deg, #c62828, #d32f2f)',
+                        background: running ? '#90a4ae' : 'linear-gradient(135deg, #1565c0, #1976d2)',
                         border: 'none', borderRadius: '10px', color: 'white',
                         cursor: running ? 'wait' : 'pointer', transition: 'all 0.3s',
                     }}
                 >
-                    {running ? <span>🔄 AI is analyzing... please wait</span> : <span>🚀 Run AutoLab</span>}
+                    {running ? <span>🔄 Analyzing... please wait</span> : <span>🚀 Run Analysis</span>}
                 </button>
 
                 {error && (
@@ -783,23 +1001,8 @@ function AutoLab() {
                         📊 Results
                     </h3>
 
-                    {/* -- Errors -- */}
-                    {errorSteps.length > 0 && (
-                        <div style={{
-                            padding: '0.8rem 1rem', borderRadius: '10px',
-                            border: '2px solid var(--danger-border)', background: 'var(--danger-bg)', marginBottom: '1rem',
-                        }}>
-                            <strong>⚠️ Errors during analysis:</strong>
-                            {errorSteps.map((s, i) => (
-                                <p key={i} style={{ margin: '0.3rem 0 0', fontSize: '0.88rem', color: 'var(--danger)' }}>
-                                    {s.step}: {s.result?.error || s.message}
-                                </p>
-                            ))}
-                        </div>
-                    )}
-
                     {/* -- AI Summary -- */}
-                    {summaryStep && summaryStep.message && (
+                    {summaryText && (
                         <div style={{
                             padding: '1rem 1.2rem', borderRadius: '10px',
                             background: 'var(--success-bg)', border: '1px solid var(--success-border)',
@@ -808,19 +1011,19 @@ function AutoLab() {
                             <strong style={{ display: 'block', marginBottom: '0.4rem', color: 'var(--success)' }}>
                                 ✅ Analysis Summary
                             </strong>
-                            <span style={{ color: 'var(--text)' }}>{summaryStep.message}</span>
+                            <span style={{ color: 'var(--text)' }}>{summaryText}</span>
                         </div>
                     )}
 
-                    {/* -- Parameter table (raw results, shown first) -- */}
-                    {fitStep && fitStep.result && (
+                    {/* -- Parameter table -- */}
+                    {fitResult && (
                         <div style={{ marginBottom: '1.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
                             <h4 style={{ margin: 0, color: 'var(--text)', fontSize: '1rem' }}>
-                                Fit Parameters -- <em style={{ fontWeight: 400 }}>{fitStep.result.model_name || fitStep.args?.model}</em>
+                                Fit Parameters -- <em style={{ fontWeight: 400 }}>{fitResult.model_name || selectedModel}</em>
                                 {(() => {
-                                    const modelKey = (fitStep.args?.model || '').toLowerCase();
-                                    const formula = MODEL_FORMULAS[modelKey] || (fitStep.args?.custom_expr ? fitStep.args.custom_expr : null);
+                                    const modelKey = selectedModel.toLowerCase();
+                                    const formula = MODEL_FORMULAS[modelKey] || (selectedModel === 'custom' ? customExpr : null);
                                     return formula ? (
                                         <span style={{ marginLeft: '0.5rem', fontSize: '0.88rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                                             ({formula})
@@ -838,7 +1041,7 @@ function AutoLab() {
                                     cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s',
                                 }}
                             >
-                                {tableCopied ? '✅ Copied!' : '📋 Copy Table'}
+                                {tableCopied ? '\u2705 Copied!' : '\uD83D\uDCCB Copy Table'}
                             </button>
                             </div>
                             <div style={{ overflowX: 'auto', userSelect: 'text' }}>
@@ -851,9 +1054,9 @@ function AutoLab() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {(fitStep.result.parameter_names as string[] || []).map((name: string, j: number) => {
-                                            const val = Number(fitStep.result!.parameters?.[j]);
-                                            const unc = Number(fitStep.result!.uncertainties?.[j]);
+                                        {(fitResult.parameter_names as string[] || []).map((name: string, j: number) => {
+                                            const val = Number(fitResult.parameters?.[j]);
+                                            const unc = Number(fitResult.uncertainties?.[j]);
                                             const fmt = roundWithUncertainty(val, unc);
                                             return (
                                                 <tr key={name} style={{ background: j % 2 === 0 ? 'var(--surface)' : 'var(--surface-alt)' }}>
@@ -872,24 +1075,24 @@ function AutoLab() {
                                 fontSize: '0.88rem', color: 'var(--text-secondary)',
                                 padding: '0.5rem 0.75rem', background: 'var(--surface-alt)', borderRadius: '6px',
                             }}>
-                                {fitStep.result.reduced_chi_squared != null && (
-                                    <span>{'\u03C7\u00B2'} reduced = <strong>{Number(fitStep.result.reduced_chi_squared).toFixed(3)}</strong></span>
+                                {fitResult.reduced_chi_squared != null && (
+                                    <span>{'\u03C7\u00B2'} reduced = <strong>{Number(fitResult.reduced_chi_squared).toFixed(3)}</strong></span>
                                 )}
-                                {fitStep.result.p_value != null && (
-                                    <span>P = <strong>{formatPValue(Number(fitStep.result.p_value))}</strong></span>
+                                {fitResult.p_value != null && (
+                                    <span>P = <strong>{formatPValue(Number(fitResult.p_value))}</strong></span>
                                 )}
-                                {fitStep.result.dof != null && (
-                                    <span>dof = <strong>{fitStep.result.dof}</strong></span>
+                                {fitResult.dof != null && (
+                                    <span>dof = <strong>{fitResult.dof}</strong></span>
                                 )}
-                                {analysisState?.fit?.r_squared != null && (
-                                    <span>R{'\u00B2'} = <strong>{Number(analysisState.fit.r_squared).toFixed(5)}</strong></span>
+                                {fitResult.r_squared != null && (
+                                    <span>R{'\u00B2'} = <strong>{Number(fitResult.r_squared).toFixed(5)}</strong></span>
                                 )}
                             </div>
                         </div>
                     )}
 
                     {/* -- Formula result -- */}
-                    {formulaStep && formulaStep.result && (
+                    {formulaResult && (
                         <div style={{ marginBottom: '1.5rem' }}>
                             <h4 style={{ margin: '0 0 0.6rem', color: 'var(--text)', fontSize: '1rem' }}>
                                 🔢 Formula Calculation
@@ -900,14 +1103,14 @@ function AutoLab() {
                                 fontFamily: 'monospace', fontSize: '0.95rem',
                             }}>
                                 <div style={{ marginBottom: '0.4rem', color: 'var(--text-secondary)' }}>
-                                    Expression: <strong style={{ color: 'var(--text)' }}>{formulaStep.args?.expression}</strong>
+                                    Expression: <strong style={{ color: 'var(--text)' }}>{formulaExpr}</strong>
                                 </div>
                                 {(() => {
-                                    const val = Number(formulaStep.result!.value);
-                                    const unc = Number(formulaStep.result!.uncertainty);
+                                    const val = Number(formulaResult.value);
+                                    const unc = Number(formulaResult.uncertainty);
                                     const fmt = (isFinite(val) && isFinite(unc) && unc > 0)
                                         ? roundWithUncertainty(val, unc)
-                                        : { rounded: String(formulaStep.result!.formatted ?? '--'), unrounded: `${smartFormat(val)} \u00B1 ${smartFormat(unc)}` };
+                                        : { rounded: String(formulaResult.formatted ?? '--'), unrounded: `${smartFormat(val)} \u00B1 ${smartFormat(unc)}` };
                                     return (
                                         <>
                                             <div>
@@ -925,21 +1128,21 @@ function AutoLab() {
                     )}
 
                     {/* -- N-sigma result -- */}
-                    {nsigmaStep && nsigmaStep.result && (
+                    {nsigmaResult && (
                         <div style={{ marginBottom: '1.5rem' }}>
                             <h4 style={{ margin: '0 0 0.6rem', color: 'var(--text)', fontSize: '1rem' }}>
                                 🎯 N-Sigma Comparison
                             </h4>
                             {(() => {
-                                const ns = Number(nsigmaStep.result!.n_sigma);
+                                const ns = Number(nsigmaResult.n_sigma);
                                 const col = nsigmaColor(ns);
-                                const tv = nsigmaStep.result!.theoretical_value;
-                                const tu = nsigmaStep.result!.theoretical_uncertainty;
-                                const measVal = Number(formulaStep?.result?.value);
-                                const measUnc = Number(formulaStep?.result?.uncertainty);
+                                const tv = theoVal;
+                                const tu = theoUnc;
+                                const measVal = Number(formulaResult?.value);
+                                const measUnc = Number(formulaResult?.uncertainty);
                                 const measFmt = (isFinite(measVal) && isFinite(measUnc) && measUnc > 0)
                                     ? roundWithUncertainty(measVal, measUnc).rounded
-                                    : String(formulaStep?.result?.formatted ?? '--');
+                                    : String(formulaResult?.formatted ?? '--');
                                 return (
                                     <div style={{
                                         padding: '0.85rem 1rem', borderRadius: '8px',
@@ -949,7 +1152,7 @@ function AutoLab() {
                                         <div style={{ fontSize: '1.3rem', fontWeight: 700, color: col }}>
                                             N-{'\u03C3'} = {ns.toFixed(2)}
                                             <span style={{ fontSize: '0.95rem', fontWeight: 500, marginLeft: '0.75rem', color: 'var(--text)' }}>
-                                                -- {nsigmaStep.result!.verdict}
+                                                -- {nsigmaResult.verdict}
                                             </span>
                                         </div>
                                         <div style={{ marginTop: '0.4rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
@@ -964,37 +1167,37 @@ function AutoLab() {
                     )}
 
                     {/* === FIT PLOT === */}
-                    {fitData && fitData.x_data && (
+                    {fitResult && fitResult.x_fit && (
                         <div style={{ marginBottom: '1.5rem' }}>
                             <h4 style={{ color: 'var(--text)', margin: '0 0 0.5rem', fontSize: '1rem' }}>📈 Fit Plot</h4>
                             <div ref={fitPlotRef}>
                             <Plot
                                 data={[
                                     {
-                                        x: fitData.x_data,
-                                        y: fitData.y_data,
-                                        error_y: fitData.y_errors ? {
-                                            type: 'data' as const, array: fitData.y_errors,
+                                        x: analysisXData,
+                                        y: analysisYData,
+                                        error_y: analysisYErrors ? {
+                                            type: 'data' as const, array: analysisYErrors,
                                             visible: true, color: '#999', thickness: 1.5,
                                         } : undefined,
-                                        error_x: fitData.x_errors ? {
-                                            type: 'data' as const, array: fitData.x_errors,
+                                        error_x: analysisXErrors ? {
+                                            type: 'data' as const, array: analysisXErrors,
                                             visible: true, color: '#999', thickness: 1.5,
                                         } : undefined,
                                         type: 'scatter' as const, mode: 'markers' as const,
                                         name: 'Data', marker: { size: 7, color: '#1565c0' },
                                     },
                                     {
-                                        x: fitData.x_fit, y: fitData.y_fit,
+                                        x: fitResult.x_fit, y: fitResult.y_fit,
                                         type: 'scatter' as const, mode: 'lines' as const,
-                                        name: `Fit (${fitData.model_name})`,
+                                        name: `Fit (${fitResult.model_name})`,
                                         line: { width: 2.5, color: '#d32f2f' },
                                     },
                                 ]}
                                 layout={{
-                                    title: { text: `Fit -- ${fitData.model_name}`, font: { color: '#333' } },
-                                    xaxis: { title: { text: xLabel, font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
-                                    yaxis: { title: { text: yLabel, font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
+                                    title: { text: `Fit -- ${fitResult.model_name}`, font: { color: '#333' } },
+                                    xaxis: { title: { text: xLabel || 'X', font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
+                                    yaxis: { title: { text: yLabel || 'Y', font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
                                     height: 420, margin: { l: 60, r: 30, t: 55, b: 55 },
                                     legend: { x: 0, y: 1.15, orientation: 'h' as const, font: { color: '#333' } },
                                     plot_bgcolor: '#ffffff', paper_bgcolor: '#ffffff',
@@ -1004,23 +1207,23 @@ function AutoLab() {
                             </div>
 
                             {/* Residuals plot */}
-                            {fitData.residuals && (
+                            {fitResult.residuals && (
                                 <div ref={residualsPlotRef}>
                                 <Plot
                                     data={[{
-                                        x: fitData.x_data, y: fitData.residuals,
-                                        error_y: fitData.y_errors ? {
-                                            type: 'data' as const, array: fitData.y_errors,
+                                        x: analysisXData, y: fitResult.residuals,
+                                        error_y: analysisYErrors ? {
+                                            type: 'data' as const, array: analysisYErrors,
                                             visible: true, color: '#999', thickness: 1.5,
                                         } : undefined,
-                                        error_x: fitData.x_errors ? {
-                                            type: 'data' as const, array: fitData.x_errors,
+                                        error_x: analysisXErrors ? {
+                                            type: 'data' as const, array: analysisXErrors,
                                             visible: true, color: '#999', thickness: 1.5,
                                         } : undefined,
                                         type: 'scatter' as const, mode: 'markers' as const,
                                         name: 'Residuals', marker: { size: 6, color: '#1565c0' },
                                     }, {
-                                        x: [Math.min(...fitData.x_data), Math.max(...fitData.x_data)],
+                                        x: [Math.min(...analysisXData), Math.max(...analysisXData)],
                                         y: [0, 0],
                                         type: 'scatter' as const, mode: 'lines' as const,
                                         line: { width: 1.5, color: '#999', dash: 'dash' },
@@ -1028,8 +1231,8 @@ function AutoLab() {
                                     }]}
                                     layout={{
                                         title: { text: 'Residuals (data \u2212 fit)', font: { color: '#333' } },
-                                        xaxis: { title: { text: xLabel, font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
-                                        yaxis: { title: { text: `${yLabel} \u2212 f(${xLabel})`, font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
+                                        xaxis: { title: { text: xLabel || 'X', font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
+                                        yaxis: { title: { text: `${yLabel || 'Y'} \u2212 f(${xLabel || 'X'})`, font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
                                         height: 280, margin: { l: 60, r: 30, t: 45, b: 45 },
                                         plot_bgcolor: '#ffffff', paper_bgcolor: '#ffffff',
                                     }}
@@ -1044,7 +1247,7 @@ function AutoLab() {
                     )}
 
                     {/* === EXPORT BUTTONS === */}
-                    {fitStep && (
+                    {fitResult && (
                         <div style={{
                             marginBottom: '1.5rem', display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap',
                         }}>
@@ -1059,7 +1262,7 @@ function AutoLab() {
                                     fontFamily: "'Inter', sans-serif",
                                 }}
                             >
-                                {reportCopied ? '✅ Table Copied to Clipboard!' : '📋 Copy Results as Table'}
+                                {reportCopied ? '\u2705 Table Copied to Clipboard!' : '\uD83D\uDCCB Copy Results as Table'}
                             </button>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <select
@@ -1089,7 +1292,7 @@ function AutoLab() {
                                         fontFamily: "'Inter', sans-serif",
                                     }}
                                 >
-                                    {resultsExporting ? '⏳ Exporting...' : exportFormat === 'docx' ? '📄 Export as DOCX' : '📄 Export as PDF'}
+                                    {resultsExporting ? '\u23F3 Exporting...' : exportFormat === 'docx' ? '\uD83D\uDCC4 Export as DOCX' : '\uD83D\uDCC4 Export as PDF'}
                                 </button>
                             </div>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0', textAlign: 'center' }}>
@@ -1103,13 +1306,23 @@ function AutoLab() {
                         </p>
                     )}
 
-                    {/* Report Expander + Full Report Section (D-01, D-03) */}
+                    {/* Report Expander + Full Report Section */}
                     <ReportExpander expanded={reportExpanded} onToggle={() => setReportExpanded(prev => !prev)}>
                         <ReportSection
-                            analysisData={analysisState}
+                            analysisData={fitResult ? {
+                                fit: {
+                                    ...fitResult,
+                                    x_data: analysisXData,
+                                    y_data: analysisYData,
+                                    x_errors: analysisXErrors,
+                                    y_errors: analysisYErrors,
+                                },
+                                formula: formulaResult ? { expression: formulaExpr, ...formulaResult } : undefined,
+                                nsigma: nsigmaResult ? { ...nsigmaResult, theoretical_value: parseFloat(theoVal), theoretical_uncertainty: parseFloat(theoUnc) || 0 } : undefined,
+                            } : null}
                             plotImages={plotImages}
                             initialTitle={file?.name?.replace(/\.(xlsx?|csv|tsv|ods)$/i, '').replace(/[_-]/g, ' ') || ''}
-                            instructions={instructions}
+                            instructions=""
                             demoContext={demoReportContext}
                         />
                     </ReportExpander>
