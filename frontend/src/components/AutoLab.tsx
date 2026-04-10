@@ -185,6 +185,7 @@ function AutoLab() {
     const [yCol, setYCol] = useState('');
     const [xErrCol, setXErrCol] = useState('None');
     const [yErrCol, setYErrCol] = useState('None');
+    const [plotTitle, setPlotTitle] = useState('');
     const [xLabel, setXLabel] = useState('');
     const [yLabel, setYLabel] = useState('');
     const [formulaExpr, setFormulaExpr] = useState('');
@@ -777,6 +778,14 @@ function AutoLab() {
                                 </select>
                             </div>
                         </div>
+                        {/* Graph title */}
+                        <div style={{ marginTop: '0.6rem' }}>
+                            <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Graph Title</label>
+                            <input type="text" value={plotTitle} onChange={e => setPlotTitle(e.target.value)}
+                                placeholder="e.g. Free Fall Experiment (optional)"
+                                style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.9rem', border: '1px solid var(--border)', borderRadius: '6px', boxSizing: 'border-box' }} />
+                        </div>
+
                         {/* Axis labels */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginTop: '0.6rem' }}>
                             <div>
@@ -1001,20 +1010,6 @@ function AutoLab() {
                         📊 Results
                     </h3>
 
-                    {/* -- AI Summary -- */}
-                    {summaryText && (
-                        <div style={{
-                            padding: '1rem 1.2rem', borderRadius: '10px',
-                            background: 'var(--success-bg)', border: '1px solid var(--success-border)',
-                            marginBottom: '1.5rem', fontSize: '0.95rem', lineHeight: 1.6,
-                        }}>
-                            <strong style={{ display: 'block', marginBottom: '0.4rem', color: 'var(--success)' }}>
-                                ✅ Analysis Summary
-                            </strong>
-                            <span style={{ color: 'var(--text)' }}>{summaryText}</span>
-                        </div>
-                    )}
-
                     {/* -- Parameter table -- */}
                     {fitResult && (
                         <div style={{ marginBottom: '1.5rem' }}>
@@ -1195,7 +1190,7 @@ function AutoLab() {
                                     },
                                 ]}
                                 layout={{
-                                    title: { text: `Fit -- ${fitResult.model_name}`, font: { color: '#333' } },
+                                    title: { text: plotTitle || `Fit — ${fitResult.model_name}`, font: { color: '#333' } },
                                     xaxis: { title: { text: xLabel || 'X', font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
                                     yaxis: { title: { text: yLabel || 'Y', font: { color: '#333' } }, gridcolor: '#ddd', tickfont: { color: '#333' } },
                                     height: 420, margin: { l: 60, r: 30, t: 55, b: 55 },

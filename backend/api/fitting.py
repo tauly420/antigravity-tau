@@ -172,11 +172,11 @@ def fit():
             p0 = [1, 1]
 
         elif model_type == 'exponential':
-            def model(x, a, b):
-                return a * np.exp(b * x)
-            param_names = ['a', 'b']
-            model_name = "y = a·exp(b·x)"
-            p0 = [1, 0.1]
+            def model(x, a, b, c):
+                return a * np.exp(b * x) + c
+            param_names = ['a', 'b', 'c']
+            model_name = "y = a·exp(b·x) + c"
+            p0 = [1.0, 0.1, 0.0]
 
         elif model_type == 'sinusoidal':
             def model(x, a, b, c, d):

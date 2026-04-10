@@ -59,6 +59,32 @@ DEFAULT_FONT_SIZE = Pt(11)
 # Inline math regex: $...$ but not $$
 INLINE_MATH_RE = re.compile(r'(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)')
 
+# XML 1.0 valid character regex. Strips NULL bytes and control chars
+# that python-docx/lxml will reject (e.g. \x00-\x08, \x0B, \x0C, \x0E-\x1F).
+_XML_ILLEGAL_RE = re.compile(
+    r'[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\U00010000-\U0010FFFF]'
+)
+
+
+def _clean_xml_text(value):
+    """Strip XML-incompatible characters from a string (or pass-through)."""
+    if isinstance(value, str):
+        return _XML_ILLEGAL_RE.sub('', value)
+    return value
+
+
+def _deep_clean(obj):
+    """Recursively strip XML-illegal chars from strings inside dicts/lists."""
+    if isinstance(obj, str):
+        return _clean_xml_text(obj)
+    if isinstance(obj, dict):
+        return {k: _deep_clean(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_deep_clean(v) for v in obj]
+    if isinstance(obj, tuple):
+        return tuple(_deep_clean(v) for v in obj)
+    return obj
+
 
 class _HTMLTableParser(HTMLParser):
     """Parse simple HTML tables into header and data rows."""
@@ -575,6 +601,10 @@ def generate_docx(sections, title_page, plots, analysis_data, language='he'):
     Returns:
         DOCX file contents as bytes.
     """
+    sections = _deep_clean(sections)
+    title_page = _deep_clean(title_page)
+    analysis_data = _deep_clean(analysis_data)
+
     doc, is_rtl = _setup_document(language)
     h = HEADERS.get(language, HEADERS['he'])
 
@@ -656,6 +686,9 @@ def generate_results_docx(analysis_data, plots, summary='', language='he'):
     Returns:
         DOCX file contents as bytes.
     """
+    analysis_data = _deep_clean(analysis_data)
+    summary = _clean_xml_text(summary) if summary else summary
+
     doc, is_rtl = _setup_document(language)
 
     # Heading
