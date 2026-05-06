@@ -36,6 +36,9 @@ const MODELS = [
     { value: 'power', label: 'Power  (a·xᵇ)' },
     { value: 'exponential', label: 'Exponential  (a·exp(b·x))' },
     { value: 'sinusoidal', label: 'Sinusoidal  (A·sin(ω·x + φ) + D)' },
+    { value: 'fractional', label: 'Fractional  (a/(b·x+c) + d)' },
+    { value: 'gaussian', label: 'Gaussian  (A·exp(-(x-μ)²/(2σ²)) + D)' },
+    { value: 'super_gaussian', label: 'Super-Gaussian  (A·exp(-((x-μ)²/(2σ²))²) + D)' },
     { value: 'custom', label: 'Custom expression' },
 ];
 
@@ -103,7 +106,8 @@ function GraphFitting() {
         setError('');
         setUploading(true);
         try {
-            if (f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) {
+            const lname = f.name.toLowerCase();
+            if (lname.endsWith('.xlsx') || lname.endsWith('.xls') || lname.endsWith('.xlsm') || lname.endsWith('.xlsb') || lname.endsWith('.ods')) {
                 const info = await api.parseFileInfo(f);
                 setFileInfo({ sheetNames: info.sheet_names, sheetsInfo: info.sheets_info });
                 if (info.sheet_names.length > 0) setSelectedSheet(info.sheet_names[0]);

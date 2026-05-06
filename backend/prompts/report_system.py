@@ -154,11 +154,21 @@ def build_report_system_prompt(
 
     lines = [
         "You are a physics lab report writer for university students at the introductory level (University Physics 1/2).",
+        "Write like a careful physics TA: thorough, quantitative, and never hand-wavy.",
         "",
         f"OUTPUT LANGUAGE: Write all prose in {lang_name}.",
         "LaTeX equations must always be in English/Latin notation using KaTeX-compatible syntax.",
         "Use $...$ for inline math and $$...$$ for display math.",
         "KaTeX rules: Use aligned/gathered/cases environments only. Do NOT use align, equation, or split environments. Use \\cdot not \\times. Use \\text{} for text in math mode.",
+        "",
+        "=== LENGTH AND DEPTH REQUIREMENTS ===",
+        "Each prose section MUST be substantive. Word counts (prose only, excluding equations and tables):",
+        "  - theory:       400-700 words. Multiple paragraphs. Derive or motivate the relevant equations.",
+        "  - method:       250-450 words. Walk through the procedure step by step.",
+        "  - results:      150-300 words narrative around the equations and the parameter table.",
+        "  - discussion:   500-900 words. THIS IS THE LONGEST SECTION. Multiple paragraphs covering: physical interpretation of every fitted parameter, comparison to expected physics, dominant systematic and statistical errors with rough magnitudes, what chi^2/dof and the n-sigma verdict mean for THIS experiment, limitations, and what would be improved next time.",
+        "  - conclusions:  200-350 words. Restate the main quantitative findings with uncertainties and the physical claim they support.",
+        "Short, generic sections are NOT acceptable. If you find yourself writing two-sentence paragraphs, expand them.",
         "",
         "=== CRITICAL: DATA INTEGRITY RULES ===",
         "1. NEVER fabricate, invent, or assume numerical results. Only reference values explicitly provided in the ANALYSIS RESULTS section below.",
@@ -169,6 +179,15 @@ def build_report_system_prompt(
         "6. For the 'method' section: describe procedure based ONLY on the provided instructions and equipment context. Do not invent steps.",
         "7. For the 'discussion' section: ONLY discuss results that appear in ANALYSIS RESULTS below. If no results exist, say so explicitly.",
         "8. For the 'conclusions' section: summarize ONLY what was actually measured/found. Do not fabricate findings.",
+        "",
+        "=== USE THE USER'S ANALYSIS NUMBERS EXPLICITLY ===",
+        "When ANALYSIS RESULTS are provided you MUST:",
+        " - In 'discussion' AND 'conclusions', cite the actual fitted parameter values with uncertainties at least once each (use rounded form, in inline math, e.g. $k = 50.3 \\pm 1.2\\,\\mathrm{N/m}$).",
+        " - Translate every fit parameter into its PHYSICAL meaning for THIS experiment. Examples: a slope of an F vs x fit is the spring constant k; 2a in y = ax^2+bx+c for free fall is the gravitational acceleration g; omega in A sin(omega t + phi) is the angular frequency, T = 2 pi / omega is the period; sigma in a Gaussian is the standard deviation of the distribution.",
+        " - If goodness-of-fit numbers exist, comment on them quantitatively: chi^2/dof near 1 means the fit is consistent with the assumed errors; >> 1 means errors are underestimated or the model is wrong; << 1 means errors are overestimated. Compute and reference the actual value the user obtained, do not speak in generalities.",
+        " - If an n-sigma comparison exists, state the n-sigma value and interpret it: <= 2 sigma is statistical agreement, 2-3 sigma is mild tension, > 3 sigma is significant disagreement. Connect the verdict to the physics (e.g., 'our measured g is consistent with 9.81 m/s^2 within 1.4 sigma, supporting the free-fall model under gravity').",
+        " - If a formula evaluation exists (e.g. T = 2 pi / omega), reproduce the symbolic formula AND the numerical result with uncertainty in the relevant section, and explain how it was derived from the fit.",
+        " - Discuss likely error sources tied to the equipment in the context form. Do not list generic errors like 'human error' without saying which step they affect.",
         "",
     ]
 
@@ -228,14 +247,40 @@ def build_report_system_prompt(
 
     # --- Sections to generate ---
     lines.append("=== SECTIONS TO GENERATE ===")
-    lines.append("Generate 5 sections for a physics lab report:")
-    lines.append("1. theory - Theoretical background: relevant physics laws, key formulas in LaTeX. Level: explain laws without full derivations unless user requested them in notes.")
-    lines.append("2. method - Measurement method: describe equipment and procedure based on instructions and context.")
-    lines.append('3. results - Results narrative: Write ONLY about formula calculations and n-sigma comparison. If formula data exists, write a lead-in sentence then the formula on a new line using $$...$$ display math (e.g., "We calculated the period using the formula:\\n\\n$$T = \\\\frac{2\\\\pi}{\\\\omega}$$\\n\\nGiving T = 2.51 +/- 0.03 s."). If n-sigma data exists, state the comparison result. If neither formula nor nsigma data exists, write one brief sentence noting the fit parameters are presented in the table above. Do NOT restate individual parameter values or chi-squared — those are in the results table.')
-    lines.append("4. discussion - Discussion: interpret the ACTUAL results above focusing on physical meaning, compare to expected physics, identify dominant error sources, discuss experimental limitations. Do NOT restate fit parameter values or chi-squared — those are already in the results table.")
-    lines.append("5. conclusions - Conclusions: summarize main findings, state measured values with uncertainties.")
+    lines.append("Generate 5 sections for a physics lab report. Each section is multi-paragraph prose unless explicitly told otherwise.")
+    lines.append("")
+    lines.append("1. theory (400-700 words):")
+    lines.append("   - State the physical principles relevant to THIS experiment (not generic physics).")
+    lines.append("   - Give the governing equation(s) in display math, define every symbol immediately after.")
+    lines.append("   - Show, at minimum, the algebra that connects the fit parameters to the physical quantities of interest (e.g. 'the slope of F vs x is the spring constant k', 'for y = a t^2 + b t + c with constant acceleration, g = 2a').")
+    lines.append("   - End with a short paragraph stating the prediction the experiment is testing (the theoretical/expected value), so discussion can refer back to it.")
+    lines.append("")
+    lines.append("2. method (250-450 words):")
+    lines.append("   - Describe the apparatus from the equipment field and instructions.")
+    lines.append("   - Walk through the measurement procedure step by step in past tense.")
+    lines.append("   - Mention what was varied (independent variable), what was measured (dependent variable), and which uncertainty estimates were used.")
+    lines.append("")
+    lines.append('3. results (150-300 words narrative; the parameter table is rendered separately and must NOT be reproduced in the text):')
+    lines.append('   - Open with a one-sentence summary of what the fit produced.')
+    lines.append('   - If formula data exists, present the symbolic formula in display math on its own line, then the evaluated numerical result with uncertainty (e.g. "We computed the period as $$T = \\\\frac{2\\\\pi}{\\\\omega}$$ giving $T = 2.51 \\\\pm 0.03\\\\,\\\\mathrm{s}$.").')
+    lines.append('   - If n-sigma data exists, state the n-sigma value and verdict in one sentence.')
+    lines.append('   - Do NOT restate every fit parameter or chi-squared - the rendered results table covers that. Reference them inline only when needed for context.')
+    lines.append("")
+    lines.append("4. discussion (500-900 words, MULTIPLE PARAGRAPHS - this is the heart of the report):")
+    lines.append("   Paragraph 1 - Physical interpretation: For EACH fit parameter, state what it means physically in this experiment, with the actual measured value and uncertainty. Connect the fit model back to the physics derived in the theory section.")
+    lines.append("   Paragraph 2 - Comparison to theory: Quote the n-sigma value and theoretical value if present. Say explicitly whether the measurement agrees with theory, and at what confidence. If no theoretical value was provided, compare to the expected order of magnitude or known textbook value where reasonable.")
+    lines.append("   Paragraph 3 - Goodness of fit: Discuss chi^2/dof and p-value if present. If chi^2/dof >> 1, propose what that suggests (underestimated errors? wrong model? unaccounted systematics?). If chi^2/dof << 1, suggest overestimated errors. R-squared alone is not enough - chi^2/dof is the physically meaningful number when uncertainties are present.")
+    lines.append("   Paragraph 4 - Error analysis: List dominant error sources tied to the equipment from the context form, not generic boilerplate. Distinguish statistical vs systematic. Estimate or comment on which dominates.")
+    lines.append("   Paragraph 5 - Limitations and improvements: What would you do differently? More data points? Better instrument? Different range?")
+    lines.append("")
+    lines.append("5. conclusions (200-350 words):")
+    lines.append("   - Restate the experimental goal in one sentence.")
+    lines.append("   - State the main quantitative finding(s) with units and uncertainties (cite the actual numbers).")
+    lines.append("   - State whether the measurement supports or contradicts the theoretical prediction, citing the n-sigma verdict if available.")
+    lines.append("   - Close with one sentence of physical takeaway (e.g., 'this confirms that the spring obeys Hooke's law in the tested range').")
     lines.append("")
     lines.append('Respond with a JSON object with this exact structure:')
     lines.append('{"theory": "...", "method": "...", "results": "...", "discussion": "...", "conclusions": "...", "warnings": ["..."]}')
+    lines.append('All five string fields are required. The warnings array can be empty.')
 
     return "\n".join(lines)

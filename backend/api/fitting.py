@@ -135,6 +135,14 @@ def fit():
         model_type = data.get('model', 'linear').lower()
         custom_expr = data.get('custom_expr')
         initial_guess = data.get('initial_guess')
+        fixed_params_raw = data.get('fixed_params') or {}
+        # Coerce fixed-param values to floats; ignore invalid
+        fixed_params = {}
+        for k, v in fixed_params_raw.items():
+            try:
+                fixed_params[str(k)] = float(v)
+            except (TypeError, ValueError):
+                continue
 
         if len(x_data) != len(y_data):
             return jsonify({"error": "x_data and y_data must have the same length"}), 400
@@ -201,6 +209,24 @@ def fit():
             model_name = "y = A\u00b7exp(-(x-\u03bc)\u00b2/(2\u03c3\u00b2)) + D"
             p0 = [1.0, 0.0, 1.0, 0.0]
 
+        elif model_type == 'super_gaussian':
+            # Super-Gaussian: exponent is the regular Gaussian exponent, squared.
+            # y = A * exp(-((x-mu)^2 / (2*sigma^2))^2) + D  -> overall power 4 in x
+            def model(x, A, mu, sigma, D):
+                u = ((x - mu)**2) / (2 * sigma**2)
+                return A * np.exp(-(u**2)) + D
+            param_names = ['A', 'mu', 'sigma', 'D']
+            model_name = "y = A\u00b7exp(-((x-\u03bc)\u00b2/(2\u03c3\u00b2))\u00b2) + D"
+            # Initial guess from data shape if possible
+            try:
+                A0 = float(np.max(y_data) - np.min(y_data))
+                mu0 = float(x_data[int(np.argmax(y_data))])
+                sigma0 = float((np.max(x_data) - np.min(x_data)) / 4) or 1.0
+                D0 = float(np.min(y_data))
+                p0 = [A0, mu0, sigma0, D0]
+            except Exception:
+                p0 = [1.0, 0.0, 1.0, 0.0]
+
         elif model_type == 'custom':
             if not custom_expr:
                 return jsonify({"error": "custom_expr is required for custom model"}), 400
@@ -224,17 +250,64 @@ def fit():
         else:
             return jsonify({"error": f"Unknown model type: {model_type}"}), 400
 
+        # If user pinned some parameters to specific values, wrap the model so that
+        # curve_fit only optimises the remaining (free) parameters. Fixed parameters
+        # are reported with their pinned value and zero uncertainty.
+        active_fixed = {k: v for k, v in fixed_params.items() if k in param_names}
+        free_indices = [i for i, p in enumerate(param_names) if p not in active_fixed]
+        free_param_names = [param_names[i] for i in free_indices]
+
+        if active_fixed and free_indices:
+            base_model = model
+
+            def wrapped_model(x, *free_args):
+                full = []
+                fi = 0
+                for p in param_names:
+                    if p in active_fixed:
+                        full.append(active_fixed[p])
+                    else:
+                        full.append(free_args[fi])
+                        fi += 1
+                return base_model(x, *full)
+
+            fit_model = wrapped_model
+            fit_p0 = [p0[i] for i in free_indices] if isinstance(p0, (list, tuple)) and len(p0) == len(param_names) else None
+        elif active_fixed and not free_indices:
+            return jsonify({"error": "All parameters were fixed; nothing left to fit."}), 400
+        else:
+            fit_model = model
+            fit_p0 = p0
+
         # Perform curve fitting
         try:
             if y_errors is not None:
-                popt, pcov = optimize.curve_fit(model, x_data, y_data, sigma=y_errors, p0=p0, absolute_sigma=True, maxfev=10000)
+                popt_free, pcov_free = optimize.curve_fit(fit_model, x_data, y_data, sigma=y_errors, p0=fit_p0, absolute_sigma=True, maxfev=10000)
             else:
-                popt, pcov = optimize.curve_fit(model, x_data, y_data, p0=p0, maxfev=10000)
+                popt_free, pcov_free = optimize.curve_fit(fit_model, x_data, y_data, p0=fit_p0, maxfev=10000)
         except Exception as e:
             return jsonify({"error": f"Fitting failed: {str(e)}"}), 400
 
-        # Calculate uncertainties
-        perr = np.sqrt(np.diag(pcov))
+        perr_free = np.sqrt(np.diag(pcov_free))
+
+        # Reconstruct full popt / perr including fixed parameters
+        if active_fixed:
+            popt = []
+            perr = []
+            fi = 0
+            for p in param_names:
+                if p in active_fixed:
+                    popt.append(active_fixed[p])
+                    perr.append(0.0)
+                else:
+                    popt.append(float(popt_free[fi]))
+                    perr.append(float(perr_free[fi]))
+                    fi += 1
+            popt = np.array(popt)
+            perr = np.array(perr)
+        else:
+            popt = popt_free
+            perr = perr_free
 
         # Calculate R-squared
         y_pred = model(x_data, *popt)
@@ -242,8 +315,8 @@ def fit():
         ss_tot = np.sum((y_data - np.mean(y_data))**2)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
 
-        # Degrees of freedom
-        n_params = len(popt)
+        # Degrees of freedom — only free parameters consume a dof
+        n_params = len(free_param_names) if active_fixed else len(popt)
         n_data = len(x_data)
         dof = n_data - n_params
 
@@ -273,6 +346,7 @@ def fit():
             "parameters": popt.tolist(),
             "uncertainties": perr.tolist(),
             "parameter_names": param_names,
+            "fixed_params": active_fixed,
             "r_squared": float(r_squared),
             "chi_squared": chi2_total,
             "reduced_chi_squared": float(reduced_chi2),

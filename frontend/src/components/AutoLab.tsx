@@ -86,6 +86,7 @@ const MODEL_FORMULAS: Record<string, string> = {
     sinusoidal: 'y = A\u00B7sin(\u03C9x + \u03C6) + D',
     fractional: 'y = a/(b\u00B7x+c) + d',
     gaussian: 'y = A\u00B7exp(-(x-\u03BC)\u00B2/(2\u03C3\u00B2)) + D',
+    super_gaussian: 'y = A\u00B7exp(-((x-\u03BC)\u00B2/(2\u03C3\u00B2))\u00B2) + D',
 };
 
 /** Parameter names for each model (used for fixing constants) */
@@ -98,6 +99,7 @@ const MODEL_PARAMS: Record<string, string[]> = {
     sinusoidal: ['A', 'omega', 'phi', 'D'],
     fractional: ['a', 'b', 'c', 'd'],
     gaussian: ['A', 'mu', 'sigma', 'D'],
+    super_gaussian: ['A', 'mu', 'sigma', 'D'],
 };
 
 /** Fit model options for the dropdown (no Auto option -- D-05) */
@@ -110,6 +112,7 @@ const FIT_MODEL_OPTIONS = [
     { value: 'sinusoidal', label: '\uD83C\uDF0A Sinusoidal', desc: 'y = A\u00B7sin(\u03C9x + \u03C6) + D' },
     { value: 'fractional', label: '\u2797 Fractional', desc: 'y = a/(b\u00B7x+c) + d' },
     { value: 'gaussian', label: '\uD83D\uDD14 Gaussian', desc: 'y = A\u00B7exp(-(x-\u03BC)\u00B2/(2\u03C3\u00B2)) + D' },
+    { value: 'super_gaussian', label: '\uD83D\uDD14 Super-Gaussian', desc: 'y = A\u00B7exp(-((x-\u03BC)\u00B2/(2\u03C3\u00B2))\u00B2) + D' },
     { value: 'custom', label: '\u270F\uFE0F Custom', desc: 'Enter your own expression' },
 ];
 
@@ -278,7 +281,8 @@ function AutoLab() {
         setSheetNames([]);
         setSelectedSheet('');
         try {
-            const isExcel = f.name.endsWith('.xlsx') || f.name.endsWith('.xls') || f.name.endsWith('.xlsm') || f.name.endsWith('.xlsb');
+            const lname = f.name.toLowerCase();
+            const isExcel = lname.endsWith('.xlsx') || lname.endsWith('.xls') || lname.endsWith('.xlsm') || lname.endsWith('.xlsb') || lname.endsWith('.ods');
             if (isExcel) {
                 const info = await api.parseFileInfo(f);
                 if (info.sheet_names.length > 1) {
@@ -312,19 +316,31 @@ function AutoLab() {
         setPreviewData(null);
         try {
             const data = await api.parseFileData(f, sheet, PREVIEW_MAX_ROWS);
-            if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows)) {
+            if (Array.isArray(data?.columns) && data.columns.length > 0 && Array.isArray(data?.rows) && data.rows.length > 0) {
                 const cols = data.columns.map(String);
                 setPreviewData({ columns: cols, rows: data.rows });
                 applyAutoDetect(cols);
+            } else {
+                setPreviewError(`Sheet "${sheet}" has no data rows or columns.`);
+                setXCol(''); setYCol(''); setXErrCol('None'); setYErrCol('None');
             }
         } catch {
-            setPreviewError('Could not load sheet preview.');
+            setPreviewError(`Could not load sheet "${sheet}" -- it may be empty or use an unsupported format.`);
+            setXCol(''); setYCol(''); setXErrCol('None'); setYErrCol('None');
         }
     };
 
     /* Auto-load preview when sheet selection changes */
     const handleSheetChange = (sheet: string) => {
         setSelectedSheet(sheet);
+        // Reset column assignments and downstream results so the previous sheet's
+        // data can't leak into the new sheet's analysis.
+        setXCol(''); setYCol(''); setXErrCol('None'); setYErrCol('None');
+        setFitResult(null);
+        setFormulaResult(null);
+        setNsigmaResult(null);
+        setSummaryText(null);
+        setPlotImages({ fit: null, residuals: null });
         if (file) loadPreviewForSheet(file, sheet);
     };
 
@@ -414,12 +430,12 @@ function AutoLab() {
             if (selectedModel === 'custom' && customExpr.trim()) fitPayload.custom_expr = customExpr.trim();
             const fixedEntries = Object.entries(fixedParams).filter(([, v]) => v.trim() !== '');
             if (fixedEntries.length > 0) {
-                const paramNames = MODEL_PARAMS[selectedModel] || [];
-                const guess = paramNames.map(p => {
-                    const fixed = fixedParams[p];
-                    return fixed?.trim() ? parseFloat(fixed) : 1;
-                });
-                fitPayload.initial_guess = guess;
+                const fp: Record<string, number> = {};
+                for (const [k, v] of fixedEntries) {
+                    const num = parseFloat(v);
+                    if (!isNaN(num)) fp[k] = num;
+                }
+                if (Object.keys(fp).length > 0) fitPayload.fixed_params = fp;
             }
 
             const fitRes = await fitData(fitPayload);

@@ -142,7 +142,8 @@ function Workflow() {
         setUploadError('');
         setUploading(true);
         try {
-            if (f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) {
+            const lname = f.name.toLowerCase();
+            if (lname.endsWith('.xlsx') || lname.endsWith('.xls') || lname.endsWith('.xlsm') || lname.endsWith('.xlsb') || lname.endsWith('.ods')) {
                 const info = await api.parseFileInfo(f);
                 setFileInfo({ sheetNames: info.sheet_names, sheetsInfo: info.sheets_info });
                 if (info.sheet_names.length > 0) setSelectedSheet(info.sheet_names[0]);

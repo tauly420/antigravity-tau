@@ -265,9 +265,10 @@ def generate():
             model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": "Generate the lab report sections based on the provided context and analysis results."},
+                {"role": "user", "content": "Generate the lab report sections based on the provided context and analysis results. Respect the per-section word counts in the system prompt; do not truncate the discussion."},
             ],
             response_format={"type": "json_object"},
+            max_tokens=8000,
         )
 
         sections = json.loads(response.choices[0].message.content)

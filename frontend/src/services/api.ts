@@ -174,6 +174,7 @@ export const fitData = async (data: {
     model: string;
     custom_expr?: string;
     initial_guess?: number[];
+    fixed_params?: Record<string, number>;
 }) => {
     const response = await api.post('/fitting/fit', data);
     return response.data;
