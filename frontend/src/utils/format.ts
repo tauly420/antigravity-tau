@@ -24,7 +24,7 @@ export function smartFormat(value: number | null | undefined, sigFigs: number = 
 }
 
 /**
- * Scientific rounding: round uncertainty to 1 sig fig,
+ * Scientific rounding: round uncertainty to 2 sig figs,
  * then round the value to the same decimal place.
  * Returns both a rounded string and an unrounded string.
  */
@@ -33,16 +33,35 @@ export function roundWithUncertainty(value: number, uncertainty: number): { roun
     if (!isFinite(value) || !isFinite(uncertainty) || uncertainty <= 0) {
         return { rounded: `${smartFormat(value)} \u00B1 ${smartFormat(uncertainty)}`, unrounded };
     }
-    const orderOfMagnitude = Math.floor(Math.log10(Math.abs(uncertainty)));
-    const factor = Math.pow(10, orderOfMagnitude);
-    const roundedUncertainty = Math.round(uncertainty / factor) * factor;
-    const decimalPlaces = Math.max(0, -orderOfMagnitude);
-    const roundedValue = parseFloat(value.toFixed(decimalPlaces));
-    const roundedUnc = parseFloat(roundedUncertainty.toFixed(decimalPlaces));
+    const o = Math.floor(Math.log10(Math.abs(uncertainty)));
+    let decimals = Math.max(0, 1 - o);
+    let roundedUnc = parseFloat(uncertainty.toFixed(decimals));
+    // If rounding bumped the magnitude (e.g. 0.0995 -> 0.10), recompute decimals
+    if (roundedUnc > 0) {
+        const o2 = Math.floor(Math.log10(roundedUnc));
+        if (o2 > o) {
+            decimals = Math.max(0, 1 - o2);
+            roundedUnc = parseFloat(uncertainty.toFixed(decimals));
+        }
+    }
+    const roundedValue = parseFloat(value.toFixed(decimals));
     return {
-        rounded: `${roundedValue.toFixed(decimalPlaces)} \u00B1 ${roundedUnc.toFixed(decimalPlaces)}`,
+        rounded: `${roundedValue.toFixed(decimals)} \u00B1 ${roundedUnc.toFixed(decimals)}`,
         unrounded,
     };
+}
+
+/**
+ * Format relative uncertainty (uncertainty / |value|) as a percentage
+ * rounded to 2 significant figures. Returns "\u2014" if not computable.
+ */
+export function formatRelativeError(value: number, uncertainty: number): string {
+    if (!isFinite(value) || !isFinite(uncertainty) || uncertainty <= 0 || value === 0) return '\u2014';
+    const pct = (uncertainty / Math.abs(value)) * 100;
+    if (!isFinite(pct)) return '\u2014';
+    const o = Math.floor(Math.log10(pct));
+    const decimals = Math.max(0, 1 - o);
+    return `${pct.toFixed(decimals)}%`;
 }
 
 /**

@@ -9,6 +9,19 @@ const api = axios.create({
     },
 });
 
+// Surface backend error messages from response body instead of axios's generic
+// "Request failed with status code 500" string.
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        const backendMsg = error?.response?.data?.error;
+        if (backendMsg && typeof backendMsg === 'string' && backendMsg.trim()) {
+            error.message = backendMsg;
+        }
+        return Promise.reject(error);
+    }
+);
+
 // Formula API
 export const evaluateFormula = async (data: {
     expression: string;

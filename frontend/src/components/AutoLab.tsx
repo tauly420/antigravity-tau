@@ -4,7 +4,7 @@ import DataPreview from './DataPreview';
 import { useAnalysis } from '../context/AnalysisContext';
 import * as api from '../services/api';
 import { fitData, evaluateFormula, calculateNSigma, autolabChat } from '../services/api';
-import { roundWithUncertainty, smartFormat, formatPValue } from '../utils/format';
+import { roundWithUncertainty, smartFormat, formatPValue, formatRelativeError } from '../utils/format';
 import ReportSection from './report/ReportSection';
 import ReportExpander from './report/ReportExpander';
 import { normalizeAnalysisData } from '../utils/normalize';
@@ -163,11 +163,14 @@ const tdStyle: React.CSSProperties = {
 };
 
 /** Build an HTML table string for clipboard (pastes as table in Google Docs/Word) */
-function buildHtmlTable(names: string[], params: number[], uncs: number[], roundFn: (v: number, u: number) => { rounded: string; unrounded: string }): string {
-    let html = '<table><thead><tr><th>Parameter</th><th>Rounded</th><th>Full Precision</th></tr></thead><tbody>';
+function buildHtmlTable(names: string[], params: number[], uncs: number[], roundFn: (v: number, u: number) => { rounded: string; unrounded: string }, fixedSet: Record<string, string> = {}): string {
+    let html = '<table><thead><tr><th>Parameter</th><th>Rounded</th><th>Rel. error</th><th>Full Precision</th></tr></thead><tbody>';
     names.forEach((name, j) => {
-        const fmt = roundFn(Number(params[j]), Number(uncs[j]));
-        html += `<tr><td>${name}</td><td>${fmt.rounded}</td><td>${fmt.unrounded}</td></tr>`;
+        if (fixedSet[name]?.trim()) return;
+        const v = Number(params[j]);
+        const u = Number(uncs[j]);
+        const fmt = roundFn(v, u);
+        html += `<tr><td>${name}</td><td>${fmt.rounded}</td><td>${formatRelativeError(v, u)}</td><td>${fmt.unrounded}</td></tr>`;
     });
     html += '</tbody></table>';
     return html;
@@ -566,23 +569,24 @@ function AutoLab() {
         const formula = MODEL_FORMULAS[modelKey] || customExpr || '';
 
         let html = '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:sans-serif;font-size:14px">';
-        html += '<thead><tr style="background:#e3f2fd"><th>Quantity</th><th>Rounded</th><th>Full Precision</th></tr></thead><tbody>';
+        html += '<thead><tr style="background:#e3f2fd"><th>Quantity</th><th>Rounded</th><th>Rel. error</th><th>Full Precision</th></tr></thead><tbody>';
 
         names.forEach((name: string, j: number) => {
+            if (fixedParams[name]?.trim()) return;
             const v = Number(params[j]);
             const u = Number(uncs[j]);
             const fmt = roundWithUncertainty(v, u);
-            html += `<tr><td>${name}</td><td>${fmt.rounded}</td><td>${fmt.unrounded}</td></tr>`;
+            html += `<tr><td>${name}</td><td>${fmt.rounded}</td><td>${formatRelativeError(v, u)}</td><td>${fmt.unrounded}</td></tr>`;
         });
 
         if (fitResult?.reduced_chi_squared != null) {
             const chi2 = Number(fitResult.reduced_chi_squared);
-            html += `<tr><td>\u03C7\u00B2 reduced</td><td>${isFinite(chi2) ? chi2.toFixed(3) : '\u2014'}</td><td>${isFinite(chi2) ? chi2 : '\u2014'}</td></tr>`;
+            html += `<tr><td>\u03C7\u00B2 reduced</td><td>${isFinite(chi2) ? chi2.toFixed(3) : '\u2014'}</td><td>\u2014</td><td>${isFinite(chi2) ? chi2 : '\u2014'}</td></tr>`;
         }
 
         if (fitResult?.p_value != null) {
             const pv = Number(fitResult.p_value);
-            html += `<tr><td>P-value</td><td>${formatPValue(pv)}</td><td>${isFinite(pv) ? pv : '\u2014'}</td></tr>`;
+            html += `<tr><td>P-value</td><td>${formatPValue(pv)}</td><td>\u2014</td><td>${isFinite(pv) ? pv : '\u2014'}</td></tr>`;
         }
 
         if (formulaResult) {
@@ -590,48 +594,50 @@ function AutoLab() {
             const unc = Number(formulaResult.uncertainty);
             if (isFinite(val) && isFinite(unc) && unc > 0) {
                 const fmt = roundWithUncertainty(val, unc);
-                html += `<tr><td>${formulaExpr}</td><td>${fmt.rounded}</td><td>${fmt.unrounded}</td></tr>`;
+                html += `<tr><td>${formulaExpr}</td><td>${fmt.rounded}</td><td>${formatRelativeError(val, unc)}</td><td>${fmt.unrounded}</td></tr>`;
             } else {
-                html += `<tr><td>${formulaExpr}</td><td>${formulaResult.formatted ?? '\u2014'}</td><td>${smartFormat(val)} \u00B1 ${smartFormat(unc)}</td></tr>`;
+                html += `<tr><td>${formulaExpr}</td><td>${formulaResult.formatted ?? '\u2014'}</td><td>\u2014</td><td>${smartFormat(val)} \u00B1 ${smartFormat(unc)}</td></tr>`;
             }
         }
 
         if (nsigmaResult) {
             const ns = Number(nsigmaResult.n_sigma);
-            html += `<tr><td>N-\u03C3</td><td>${ns.toFixed(2)}\u03C3 \u2014 ${nsigmaResult.verdict}</td><td>${ns}\u03C3</td></tr>`;
+            html += `<tr><td>N-\u03C3</td><td>${ns.toFixed(2)}\u03C3 \u2014 ${nsigmaResult.verdict}</td><td>\u2014</td><td>${ns}\u03C3</td></tr>`;
         }
 
         if (formula) {
-            html += `<tr><td>Fit Formula</td><td colspan="2">${formula}</td></tr>`;
+            html += `<tr><td>Fit Formula</td><td colspan="3">${formula}</td></tr>`;
         }
 
         html += '</tbody></table>';
 
         // Plain text version (tab-separated)
-        let plain = 'Quantity\tRounded\tFull Precision\n';
+        let plain = 'Quantity\tRounded\tRel. error\tFull Precision\n';
         names.forEach((name: string, j: number) => {
+            if (fixedParams[name]?.trim()) return;
             const v = Number(params[j]);
             const u = Number(uncs[j]);
             const fmt = roundWithUncertainty(v, u);
-            plain += `${name}\t${fmt.rounded}\t${fmt.unrounded}\n`;
+            plain += `${name}\t${fmt.rounded}\t${formatRelativeError(v, u)}\t${fmt.unrounded}\n`;
         });
         if (fitResult?.reduced_chi_squared != null) {
             const chi2 = Number(fitResult.reduced_chi_squared);
-            plain += `\u03C7\u00B2 reduced\t${isFinite(chi2) ? chi2.toFixed(3) : '\u2014'}\t${isFinite(chi2) ? chi2 : '\u2014'}\n`;
+            plain += `\u03C7\u00B2 reduced\t${isFinite(chi2) ? chi2.toFixed(3) : '\u2014'}\t\u2014\t${isFinite(chi2) ? chi2 : '\u2014'}\n`;
         }
         if (fitResult?.p_value != null) {
             const pv = Number(fitResult.p_value);
-            plain += `P-value\t${formatPValue(pv)}\t${isFinite(pv) ? pv : '\u2014'}\n`;
+            plain += `P-value\t${formatPValue(pv)}\t\u2014\t${isFinite(pv) ? pv : '\u2014'}\n`;
         }
         if (formulaResult) {
             const val = Number(formulaResult.value);
             const unc = Number(formulaResult.uncertainty);
             const fmt = (isFinite(val) && isFinite(unc) && unc > 0) ? roundWithUncertainty(val, unc) : { rounded: String(formulaResult.formatted ?? '\u2014'), unrounded: `${smartFormat(val)} \u00B1 ${smartFormat(unc)}` };
-            plain += `${formulaExpr}\t${fmt.rounded}\t${fmt.unrounded}\n`;
+            const rel = (isFinite(val) && isFinite(unc) && unc > 0) ? formatRelativeError(val, unc) : '\u2014';
+            plain += `${formulaExpr}\t${fmt.rounded}\t${rel}\t${fmt.unrounded}\n`;
         }
         if (nsigmaResult) {
             const ns = Number(nsigmaResult.n_sigma);
-            plain += `N-\u03C3\t${ns.toFixed(2)}\u03C3 \u2014 ${nsigmaResult.verdict}\t${ns}\u03C3\n`;
+            plain += `N-\u03C3\t${ns.toFixed(2)}\u03C3 \u2014 ${nsigmaResult.verdict}\t\u2014\t${ns}\u03C3\n`;
         }
         if (formula) {
             plain += `Fit Formula\t${formula}\n`;
@@ -658,14 +664,17 @@ function AutoLab() {
         const params = fitResult?.parameters || [];
         const uncs = fitResult?.uncertainties || [];
 
-        const plainLines = ['Parameter\tRounded\tFull Precision'];
+        const plainLines = ['Parameter\tRounded\tRel. error\tFull Precision'];
         names.forEach((name: string, j: number) => {
-            const fmt = roundWithUncertainty(Number(params[j]), Number(uncs[j]));
-            plainLines.push(`${name}\t${fmt.rounded}\t${fmt.unrounded}`);
+            if (fixedParams[name]?.trim()) return;
+            const v = Number(params[j]);
+            const u = Number(uncs[j]);
+            const fmt = roundWithUncertainty(v, u);
+            plainLines.push(`${name}\t${fmt.rounded}\t${formatRelativeError(v, u)}\t${fmt.unrounded}`);
         });
         const plainText = plainLines.join('\n');
 
-        const htmlStr = buildHtmlTable(names, params, uncs, roundWithUncertainty);
+        const htmlStr = buildHtmlTable(names, params, uncs, roundWithUncertainty, fixedParams);
 
         if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
             const item = new ClipboardItem({
@@ -901,9 +910,11 @@ function AutoLab() {
                                             placeholder="free"
                                             style={{
                                                 width: '5rem', padding: '0.3rem 0.5rem',
-                                                fontSize: '0.85rem', border: '1px solid var(--border)',
+                                                fontSize: '0.85rem',
+                                                border: fixedParams[param]?.trim() ? '1.5px solid #f59e0b' : '1px solid var(--border)',
                                                 borderRadius: '5px', fontFamily: 'monospace',
-                                                background: fixedParams[param]?.trim() ? '#fff3e0' : 'var(--surface)',
+                                                background: 'var(--surface)',
+                                                color: 'var(--text)',
                                             }}
                                         />
                                     </div>
@@ -1061,18 +1072,23 @@ function AutoLab() {
                                         <tr style={{ background: 'var(--surface-alt)' }}>
                                             <th style={thStyle}>Parameter</th>
                                             <th style={thStyle}>Rounded (2 sig. fig. on unc.)</th>
+                                            <th style={thStyle}>Rel. error</th>
                                             <th style={thStyle}>Full precision</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {(fitResult.parameter_names as string[] || []).map((name: string, j: number) => {
+                                        {(fitResult.parameter_names as string[] || [])
+                                            .map((name: string, j: number) => ({ name, j }))
+                                            .filter(({ name }) => !(fixedParams[name]?.trim()))
+                                            .map(({ name, j }, idx: number) => {
                                             const val = Number(fitResult.parameters?.[j]);
                                             const unc = Number(fitResult.uncertainties?.[j]);
                                             const fmt = roundWithUncertainty(val, unc);
                                             return (
-                                                <tr key={name} style={{ background: j % 2 === 0 ? 'var(--surface)' : 'var(--surface-alt)' }}>
+                                                <tr key={name} style={{ background: idx % 2 === 0 ? 'var(--surface)' : 'var(--surface-alt)' }}>
                                                     <td style={tdStyle}><strong>{name}</strong></td>
                                                     <td style={tdStyle}>{fmt.rounded}</td>
+                                                    <td style={tdStyle}>{formatRelativeError(val, unc)}</td>
                                                     <td style={{ ...tdStyle, color: 'var(--text-muted)', fontSize: '0.82rem' }}>{fmt.unrounded}</td>
                                                 </tr>
                                             );
