@@ -17,6 +17,7 @@ import StatisticsCalculator from './components/StatisticsCalculator';
 import ConstantsReference from './components/ConstantsReference';
 import { AnalysisProvider } from './context/AnalysisContext';
 import Sidebar from './components/Sidebar';
+import ThemeToggle from './components/ThemeToggle';
 
 const NAV_ITEMS = [
     { path: '/', label: 'Home', icon: '🏠' },
@@ -59,6 +60,9 @@ function AppContent() {
                         </div>
                     </div>
                 )}
+                <div className="header-right">
+                    <ThemeToggle />
+                </div>
             </header>
 
             <main className="main-content">

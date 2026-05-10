@@ -270,13 +270,13 @@ function FourierAnalysis() {
                     ]}
                     layout={{
                         title: { text: 'Time-Domain Signal' },
-                        xaxis: { title: { text: 'Time (s)' }, gridcolor: '#2a2a4a' },
-                        yaxis: { title: { text: 'Amplitude' }, gridcolor: '#2a2a4a' },
+                        xaxis: { title: { text: 'Time (s)' }, gridcolor: '#e0e0e5' },
+                        yaxis: { title: { text: 'Amplitude' }, gridcolor: '#e0e0e5' },
                         height: 350,
                         margin: { l: 60, r: 30, t: 45, b: 50 },
                         legend: { x: 0, y: 1.12, orientation: 'h' as const },
-                        plot_bgcolor: '#16213e',
-                        paper_bgcolor: '#1a1a2e',
+                        plot_bgcolor: '#ffffff',
+                        paper_bgcolor: '#ffffff',
                     }}
                     useResizeHandler style={{ width: '100%' }}
                     config={{ responsive: true, displaylogo: false }}
@@ -298,12 +298,12 @@ function FourierAnalysis() {
                     }]}
                     layout={{
                         title: { text: 'DFT — Amplitude Spectrum' },
-                        xaxis: { title: { text: 'Frequency (Hz)' }, gridcolor: '#2a2a4a' },
-                        yaxis: { title: { text: 'Amplitude' }, gridcolor: '#2a2a4a' },
+                        xaxis: { title: { text: 'Frequency (Hz)' }, gridcolor: '#e0e0e5' },
+                        yaxis: { title: { text: 'Amplitude' }, gridcolor: '#e0e0e5' },
                         height: 350,
                         margin: { l: 60, r: 30, t: 45, b: 50 },
-                        plot_bgcolor: '#16213e',
-                        paper_bgcolor: '#1a1a2e',
+                        plot_bgcolor: '#ffffff',
+                        paper_bgcolor: '#ffffff',
                         annotations: result.dominant_frequencies?.slice(0, 5).map((d: DominantFreq, i: number) => ({
                             x: d.frequency,
                             y: d.amplitude,
@@ -335,12 +335,12 @@ function FourierAnalysis() {
                     }]}
                     layout={{
                         title: { text: 'Power Spectral Density' },
-                        xaxis: { title: { text: 'Frequency (Hz)' }, gridcolor: '#2a2a4a' },
-                        yaxis: { title: { text: 'Power' }, type: 'log', gridcolor: '#2a2a4a' },
+                        xaxis: { title: { text: 'Frequency (Hz)' }, gridcolor: '#e0e0e5' },
+                        yaxis: { title: { text: 'Power' }, type: 'log', gridcolor: '#e0e0e5' },
                         height: 350,
                         margin: { l: 60, r: 30, t: 45, b: 50 },
-                        plot_bgcolor: '#16213e',
-                        paper_bgcolor: '#1a1a2e',
+                        plot_bgcolor: '#ffffff',
+                        paper_bgcolor: '#ffffff',
                     }}
                     useResizeHandler style={{ width: '100%' }}
                     config={{ responsive: true, displaylogo: false }}
@@ -448,13 +448,13 @@ function FourierAnalysis() {
                                 ]}
                                 layout={{
                                     title: { text: `Inverse DFT — ${filterType === 'none' ? 'Full Reconstruction' : filterType.charAt(0).toUpperCase() + filterType.slice(1) + ' Filtered'}` },
-                                    xaxis: { title: { text: 'Time (s)' }, gridcolor: '#2a2a4a' },
-                                    yaxis: { title: { text: 'Amplitude' }, gridcolor: '#2a2a4a' },
+                                    xaxis: { title: { text: 'Time (s)' }, gridcolor: '#e0e0e5' },
+                                    yaxis: { title: { text: 'Amplitude' }, gridcolor: '#e0e0e5' },
                                     height: 350,
                                     margin: { l: 60, r: 30, t: 45, b: 50 },
                                     legend: { x: 0, y: 1.12, orientation: 'h' as const },
-                                    plot_bgcolor: '#16213e',
-                                    paper_bgcolor: '#1a1a2e',
+                                    plot_bgcolor: '#ffffff',
+                                    paper_bgcolor: '#ffffff',
                                 }}
                                 useResizeHandler style={{ width: '100%' }}
                                 config={{ responsive: true, displaylogo: false }}

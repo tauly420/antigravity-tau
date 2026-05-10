@@ -1017,7 +1017,7 @@ function AutoLab() {
                     className="btn-primary"
                     style={{
                         width: '100%', fontSize: '1.15rem', padding: '0.9rem',
-                        background: running ? '#90a4ae' : 'linear-gradient(135deg, #1565c0, #1976d2)',
+                        background: running ? '#90a4ae' : 'linear-gradient(135deg, var(--primary), var(--primary-light))',
                         border: 'none', borderRadius: '10px', color: 'white',
                         cursor: running ? 'wait' : 'pointer', transition: 'all 0.3s',
                     }}

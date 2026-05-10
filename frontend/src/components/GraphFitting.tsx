@@ -397,13 +397,13 @@ function GraphFitting() {
                         ]}
                         layout={{
                             title: { text: plotTitle || 'Curve Fit' },
-                            xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#2a2a4a' },
-                            yaxis: { title: { text: yLabel || 'Y' }, gridcolor: '#2a2a4a' },
+                            xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#e0e0e5' },
+                            yaxis: { title: { text: yLabel || 'Y' }, gridcolor: '#e0e0e5' },
                             height: 500,
                             margin: { l: 65, r: 30, t: 55, b: 60 },
                             legend: { x: 0, y: 1.12, orientation: 'h' as const },
-                            plot_bgcolor: '#16213e',
-                            paper_bgcolor: '#1a1a2e',
+                            plot_bgcolor: '#ffffff',
+                            paper_bgcolor: '#ffffff',
                         }}
                         useResizeHandler
                         style={{ width: '100%' }}
@@ -424,12 +424,12 @@ function GraphFitting() {
                         }]}
                         layout={{
                             title: { text: 'Residuals' },
-                            xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#2a2a4a' },
-                            yaxis: { title: { text: 'Residual' }, gridcolor: '#2a2a4a' },
+                            xaxis: { title: { text: xLabel || 'X' }, gridcolor: '#e0e0e5' },
+                            yaxis: { title: { text: 'Residual' }, gridcolor: '#e0e0e5' },
                             height: 280,
                             margin: { l: 65, r: 30, t: 40, b: 55 },
-                            plot_bgcolor: '#16213e',
-                            paper_bgcolor: '#1a1a2e',
+                            plot_bgcolor: '#ffffff',
+                            paper_bgcolor: '#ffffff',
                             shapes: [{ type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 0, y1: 0, line: { color: '#888', width: 1, dash: 'dash' } }],
                         }}
                         useResizeHandler

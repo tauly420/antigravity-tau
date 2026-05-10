@@ -385,7 +385,7 @@ function StatisticsCalculator() {
                     <div
                         onClick={() => fileInputRef.current?.click()}
                         style={{
-                            border: '2px dashed #90caf9',
+                            border: '2px dashed var(--border)',
                             borderRadius: '12px',
                             padding: '2rem',
                             textAlign: 'center',
@@ -393,11 +393,11 @@ function StatisticsCalculator() {
                             backgroundColor: 'var(--surface-alt)',
                             transition: 'border-color 0.2s, background-color 0.2s',
                         }}
-                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#1565c0'; e.currentTarget.style.backgroundColor = 'var(--surface-alt)'; }}
-                        onDragLeave={(e) => { e.currentTarget.style.borderColor = '#90caf9'; e.currentTarget.style.backgroundColor = 'var(--surface-alt)'; }}
+                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'var(--surface-alt)'; }}
+                        onDragLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'var(--surface-alt)'; }}
                         onDrop={(e) => {
                             e.preventDefault();
-                            e.currentTarget.style.borderColor = '#90caf9';
+                            e.currentTarget.style.borderColor = 'var(--border)';
                             e.currentTarget.style.backgroundColor = 'var(--surface-alt)';
                             const file = e.dataTransfer.files[0];
                             if (file && fileInputRef.current) {
@@ -411,7 +411,7 @@ function StatisticsCalculator() {
                         {fileName ? (
                             <div>
                                 <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{'\uD83D\uDCC4'}</div>
-                                <div style={{ fontWeight: 'bold', color: '#1565c0' }}>{fileName}</div>
+                                <div style={{ fontWeight: 'bold', color: 'var(--primary)' }}>{fileName}</div>
                                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                                     {fileData ? `${fileData.columns.length} columns, ${fileData.rows.length} rows` : 'Loading...'}
                                 </div>
@@ -495,7 +495,7 @@ function StatisticsCalculator() {
                                         </thead>
                                         <tbody>
                                             {fileData.rows.slice(0, 20).map((row, i) => (
-                                                <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                                                <tr key={i} style={{ backgroundColor: i % 2 === 0 ? 'var(--surface)' : 'var(--surface-alt)' }}>
                                                     <td style={{ padding: '0.3rem 0.75rem', color: 'var(--text-muted)' }}>{i + 1}</td>
                                                     <td style={{ padding: '0.3rem 0.75rem', textAlign: 'right' }}>{row[selectedColumn]}</td>
                                                 </tr>
@@ -545,10 +545,10 @@ function StatisticsCalculator() {
                         style={{
                             marginTop: '1.5rem',
                             padding: '1.25rem',
-                            background: 'linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)',
+                            background: 'linear-gradient(135deg, var(--info-bg) 0%, var(--info-bg-end) 100%)',
                             borderRadius: '8px',
                             textAlign: 'center',
-                            border: '1px solid #bbdefb',
+                            border: '1px solid var(--info-border)',
                         }}
                     >
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
@@ -559,7 +559,7 @@ function StatisticsCalculator() {
                                 fontSize: '1.8rem',
                                 fontWeight: 'bold',
                                 fontFamily: 'monospace',
-                                color: '#1565c0',
+                                color: 'var(--info-text)',
                             }}
                         >
                             {stats.formatted}
@@ -626,7 +626,7 @@ function StatisticsCalculator() {
                                             textAlign: 'right',
                                             padding: '0.6rem 1rem',
                                             backgroundColor: 'var(--surface-alt)',
-                                            borderBottom: '2px solid #90caf9',
+                                            borderBottom: '2px solid var(--border)',
                                             fontFamily: 'inherit',
                                         }}
                                     >
@@ -639,13 +639,13 @@ function StatisticsCalculator() {
                                     <tr
                                         key={row.label}
                                         style={{
-                                            backgroundColor: i % 2 === 0 ? '#fafafa' : '#fff',
+                                            backgroundColor: i % 2 === 0 ? 'var(--surface-alt)' : 'var(--surface)',
                                         }}
                                     >
                                         <td
                                             style={{
                                                 padding: '0.5rem 1rem',
-                                                borderBottom: '1px solid #eee',
+                                                borderBottom: '1px solid var(--border-light)',
                                                 fontFamily: 'sans-serif',
                                             }}
                                         >
@@ -654,7 +654,7 @@ function StatisticsCalculator() {
                                         <td
                                             style={{
                                                 padding: '0.5rem 1rem',
-                                                borderBottom: '1px solid #eee',
+                                                borderBottom: '1px solid var(--border-light)',
                                                 textAlign: 'right',
                                             }}
                                         >
@@ -687,11 +687,13 @@ function StatisticsCalculator() {
                             layout={{
                                 xaxis: {
                                     title: 'Value' as any,
-                                    gridcolor: '#2a2a4a',
+                                    gridcolor: '#e0e0e5',
+                                    color: '#1a1a2e',
                                 },
                                 yaxis: {
                                     title: 'Count' as any,
-                                    gridcolor: '#2a2a4a',
+                                    gridcolor: '#e0e0e5',
+                                    color: '#1a1a2e',
                                 },
                                 shapes: [
                                     {
@@ -701,7 +703,7 @@ function StatisticsCalculator() {
                                         y0: 0,
                                         y1: 1,
                                         yref: 'paper',
-                                        line: { color: 'var(--danger)', width: 2.5, dash: 'dash' },
+                                        line: { color: '#d32f2f', width: 2.5, dash: 'dash' },
                                     },
                                     {
                                         type: 'rect',
@@ -721,7 +723,7 @@ function StatisticsCalculator() {
                                         yref: 'paper',
                                         text: `x\u0304 = ${stats.mean.toPrecision(5)}`,
                                         showarrow: false,
-                                        font: { color: 'var(--danger)', size: 12, family: 'monospace' },
+                                        font: { color: '#d32f2f', size: 12, family: 'monospace' },
                                     },
                                     {
                                         x: stats.mean + stats.std,
@@ -729,7 +731,7 @@ function StatisticsCalculator() {
                                         yref: 'paper',
                                         text: `+\u03C3`,
                                         showarrow: false,
-                                        font: { color: 'var(--danger)', size: 11 },
+                                        font: { color: '#d32f2f', size: 11 },
                                     },
                                     {
                                         x: stats.mean - stats.std,
@@ -737,11 +739,11 @@ function StatisticsCalculator() {
                                         yref: 'paper',
                                         text: `-\u03C3`,
                                         showarrow: false,
-                                        font: { color: 'var(--danger)', size: 11 },
+                                        font: { color: '#d32f2f', size: 11 },
                                     },
                                 ],
-                                plot_bgcolor: '#16213e',
-                                paper_bgcolor: '#1a1a2e',
+                                plot_bgcolor: '#ffffff',
+                                paper_bgcolor: '#ffffff',
                                 margin: { t: 40, r: 30, b: 50, l: 60 },
                                 bargap: 0.05,
                                 showlegend: false,
@@ -772,10 +774,11 @@ function StatisticsCalculator() {
                             layout={{
                                 yaxis: {
                                     title: (inputMode === 'file' && selectedColumn ? selectedColumn : 'Value') as any,
-                                    gridcolor: '#2a2a4a',
+                                    gridcolor: '#e0e0e5',
+                                    color: '#1a1a2e',
                                 },
-                                plot_bgcolor: '#16213e',
-                                paper_bgcolor: '#1a1a2e',
+                                plot_bgcolor: '#ffffff',
+                                paper_bgcolor: '#ffffff',
                                 margin: { t: 20, r: 30, b: 30, l: 60 },
                                 showlegend: false,
                             }}

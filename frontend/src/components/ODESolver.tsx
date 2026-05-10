@@ -196,7 +196,7 @@ function ODESolver() {
         responsive: true, displaylogo: false,
         toImageButtonOptions: { format: 'png' as any, filename: 'ode_plot', height: 800, width: 1200, scale: 2 },
     };
-    const plotBg = { plot_bgcolor: '#16213e', paper_bgcolor: '#1a1a2e' };
+    const plotBg = { plot_bgcolor: '#ffffff', paper_bgcolor: '#ffffff' };
 
     /* ── Determine if this is an x-y system (4 components: x, y, vx, vy) ── */
     const isXY = result && result.y.length >= 4 && coordSystem === 'cartesian';
@@ -404,8 +404,8 @@ function ODESolver() {
                         }))}
                         layout={{
                             title: { text: 'Solution vs Time' },
-                            xaxis: { title: { text: 'Time (t)' }, gridcolor: '#2a2a4a' },
-                            yaxis: { title: { text: 'y(t)' }, gridcolor: '#2a2a4a' },
+                            xaxis: { title: { text: 'Time (t)' }, gridcolor: '#e0e0e5' },
+                            yaxis: { title: { text: 'y(t)' }, gridcolor: '#e0e0e5' },
                             height: 420,
                             margin: { l: 60, r: 30, t: 50, b: 50 },
                             legend: { x: 0, y: 1.15, orientation: 'h' as const },
@@ -440,8 +440,8 @@ function ODESolver() {
                             ]}
                             layout={{
                                 title: { text: 'Phase Portrait' },
-                                xaxis: { title: { text: 'y₀' }, gridcolor: '#2a2a4a' },
-                                yaxis: { title: { text: 'y₁' }, gridcolor: '#2a2a4a', scaleanchor: 'x' as any },
+                                xaxis: { title: { text: 'y₀' }, gridcolor: '#e0e0e5' },
+                                yaxis: { title: { text: 'y₁' }, gridcolor: '#e0e0e5', scaleanchor: 'x' as any },
                                 height: 420,
                                 margin: { l: 60, r: 30, t: 50, b: 50 },
                                 ...plotBg,
@@ -477,8 +477,8 @@ function ODESolver() {
                             ]}
                             layout={{
                                 title: { text: isPolar ? 'Orbit (X-Y from Polar)' : 'Spatial Trajectory (X vs Y)' },
-                                xaxis: { title: { text: 'X' }, gridcolor: '#2a2a4a' },
-                                yaxis: { title: { text: 'Y' }, gridcolor: '#2a2a4a', scaleanchor: 'x' as any },
+                                xaxis: { title: { text: 'X' }, gridcolor: '#e0e0e5' },
+                                yaxis: { title: { text: 'Y' }, gridcolor: '#e0e0e5', scaleanchor: 'x' as any },
                                 height: 450,
                                 margin: { l: 60, r: 30, t: 50, b: 50 },
                                 ...plotBg,
@@ -510,8 +510,8 @@ function ODESolver() {
                             ]}
                             layout={{
                                 title: { text: 'Energy Conservation' },
-                                xaxis: { title: { text: 'Time (t)' }, gridcolor: '#2a2a4a' },
-                                yaxis: { title: { text: 'Energy' }, gridcolor: '#2a2a4a' },
+                                xaxis: { title: { text: 'Time (t)' }, gridcolor: '#e0e0e5' },
+                                yaxis: { title: { text: 'Energy' }, gridcolor: '#e0e0e5' },
                                 height: 380,
                                 margin: { l: 60, r: 30, t: 50, b: 50 },
                                 legend: { x: 0, y: 1.15, orientation: 'h' as const },

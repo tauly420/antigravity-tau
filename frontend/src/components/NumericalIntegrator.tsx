@@ -248,13 +248,13 @@ function NumericalIntegrator() {
                         ]}
                         layout={{
                             title: { text: `∫ ${functionStr} dx` },
-                            xaxis: { title: { text: 'x' }, gridcolor: '#2a2a4a' },
-                            yaxis: { title: { text: 'f(x)' }, gridcolor: '#2a2a4a' },
+                            xaxis: { title: { text: 'x' }, gridcolor: '#e0e0e5' },
+                            yaxis: { title: { text: 'f(x)' }, gridcolor: '#e0e0e5' },
                             height: 400,
                             margin: { l: 60, r: 30, t: 55, b: 55 },
                             legend: { x: 0, y: 1.15, orientation: 'h' as const },
-                            plot_bgcolor: '#16213e',
-                            paper_bgcolor: '#1a1a2e',
+                            plot_bgcolor: '#ffffff',
+                            paper_bgcolor: '#ffffff',
                         }}
                         useResizeHandler
                         style={{ width: '100%' }}
