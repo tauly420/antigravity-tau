@@ -475,6 +475,159 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> Tuple[float, st
         result = base_value / units[to_unit]
         
         return result, None
-    
+
     except Exception as e:
         return 0, str(e)
+
+
+# ════════════════════════════════════════════════════════════════
+# Robust tabular file parsing
+# ════════════════════════════════════════════════════════════════
+
+def _looks_like_header_row(values) -> bool:
+    """A row looks like a header if a majority of its non-empty cells
+    are non-numeric strings. Returns False when most cells parse as
+    numbers (meaning the first row is actually data)."""
+    import pandas as pd
+    non_null = []
+    for v in values:
+        if v is None:
+            continue
+        try:
+            if pd.isna(v):
+                continue
+        except (TypeError, ValueError):
+            pass
+        s = str(v).strip()
+        if s == '':
+            continue
+        non_null.append(v)
+    if not non_null:
+        return False
+    numeric = 0
+    for v in non_null:
+        if isinstance(v, bool):
+            continue
+        if isinstance(v, (int, float)):
+            numeric += 1
+            continue
+        s = str(v).strip().replace(',', '.')
+        try:
+            float(s)
+            numeric += 1
+        except (ValueError, TypeError):
+            pass
+    return numeric < len(non_null) / 2
+
+
+def _clean_column_names(df):
+    """Replace blank / Unnamed / NaN / duplicate column names with
+    'Column N' style placeholders so the frontend always has a label."""
+    import pandas as pd
+    if df is None or len(df.columns) == 0:
+        return df
+    new_cols = []
+    seen = {}
+    for i, c in enumerate(df.columns):
+        try:
+            blank = c is None or pd.isna(c)
+        except (TypeError, ValueError):
+            blank = c is None
+        s = '' if blank else str(c).strip()
+        low = s.lower()
+        if s == '' or low.startswith('unnamed:') or low == 'nan':
+            s = f'Column {i + 1}'
+        if s in seen:
+            seen[s] += 1
+            s = f'{s}.{seen[s]}'
+        else:
+            seen[s] = 0
+        new_cols.append(s)
+    df.columns = new_cols
+    return df
+
+
+def _finalize_dataframe(df_raw):
+    """Given a header=None dataframe, decide whether the first row is a
+    header and return a cleaned dataframe with string column names."""
+    import pandas as pd
+    if df_raw is None or df_raw.empty:
+        if df_raw is not None and len(df_raw.columns) > 0:
+            df_raw.columns = [f'Column {i + 1}' for i in range(len(df_raw.columns))]
+        return df_raw if df_raw is not None else pd.DataFrame()
+
+    first = df_raw.iloc[0].tolist()
+    if _looks_like_header_row(first):
+        new_cols = []
+        for i, v in enumerate(first):
+            try:
+                blank = v is None or pd.isna(v)
+            except (TypeError, ValueError):
+                blank = v is None
+            s = '' if blank else str(v).strip()
+            new_cols.append(s if s else f'Column {i + 1}')
+        df_raw.columns = new_cols
+        df = df_raw.iloc[1:].reset_index(drop=True)
+    else:
+        df_raw.columns = [f'Column {i + 1}' for i in range(len(df_raw.columns))]
+        df = df_raw
+
+    df = df.dropna(how='all').reset_index(drop=True)
+    return _clean_column_names(df)
+
+
+def robust_read_tabular(file_obj, file_kind: str, sheet_name: str = None):
+    """Read csv/tsv/excel/ods robustly.
+
+    Tolerates: missing header row (numeric first row), blank/duplicate
+    column names, sheets containing only embedded images (no cell data),
+    and odd column counts. Always returns string column names.
+
+    Returns (df, sheet_names). sheet_names is ['Sheet1'] for non-spreadsheet files.
+    """
+    import pandas as pd
+
+    try:
+        file_obj.seek(0)
+    except (AttributeError, OSError):
+        pass
+
+    if file_kind == 'csv':
+        df_raw = pd.read_csv(file_obj, header=None, skip_blank_lines=True)
+        return _finalize_dataframe(df_raw), ['Sheet1']
+
+    if file_kind == 'tsv':
+        df_raw = pd.read_csv(
+            file_obj, sep=r'\s+|,|\t', engine='python',
+            header=None, skip_blank_lines=True,
+        )
+        return _finalize_dataframe(df_raw), ['Sheet1']
+
+    if file_kind in ('excel', 'ods'):
+        engine = 'odf' if file_kind == 'ods' else None
+        xl = pd.ExcelFile(file_obj, engine=engine)
+        sheet_names = xl.sheet_names or ['Sheet1']
+        target = sheet_name if sheet_name and sheet_name in sheet_names else sheet_names[0]
+        try:
+            df_raw = xl.parse(target, header=None)
+        except Exception:
+            df_raw = pd.DataFrame()
+        return _finalize_dataframe(df_raw), sheet_names
+
+    raise ValueError(f'Unsupported file_kind: {file_kind}')
+
+
+def file_kind_from_name(filename: str):
+    """Map a filename to one of: 'csv', 'tsv', 'excel', 'ods', or None."""
+    if not filename:
+        return None
+    f = filename.lower()
+    if f.endswith('.csv'):
+        return 'csv'
+    if f.endswith(('.tsv', '.dat', '.txt')):
+        return 'tsv'
+    if f.endswith(('.xls', '.xlsx', '.xlsm', '.xlsb')):
+        return 'excel'
+    if f.endswith('.ods'):
+        return 'ods'
+    return None

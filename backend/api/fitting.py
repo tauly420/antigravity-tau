@@ -8,6 +8,9 @@ import numpy as np
 from scipy import optimize, stats
 from sympy import sympify, symbols, lambdify
 import math
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils.calculations import robust_read_tabular, file_kind_from_name
 
 fitting_bp = Blueprint('fitting', __name__)
 
@@ -30,13 +33,8 @@ def parse_file():
 
         import pandas as pd
 
-        fname = file.filename.lower()
-        is_csv = fname.endswith('.csv')
-        is_tsv = fname.endswith('.tsv') or fname.endswith('.dat') or fname.endswith('.txt')
-        is_excel = fname.endswith(('.xls', '.xlsx', '.xlsm', '.xlsb'))
-        is_ods = fname.endswith('.ods')
-
-        if not (is_csv or is_tsv or is_excel or is_ods):
+        kind = file_kind_from_name(file.filename)
+        if kind is None:
             return jsonify({"error": "Unsupported file type. Use .csv, .tsv, .xlsx, .xls, .xlsm, .xlsb, .ods, .dat, or .txt"}), 400
 
         sheet_name = request.form.get('sheet_name', None)
@@ -44,44 +42,41 @@ def parse_file():
         max_rows_str = request.form.get('max_rows', None)
         max_rows = int(max_rows_str) if max_rows_str else None
 
-        if is_csv:
-            df = pd.read_csv(file)
-            sheet_names = ['Sheet1']
-        elif is_tsv:
-            df = pd.read_csv(file, sep=r'\s+|,|\t', engine='python')
-            sheet_names = ['Sheet1']
-        elif is_ods:
-            xl = pd.ExcelFile(file, engine='odf')
-            sheet_names = xl.sheet_names
-            if info_only:
-                sheets_info = {}
-                for sn in sheet_names:
-                    try:
-                        df_temp = xl.parse(sn, nrows=0)
-                        sheets_info[sn] = list(df_temp.columns)
-                    except Exception:
-                        sheets_info[sn] = []
-                return jsonify({"sheet_names": sheet_names, "sheets_info": sheets_info})
-            target_sheet = sheet_name if sheet_name else sheet_names[0]
-            df = xl.parse(target_sheet)
-        else:
-            # Excel formats
-            xl = pd.ExcelFile(file)
-            sheet_names = xl.sheet_names
-            if info_only:
-                sheets_info = {}
-                for sn in sheet_names:
-                    try:
-                        df_temp = xl.parse(sn, nrows=0)
-                        sheets_info[sn] = list(df_temp.columns)
-                    except Exception:
-                        sheets_info[sn] = []
-                return jsonify({"sheet_names": sheet_names, "sheets_info": sheets_info})
-            target_sheet = sheet_name if sheet_name else sheet_names[0]
-            df = xl.parse(target_sheet)
+        # For multi-sheet info-only requests, read every sheet's columns via the
+        # robust parser so headerless sheets still report sensible column names.
+        if info_only and kind in ('excel', 'ods'):
+            try:
+                file.seek(0)
+            except (AttributeError, OSError):
+                pass
+            engine = 'odf' if kind == 'ods' else None
+            xl = pd.ExcelFile(file, engine=engine)
+            sheet_names_all = xl.sheet_names or ['Sheet1']
+            sheets_info = {}
+            for sn in sheet_names_all:
+                try:
+                    file.seek(0)
+                except (AttributeError, OSError):
+                    pass
+                try:
+                    df_sn, _ = robust_read_tabular(file, kind, sheet_name=sn)
+                    sheets_info[sn] = list(df_sn.columns)
+                except Exception:
+                    sheets_info[sn] = []
+            return jsonify({"sheet_names": sheet_names_all, "sheets_info": sheets_info})
 
-        # Return columns and data as rows
-        df = df.dropna(how='all')
+        df, sheet_names = robust_read_tabular(file, kind, sheet_name=sheet_name)
+
+        if df is None or df.empty or len(df.columns) == 0:
+            # Sheet has no tabular data (e.g., only an embedded image).
+            return jsonify({
+                "columns": list(df.columns) if df is not None else [],
+                "rows": [],
+                "sheet_names": sheet_names,
+                "row_count": 0,
+                "warning": "Sheet contains no tabular data (it may hold only images, charts, or be empty).",
+            })
+
         total_rows = len(df)
         columns = list(df.columns)
 

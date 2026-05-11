@@ -98,6 +98,45 @@ function formatResult(mean: number, uncertainty: number): string {
 
 type InputMode = 'manual' | 'file';
 
+/* Detect whether a row is a header row (mostly non-numeric strings) or data.
+   Returns true when the row should be treated as column titles. */
+function looksLikeHeader(row: unknown[]): boolean {
+    const nonEmpty = row.filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+    if (nonEmpty.length === 0) return false;
+    let numeric = 0;
+    for (const v of nonEmpty) {
+        if (typeof v === 'number' && !isNaN(v)) { numeric++; continue; }
+        const n = Number(String(v).trim().replace(',', '.'));
+        if (!isNaN(n)) numeric++;
+    }
+    return numeric < nonEmpty.length / 2;
+}
+
+/* Build clean string column names from a header row or fall back to "Column N".
+   Resolves blanks and duplicates so every column ends up with a unique label. */
+function buildColumnNames(headerRow: unknown[] | null, width: number): string[] {
+    const seen: Record<string, number> = {};
+    const out: string[] = [];
+    for (let i = 0; i < width; i++) {
+        let name = '';
+        if (headerRow) {
+            const v = headerRow[i];
+            if (v !== null && v !== undefined) name = String(v).trim();
+        }
+        if (!name || /^unnamed:/i.test(name) || name.toLowerCase() === 'nan') {
+            name = `Column ${i + 1}`;
+        }
+        if (seen[name] !== undefined) {
+            seen[name]++;
+            name = `${name}.${seen[name]}`;
+        } else {
+            seen[name] = 0;
+        }
+        out.push(name);
+    }
+    return out;
+}
+
 interface FileData {
     columns: string[];
     rows: Record<string, string>[];
@@ -163,20 +202,52 @@ function StatisticsCalculator() {
 
     const loadSheetFromWorkbook = (workbook: XLSX.WorkBook, sheetName: string) => {
         const sheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: '' });
-        if (jsonData.length === 0) {
-            setError('Sheet appears empty.');
+        if (!sheet) {
+            setError(`Sheet "${sheetName}" could not be read.`);
             return;
         }
-        const columns = Object.keys(jsonData[0]);
-        setFileData({ columns, rows: jsonData.map(row => {
-            const out: Record<string, string> = {};
-            columns.forEach(c => out[c] = String(row[c] ?? ''));
-            return out;
-        })});
+        // Read as array-of-arrays so we control header detection ourselves.
+        const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, blankrows: false }) as unknown[][];
+        if (!aoa || aoa.length === 0) {
+            setError('Sheet has no tabular data (it may hold only images or charts).');
+            setFileData(null);
+            setSelectedColumn('');
+            return;
+        }
+        const width = aoa.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
+        if (width === 0) {
+            setError('Sheet has no usable columns.');
+            setFileData(null);
+            setSelectedColumn('');
+            return;
+        }
+        const firstRow = aoa[0] || [];
+        const hasHeader = looksLikeHeader(firstRow);
+        const columns = buildColumnNames(hasHeader ? firstRow : null, width);
+        const dataRows = hasHeader ? aoa.slice(1) : aoa;
+        const rows: Record<string, string>[] = dataRows
+            .map(r => {
+                const out: Record<string, string> = {};
+                let anyVal = false;
+                columns.forEach((c, i) => {
+                    const v = (r as unknown[])[i];
+                    const s = v === null || v === undefined ? '' : String(v);
+                    if (s.trim() !== '') anyVal = true;
+                    out[c] = s;
+                });
+                return anyVal ? out : null;
+            })
+            .filter((r): r is Record<string, string> => r !== null);
+        if (rows.length === 0) {
+            setError('Sheet has headers but no data rows.');
+            setFileData({ columns, rows: [] });
+            setSelectedColumn('');
+            return;
+        }
+        setFileData({ columns, rows });
         setSelectedColumn('');
         const firstNumCol = columns.find(col =>
-            jsonData.some(row => !isNaN(Number(row[col])) && String(row[col]).trim() !== '')
+            rows.some(row => !isNaN(Number(row[col])) && String(row[col]).trim() !== '')
         );
         if (firstNumCol) setSelectedColumn(firstNumCol);
     };
@@ -203,19 +274,40 @@ function StatisticsCalculator() {
         const ext = file.name.split('.').pop()?.toLowerCase();
 
         if (ext === 'csv' || ext === 'tsv' || ext === 'txt') {
+            // Parse without header so we can decide whether row 0 is a header.
             Papa.parse(file, {
-                header: true,
+                header: false,
                 skipEmptyLines: true,
                 complete: (result) => {
-                    if (result.errors.length > 0 && result.data.length === 0) {
+                    const rowsRaw = (result.data as unknown[][]) || [];
+                    if (rowsRaw.length === 0) {
                         setError('Could not parse file. Check format.');
                         return;
                     }
-                    const columns = result.meta.fields || [];
-                    setFileData({ columns, rows: result.data as Record<string, string>[] });
-                    // Auto-select first numeric column
+                    const width = rowsRaw.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
+                    if (width === 0) {
+                        setError('File has no columns.');
+                        return;
+                    }
+                    const hasHeader = looksLikeHeader(rowsRaw[0]);
+                    const columns = buildColumnNames(hasHeader ? rowsRaw[0] : null, width);
+                    const dataRows = hasHeader ? rowsRaw.slice(1) : rowsRaw;
+                    const rows: Record<string, string>[] = dataRows
+                        .map(r => {
+                            const out: Record<string, string> = {};
+                            let anyVal = false;
+                            columns.forEach((c, i) => {
+                                const v = (r as unknown[])[i];
+                                const s = v === null || v === undefined ? '' : String(v);
+                                if (s.trim() !== '') anyVal = true;
+                                out[c] = s;
+                            });
+                            return anyVal ? out : null;
+                        })
+                        .filter((r): r is Record<string, string> => r !== null);
+                    setFileData({ columns, rows });
                     const firstNumCol = columns.find(col =>
-                        (result.data as Record<string, string>[]).some(row => !isNaN(Number(row[col])) && row[col]?.trim() !== '')
+                        rows.some(row => !isNaN(Number(row[col])) && row[col]?.trim() !== '')
                     );
                     if (firstNumCol) setSelectedColumn(firstNumCol);
                 },

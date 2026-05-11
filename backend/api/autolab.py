@@ -43,7 +43,7 @@ autolab_bp = Blueprint('autolab', __name__)
 # ── Import existing utilities ──
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from utils.calculations import propagate_uncertainty_independent, scientific_round, n_sigma
+from utils.calculations import propagate_uncertainty_independent, scientific_round, n_sigma, robust_read_tabular, file_kind_from_name
 
 
 # ════════════════════════════════════════════════════════════════
@@ -56,30 +56,24 @@ def tool_parse_file(file_bytes: bytes, filename: str, sheet_name: str = None,
                     x_col_index: int = None, y_col_index: int = None,
                     x_err_col_index: int = None, y_err_col_index: int = None):
     """Parse uploaded file and extract data columns."""
-    fname = filename.lower()
-    buf = io.BytesIO(file_bytes)
-
-    if fname.endswith('.csv'):
-        df = pd.read_csv(buf)
-        sheets = ['Sheet1']
-    elif fname.endswith(('.tsv', '.dat', '.txt')):
-        df = pd.read_csv(buf, sep=r'\s+|,|\t', engine='python')
-        sheets = ['Sheet1']
-    elif fname.endswith(('.xlsx', '.xls', '.xlsm', '.xlsb')):
-        xl = pd.ExcelFile(buf)
-        sheets = xl.sheet_names
-        target = sheet_name if sheet_name and sheet_name in sheets else sheets[0]
-        df = xl.parse(target)
-    elif fname.endswith('.ods'):
-        xl = pd.ExcelFile(buf, engine='odf')
-        sheets = xl.sheet_names
-        target = sheet_name if sheet_name and sheet_name in sheets else sheets[0]
-        df = xl.parse(target)
-    else:
+    kind = file_kind_from_name(filename)
+    if kind is None:
         return {"error": f"Unsupported file type: {filename}"}
 
-    df = df.dropna(how='all').reset_index(drop=True)
-    # Ensure column names are strings (handles integer-indexed columns)
+    buf = io.BytesIO(file_bytes)
+    try:
+        df, sheets = robust_read_tabular(buf, kind, sheet_name=sheet_name)
+    except Exception as e:
+        return {"error": f"Failed to read file: {e}"}
+
+    if df is None or df.empty or len(df.columns) == 0:
+        return {
+            "columns": list(df.columns) if df is not None else [],
+            "sheet_names": sheets,
+            "num_rows": 0,
+            "warning": "Sheet contains no tabular data (only images/charts or empty).",
+        }
+
     df.columns = [str(c) for c in df.columns]
     cols = list(df.columns)
 
